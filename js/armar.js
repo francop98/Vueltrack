@@ -96,7 +96,13 @@ const buscador = crearBuscador($('dir'), {
     };
     buscador.limpiar();
     await guardarParadas([...paradas(), nueva]);
-    aviso('Parada agregada');
+    if (r.aproximada) {
+      // La altura no está en el mapa: se abre la parada para ubicar el pin en la puerta
+      aviso('No tenemos esa altura exacta: arrastrá el pin hasta la puerta');
+      setTimeout(() => editarParada(nueva.id), 300);
+    } else {
+      aviso('Parada agregada');
+    }
   }
 });
 

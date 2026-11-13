@@ -60,6 +60,34 @@ export async function pedirORS(ruta, { method = 'GET', body } = {}) {
   return datos;
 }
 
+/* Nominatim (buscador oficial de OpenStreetMap). Gratis, con uso moderado:
+   máximo 1 pedido por segundo e identificando la app. */
+export async function pedirNominatim(texto, foco) {
+  const q = new URLSearchParams({
+    q: texto,
+    format: 'jsonv2',
+    addressdetails: '1',
+    countrycodes: 'ar',
+    limit: '6'
+  });
+  if (foco) {
+    q.set('viewbox', [foco.lng - 0.4, foco.lat + 0.4, foco.lng + 0.4, foco.lat - 0.4].join(','));
+    q.set('bounded', '0');
+  }
+  const resp = await fetch(`https://nominatim.openstreetmap.org/search?${q.toString()}`, {
+    headers: {
+      'User-Agent': 'Vueltrack/1.1 (https://vueltrack.vercel.app)',
+      'Accept-Language': 'es'
+    }
+  });
+  if (!resp.ok) {
+    const error = new Error('nominatim');
+    error.estado = resp.status;
+    throw error;
+  }
+  return resp.json();
+}
+
 export function responder(res, estado, datos) {
   res.setHeader('Cache-Control', 'no-store');
   res.status(estado).json(datos);

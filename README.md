@@ -1,4 +1,4 @@
-# Vueltrack v1.0
+# Vueltrack v1.1
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,7 @@ vueltrack/
 ## Límites del plan gratis de OpenRouteService
 
 - La cantidad diaria de cálculos y búsquedas figura en tu panel de account.heigit.org.
+- Nominatim (respaldo de búsqueda) es gratis con uso moderado: hasta 1 búsqueda por segundo.
 - Hasta 48 paradas por fletero en una vuelta (límite de 50 ubicaciones por cálculo).
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
@@ -97,6 +98,10 @@ vueltrack/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v1.1
+- Búsqueda de direcciones más robusta: si OpenRouteService no encuentra “calle + altura”, prueba con su búsqueda completa y después con Nominatim (OpenStreetMap).
+- Si la altura exacta no está en el mapa, la dirección se carga como aproximada y se abre la parada para ubicar el pin en la puerta.
 
 ### v1.0
 Primera versión: cuentas, trabajo solo o en equipo, roles, clientes habituales, armar y ordenar la vuelta, repartir entre fleteros, modo fletero, modo claro y oscuro, app instalable.
