@@ -1306,14 +1306,14 @@ fieldset.sin-borde legend {
 
 .velo.lateral {
   align-items: stretch;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .cajon {
   width: min(320px, 86vw);
   height: 100%;
   background: var(--superficie);
-  border-left: 1px solid var(--linea);
+  border-right: 1px solid var(--linea);
   padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -1324,7 +1324,7 @@ fieldset.sin-borde legend {
 
 @keyframes entrar-cajon {
   from {
-    transform: translateX(100%);
+    transform: translateX(-100%);
   }
   to {
     transform: translateX(0);
@@ -1401,4 +1401,144 @@ fieldset.sin-borde legend {
 
 input:disabled {
   opacity: 0.7;
+}
+
+/* ---------- Contraseñas con botón para ver ---------- */
+
+.campo-clave {
+  position: relative;
+  display: block;
+}
+
+.campo-clave input {
+  padding-right: 52px;
+}
+
+.ver-clave {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--tenue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ver-clave svg {
+  width: 20px;
+  height: 20px;
+}
+
+.casilla-linea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.casilla-linea input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--acento);
+}
+
+/* ---------- Guía y pasos ---------- */
+
+.guia {
+  text-align: center;
+  align-items: center;
+}
+
+.guia p {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.guia .botonera {
+  width: 100%;
+}
+
+.guia-icono {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--acento-suave);
+  color: var(--ruta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guia-icono svg {
+  width: 32px;
+  height: 32px;
+}
+
+.guia-puntos {
+  display: flex;
+  gap: 6px;
+}
+
+.guia-puntos span {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--linea);
+}
+
+.guia-puntos span.activo {
+  width: 22px;
+  background: var(--ruta);
+}
+
+.pasos {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.icono-texto svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: -3px;
+  color: var(--ruta);
+}
+
+.aviso-instalar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--superficie);
+  border: 1px dashed var(--ruta);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.aviso-instalar svg {
+  width: 26px;
+  height: 26px;
+  color: var(--ruta);
+  flex-shrink: 0;
+}
+
+.aviso-instalar .titulo-bloque {
+  flex: 1;
+  min-width: 0;
+}
+
+button.aviso-instalar {
+  width: 100%;
+  text-align: left;
+  color: var(--tinta);
 }

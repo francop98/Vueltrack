@@ -1,4 +1,4 @@
-# Vueltrack v2.3
+# Vueltrack v3.0
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,16 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v3.0
+- Ingreso: “Recordar mis datos en este celular” (guarda el correo y mantiene la sesión) y botón para ver u ocultar la contraseña.
+- Instalar como app: en Android/Chrome abre el cartel de instalación; en iPhone muestra los pasos (Compartir → Agregar a pantalla de inicio). Está en Inicio, en el menú y al final del onboarding.
+- Guía de uso para nuevos: se muestra sola la primera vez y queda en el menú.
+- Onboarding completo: nombre y teléfono, modo de trabajo, zona (provincia y localidad), punto de salida, jornada (hora de salida, demora por destino, volver) y vehículo.
+- Búsquedas: priorizan la localidad cargada, después la provincia, y descartan otras provincias si hay resultados en la tuya.
+- Zona de trabajo y punto de salida editables desde Equipo (organizador).
+- Menú hamburguesa a la izquierda; el panel sale desde la izquierda.
+- Reglas de Firestore: cada integrante puede guardar su teléfono (hay que volver a publicarlas).
 
 ### v2.3
 - Corrige la búsqueda de comercios: Photon marca muchos comercios como “casa” y se estaban descartando. Photon y OpenRouteService se consultan a la vez.

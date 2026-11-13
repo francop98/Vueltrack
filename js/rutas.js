@@ -25,12 +25,23 @@ async function pedir(url, opciones = {}) {
   return datos;
 }
 
-/* Sugerencias de direcciones, priorizando las cercanas al punto de salida */
-export async function buscarDirecciones(texto, foco) {
+/* Zona de trabajo del equipo: las búsquedas priorizan esa localidad y después la provincia */
+let zonaBusqueda = null;
+export function definirZonaBusqueda(zona) {
+  zonaBusqueda = zona || null;
+}
+
+/* Sugerencias de direcciones y lugares */
+export async function buscarDirecciones(texto, foco, zona = zonaBusqueda) {
   const q = new URLSearchParams({ texto });
-  if (foco && foco.lat != null) {
-    q.set('lat', foco.lat);
-    q.set('lng', foco.lng);
+  const centro = foco && foco.lat != null ? foco : zona && zona.lat != null ? zona : null;
+  if (centro) {
+    q.set('lat', centro.lat);
+    q.set('lng', centro.lng);
+  }
+  if (zona) {
+    if (zona.localidad) q.set('localidad', zona.localidad);
+    if (zona.provincia) q.set('provincia', zona.provincia);
   }
   const datos = await pedir(`/api/buscar?${q.toString()}`);
   return datos.resultados || [];
@@ -46,6 +57,14 @@ export async function optimizar({ base, desde, volver, demora, salida, vehiculos
     method: 'POST',
     body: JSON.stringify({ base, desde, volver, demora, salida, vehiculos, paradas, modo, orden })
   });
+}
+
+/* Localidades de Argentina (para elegir la zona de trabajo) */
+export async function buscarLocalidades(nombre, provincia) {
+  const q = new URLSearchParams({ nombre });
+  if (provincia) q.set('provincia', provincia);
+  const datos = await pedir(`/api/localidades?${q.toString()}`);
+  return datos.localidades || [];
 }
 
 /* Dirección aproximada de un punto (para "Usar mi ubicación actual") */

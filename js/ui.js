@@ -24,6 +24,10 @@ export const ICONOS = {
   ubicacion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
   ordenar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
   cuenta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  ojo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  ojoTachado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+  descargar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
+  ayuda: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5M12 17h.01"/></svg>',
   estrella: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>'
 };
 
@@ -321,4 +325,31 @@ export function pintarNav(activa, { organizador }) {
         `<a href="${i.href}" class="${i.id === activa ? 'activo' : ''}" ${i.id === activa ? 'aria-current="page"' : ''}>${i.icono}${i.texto}</a>`
     )
     .join('')}</div>`;
+}
+
+/* ---------- Mostrar / ocultar contraseñas ---------- */
+
+export function activarVerClave(raiz = document) {
+  raiz.querySelectorAll('input[type="password"]').forEach((input) => {
+    if (input.closest('.campo-clave')) return;
+    const caja = document.createElement('span');
+    caja.className = 'campo-clave';
+    input.parentNode.insertBefore(caja, input);
+    caja.appendChild(input);
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'ver-clave';
+    boton.setAttribute('aria-label', 'Mostrar contraseña');
+    boton.setAttribute('aria-pressed', 'false');
+    boton.innerHTML = ICONOS.ojo;
+    boton.addEventListener('click', () => {
+      const visible = input.type === 'text';
+      input.type = visible ? 'password' : 'text';
+      boton.innerHTML = visible ? ICONOS.ojo : ICONOS.ojoTachado;
+      boton.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+      boton.setAttribute('aria-pressed', String(!visible));
+      input.focus();
+    });
+    caja.appendChild(boton);
+  });
 }

@@ -52,7 +52,7 @@ async function codigoLibre() {
   return 'VT-' + idNuevo().slice(-6).toUpperCase();
 }
 
-export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base }) {
+export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base, zona = null, ajustes = {}, telefono = '', vehiculo = '', gasto = null }) {
   const equipoRef = doc(collection(db, 'equipos'));
   const codigo = await codigoLibre();
   const lote = writeBatch(db);
@@ -62,9 +62,10 @@ export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base }) {
     modo,
     creadoPor: uid,
     base: base || null,
-    ajustes: { ...AJUSTES_INICIALES },
+    zona: zona || null,
+    ajustes: { ...AJUSTES_INICIALES, ...ajustes },
     miembros: {
-      [uid]: { nombre, roles: ['organizador', 'fletero'], vehiculo: '', color: COLORES_FLETERO[0] }
+      [uid]: { nombre, telefono, roles: ['organizador', 'fletero'], vehiculo, gasto, color: COLORES_FLETERO[0] }
     },
     miembrosIds: [uid],
     creado: serverTimestamp()
@@ -75,15 +76,24 @@ export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base }) {
   return equipoRef.id;
 }
 
-export async function unirseConCodigo({ uid, nombre, codigo }) {
+export function normalizarCodigo(codigo) {
   const limpio = String(codigo || '').trim().toUpperCase().replace(/\s/g, '');
-  const conPrefijo = limpio.startsWith('VT-') ? limpio : 'VT-' + limpio.replace(/^VT/, '');
-  const snap = await getDoc(doc(db, 'codigos', conPrefijo));
+  return limpio.startsWith('VT-') ? limpio : 'VT-' + limpio.replace(/^VT/, '');
+}
+
+/* Devuelve true si el código de equipo existe */
+export async function codigoValido(codigo) {
+  const snap = await getDoc(doc(db, 'codigos', normalizarCodigo(codigo)));
+  return snap.exists();
+}
+
+export async function unirseConCodigo({ uid, nombre, codigo, telefono = '', vehiculo = '', gasto = null }) {
+  const snap = await getDoc(doc(db, 'codigos', normalizarCodigo(codigo)));
   if (!snap.exists()) throw new Error('codigo-invalido');
   const equipoId = snap.data().equipoId;
   const equipoRef = doc(db, 'equipos', equipoId);
   await updateDoc(equipoRef, {
-    [`miembros.${uid}`]: { nombre, roles: ['fletero'], vehiculo: '', color: '' },
+    [`miembros.${uid}`]: { nombre, telefono, roles: ['fletero'], vehiculo, gasto, color: '' },
     miembrosIds: arrayUnion(uid)
   });
   await guardarUsuario(uid, { equipoId });

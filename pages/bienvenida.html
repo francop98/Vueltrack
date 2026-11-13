@@ -18,16 +18,34 @@
   <link rel="stylesheet" href="/css/ingreso.css">
 </head>
 <body>
-  <main class="ingreso">
-    <div class="ingreso-marca">
-      <img src="/assets/icono.svg" alt="">
+  <main class="ingreso asistente">
+    <div class="asistente-cabecera">
       <span class="marca-texto">vuel<span>track</span></span>
+      <span class="texto-tenue" id="paso-texto">Paso 1</span>
     </div>
+    <div class="progreso-asistente" aria-hidden="true"><span id="barra"></span></div>
 
-    <!-- Paso 1: cómo va a trabajar -->
-    <section class="seccion" id="paso-modo">
+    <!-- 1. Tus datos -->
+    <section class="seccion paso" data-paso="datos">
       <div class="titulo-bloque">
-        <span class="sobre-titulo" id="saludo">¡Hola!</span>
+        <span class="sobre-titulo">Bienvenido</span>
+        <h1 class="titulo">Contanos de vos</h1>
+      </div>
+      <div class="campo">
+        <label for="nombre">Nombre y apellido</label>
+        <input id="nombre" autocomplete="name" placeholder="Nombre y apellido">
+      </div>
+      <div class="campo">
+        <label for="telefono">Teléfono celular (opcional)</label>
+        <input id="telefono" type="tel" inputmode="tel" autocomplete="tel" placeholder="Código de área y número">
+        <span class="texto-tenue">Para que tu equipo pueda llamarte o escribirte por WhatsApp.</span>
+      </div>
+    </section>
+
+    <!-- 2. Modo de trabajo -->
+    <section class="seccion paso oculto" data-paso="modo">
+      <div class="titulo-bloque">
+        <span class="sobre-titulo">Modo de trabajo</span>
         <h1 class="titulo">¿Cómo vas a usar Vueltrack?</h1>
       </div>
       <button type="button" class="opcion-grande" data-modo="solo">
@@ -42,17 +60,31 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/></svg>
         <div><strong>Me sumo a un equipo</strong><span>Tengo un código que me pasaron.</span></div>
       </button>
+      <div class="campo oculto" id="campo-equipo">
+        <label for="nombre-equipo">Nombre del equipo o empresa</label>
+        <input id="nombre-equipo" placeholder="Nombre del equipo">
+      </div>
+      <div class="campo oculto" id="campo-codigo">
+        <label for="codigo">Código del equipo</label>
+        <input id="codigo" placeholder="Código del equipo" autocapitalize="characters" autocomplete="off">
+      </div>
     </section>
 
-    <!-- Paso 2: datos del equipo / punto de salida -->
-    <section class="seccion oculto" id="paso-datos">
+    <!-- 3. Zona -->
+    <section class="seccion paso oculto" data-paso="zona">
       <div class="titulo-bloque">
-        <span class="sobre-titulo" id="datos-sobre">Último paso</span>
-        <h1 class="titulo">¿Desde dónde salís?</h1>
+        <span class="sobre-titulo">Tu zona</span>
+        <h1 class="titulo">¿Dónde trabajás?</h1>
       </div>
-      <div class="campo oculto" id="campo-equipo">
-        <label for="nombre-equipo">Nombre del equipo</label>
-        <input id="nombre-equipo" placeholder="Nombre del equipo">
+      <p class="texto-tenue">Las búsquedas de direcciones y comercios van a priorizar tu localidad y después tu provincia.</p>
+      <div id="zona-campos" class="seccion"></div>
+    </section>
+
+    <!-- 4. Punto de salida -->
+    <section class="seccion paso oculto" data-paso="salida">
+      <div class="titulo-bloque">
+        <span class="sobre-titulo">Punto de salida</span>
+        <h1 class="titulo">¿Desde dónde salís?</h1>
       </div>
       <button type="button" class="btn btn-grande" id="btn-base-aca">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
@@ -60,32 +92,103 @@
       </button>
       <div class="separador">o buscá la dirección</div>
       <div class="campo buscador">
-        <label for="base">Punto de salida (depósito, casa o local)</label>
+        <label for="base">Depósito, casa o local</label>
         <div class="buscador-caja">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           <input id="base" placeholder="Dirección o nombre del lugar">
         </div>
       </div>
-      <p class="texto-tenue" id="base-elegida">Lo usamos para empezar y terminar la vuelta. Lo podés cambiar cuando quieras.</p>
-      <p class="error-texto oculto" id="error-datos" role="alert"></p>
-      <button type="button" class="btn btn-primario btn-grande" id="btn-empezar">Empezar</button>
-      <button type="button" class="link" id="btn-volver-1">Volver</button>
+      <p class="texto-tenue" id="base-elegida">La vuelta arranca acá y, si querés, termina acá. Lo podés cambiar cuando quieras.</p>
     </section>
 
-    <!-- Paso 2b: sumarse con código -->
-    <section class="seccion oculto" id="paso-codigo">
+    <!-- 5. Jornada -->
+    <section class="seccion paso oculto" data-paso="jornada">
       <div class="titulo-bloque">
-        <span class="sobre-titulo">Sumarme a un equipo</span>
-        <h1 class="titulo">Escribí el código</h1>
+        <span class="sobre-titulo">Tu jornada</span>
+        <h1 class="titulo">¿Cómo es un día de trabajo?</h1>
+      </div>
+      <div class="grilla-2 siempre">
+        <div class="campo">
+          <label for="hora-salida">Hora habitual de salida</label>
+          <input id="hora-salida" type="time" value="08:00">
+        </div>
+        <div class="campo">
+          <label for="demora">Demora por destino</label>
+          <select id="demora">
+            <option value="2">2 min</option>
+            <option value="3">3 min</option>
+            <option value="5" selected>5 min</option>
+            <option value="8">8 min</option>
+            <option value="10">10 min</option>
+            <option value="15">15 min</option>
+            <option value="20">20 min</option>
+            <option value="30">30 min</option>
+          </select>
+        </div>
+      </div>
+      <label class="interruptor tarjeta" for="volver">
+        <span><strong>Volver al punto de salida</strong><br><span class="texto-tenue">Al terminar la vuelta</span></span>
+        <input type="checkbox" id="volver" checked>
+      </label>
+      <p class="texto-tenue">Con esto calculamos a qué hora llegás a cada destino y a qué hora terminás.</p>
+    </section>
+
+    <!-- 6. Vehículo -->
+    <section class="seccion paso oculto" data-paso="vehiculo">
+      <div class="titulo-bloque">
+        <span class="sobre-titulo">Tu vehículo (opcional)</span>
+        <h1 class="titulo">¿Con qué hacés la vuelta?</h1>
       </div>
       <div class="campo">
-        <label for="codigo">Código del equipo</label>
-        <input id="codigo" placeholder="Código del equipo" autocapitalize="characters" autocomplete="off">
+        <label for="vehiculo">Vehículo</label>
+        <input id="vehiculo" placeholder="Marca y modelo">
       </div>
-      <p class="error-texto oculto" id="error-codigo" role="alert"></p>
-      <button type="button" class="btn btn-primario btn-grande" id="btn-sumarme">Sumarme</button>
-      <button type="button" class="link" id="btn-volver-2">Volver</button>
+      <fieldset class="campo sin-borde">
+        <legend class="etiqueta-campo">Combustible</legend>
+        <div class="casillas">
+          <label class="casilla"><input type="radio" name="combustible" value="nafta" checked><span>Nafta</span></label>
+          <label class="casilla"><input type="radio" name="combustible" value="gasoil"><span>Gasoil</span></label>
+          <label class="casilla"><input type="radio" name="combustible" value="gnc"><span>GNC</span></label>
+          <label class="casilla"><input type="radio" name="combustible" value="electrico"><span>Eléctrico</span></label>
+        </div>
+      </fieldset>
+      <div class="grilla-2 siempre">
+        <div class="campo">
+          <label for="rinde">Km por litro</label>
+          <input id="rinde" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0">
+        </div>
+        <div class="campo">
+          <label for="precio">Precio por litro ($)</label>
+          <input id="precio" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
+        </div>
+      </div>
+      <p class="texto-tenue">Con esto te mostramos cuánto gastás en combustible en cada vuelta. Lo podés completar después desde el menú.</p>
     </section>
+
+    <!-- 7. Listo -->
+    <section class="seccion paso oculto" data-paso="listo">
+      <div class="titulo-bloque">
+        <span class="sobre-titulo">Todo listo</span>
+        <h1 class="titulo" id="listo-titulo">¡Ya podés empezar!</h1>
+      </div>
+      <div class="lista ajustes" id="resumen"></div>
+      <div class="aviso-instalar" id="aviso-instalar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+        <span class="titulo-bloque">
+          <strong>Instalá la app</strong>
+          <span class="texto-tenue">Abrila desde la pantalla de inicio de tu celular.</span>
+        </span>
+        <button type="button" class="btn" id="btn-instalar">Instalar</button>
+      </div>
+    </section>
+
+    <p class="error-texto oculto" id="error" role="alert"></p>
+
+    <div class="asistente-botones">
+      <button type="button" class="btn" id="btn-atras">Atrás</button>
+      <button type="button" class="btn btn-primario btn-grande" id="btn-siguiente">Continuar</button>
+    </div>
+    <button type="button" class="link oculto" id="btn-saltar">Lo cargo después</button>
   </main>
 
   <script src="/js/pwa.js"></script>

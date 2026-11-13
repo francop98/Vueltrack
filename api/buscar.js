@@ -11,6 +11,8 @@
      2. Photon (bueno para nombres de lugares)
      3. Nominatim
      4. Overpass: todo lo cargado en OpenStreetMap cerca del punto de salida
+   Prioridad: primero lo que está en tu localidad, después en tu provincia
+   y después el resto, ordenado por cercanía al punto de salida.
    Cada resultado trae:
      nombre    nombre del lugar (solo si es un comercio o empresa)
      direccion calle y altura
@@ -34,6 +36,29 @@ function nombrePropio(texto) {
     .replace(/(^|[\s.(-])([a-záéíóúñü])/g, (m, a, b) => a + b.toUpperCase())
     .replace(/\b(De|Del|La|Las|Los|Y)\b/g, (m) => m.toLowerCase())
     .replace(/^./, (c) => c.toUpperCase());
+}
+
+function sinTildes(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function coincide(a, b) {
+  const x = sinTildes(a);
+  const y = sinTildes(b);
+  return !!x && !!y && (x.includes(y) || y.includes(x));
+}
+
+function distanciaKm(a, b) {
+  if (!a || !b) return 0;
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLng = (b.lng - a.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
 }
 
 function armarDireccion(calle, altura) {
@@ -179,11 +204,26 @@ function desdeOverpass(datos) {
 
 /* ---------- Armado de la respuesta ---------- */
 
-function formatear(lista, numero) {
+function formatear(lista, numero, { localidad, provincia, foco }) {
   const vistos = new Set();
   const orden = { lugar: 0, direccion: 1, calle: 2 };
-  return lista
-    .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng) && (r.nombre || r.direccion))
+  const validos = lista.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng) && (r.nombre || r.direccion));
+
+  // Puntaje de cercanía: localidad > provincia > resto
+  validos.forEach((r) => {
+    const enLocalidad = localidad && coincide(r.ciudad, localidad);
+    const enProvincia = provincia && coincide(r.provincia, provincia);
+    r.puntaje = (enLocalidad ? 2 : 0) + (enProvincia || enLocalidad ? 1 : 0);
+    r.km = distanciaKm(foco, r);
+    // Sin datos de ciudad/provincia: se juzga por la distancia al punto de salida
+    if (!r.ciudad && !r.provincia && foco) r.puntaje = r.km < 30 ? 2 : r.km < 300 ? 1 : 0;
+  });
+  // Si hay resultados en la provincia, se descartan los de otras provincias
+  const hayEnProvincia = provincia && validos.some((r) => r.puntaje >= 1);
+
+  return validos
+    .filter((r) => !hayEnProvincia || r.puntaje >= 1)
+    .sort((a, b) => b.puntaje - a.puntaje || (numero ? 0 : orden[a.tipo] - orden[b.tipo]) || a.km - b.km)
     .map((r) => {
       let direccion = r.direccion;
       let aproximada = false;
@@ -208,7 +248,6 @@ function formatear(lista, numero) {
         aproximada
       };
     })
-    .sort((a, b) => (numero ? 0 : orden[a.tipo] - orden[b.tipo]))
     .filter((r, _, todas) => !(r.aproximada && todas.some((x) => x.tipo === 'direccion')))
     .filter((r) => {
       const clave = `${(r.nombre || r.direccion).toLowerCase()}|${r.lat.toFixed(3)}|${r.lng.toFixed(3)}`;
@@ -246,6 +285,10 @@ export default async function handler(req, res) {
   const lng = Number(req.query.lng);
   const foco = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   const { calle, numero } = separarAltura(texto);
+  const localidad = String(req.query.localidad || '').trim().slice(0, 80);
+  const provincia = String(req.query.provincia || '').trim().slice(0, 80);
+  // Para Nominatim se agrega la localidad al texto (si no la escribió el usuario)
+  const conZona = !texto.includes(',') && localidad ? `${texto}, ${localidad}${provincia ? ', ' + provincia : ''}` : texto;
 
   let resultado;
   if (numero) {
@@ -255,14 +298,15 @@ export default async function handler(req, res) {
         () => deGeoref(texto, foco),
         async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`)),
         async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(texto, foco)}`)),
-        async () => desdeNominatim(await pedirNominatim(texto, foco)),
+        async () => desdeNominatim(await pedirNominatim(conZona, foco)),
         async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(calle, foco)}`))
       ],
-      (lista) => lista.some((r) => r.tipo === 'direccion')
+      (lista) => lista.some((r) => r.tipo === 'direccion' && (!localidad || coincide(r.ciudad, localidad) || distanciaKm(foco, r) < 30))
     );
   } else {
     // Nombre de un lugar o de una calle
-    const hayLugares = (lista) => lista.filter((r) => r.tipo === 'lugar').length >= 3;
+    const hayLugares = (lista) =>
+      lista.filter((r) => r.tipo === 'lugar' && (!foco || distanciaKm(foco, r) < 60)).length >= 3;
     resultado = await probar(
       [
         // Photon y OpenRouteService a la vez (los dos son rápidos)
@@ -274,7 +318,7 @@ export default async function handler(req, res) {
           if (photon.status === 'rejected' && pelias.status === 'rejected') throw photon.reason;
           return [...(photon.value || []), ...(pelias.value || [])];
         },
-        async () => desdeNominatim(await pedirNominatim(texto, foco)),
+        async () => desdeNominatim(await pedirNominatim(conZona, foco)),
         async () => desdeOverpass(await pedirOverpass(texto, foco))
       ],
       hayLugares
@@ -285,7 +329,7 @@ export default async function handler(req, res) {
     return responder(res, 502, { error: 'busqueda' });
   }
 
-  const resultados = formatear(resultado.encontrados, numero);
+  const resultados = formatear(resultado.encontrados, numero, { localidad, provincia, foco });
   console.log('[buscar]', JSON.stringify({ texto, conAltura: !!numero, resultados: resultados.length, lugares: resultados.filter((r) => r.tipo === 'lugar').length }));
   return responder(res, 200, { resultados });
 }

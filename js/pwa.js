@@ -1,5 +1,7 @@
 /* =========================================================
-   Vueltrack — registra el service worker (app instalable)
+   Vueltrack — app instalable
+   Registra el service worker y guarda el aviso de instalación
+   que ofrecen Chrome y Android (en iPhone se instala a mano).
    ========================================================= */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
@@ -8,3 +10,14 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  window.vueltrackInstalar = e;
+  document.dispatchEvent(new CustomEvent('vueltrack:instalable'));
+});
+
+window.addEventListener('appinstalled', function () {
+  window.vueltrackInstalar = null;
+  document.dispatchEvent(new CustomEvent('vueltrack:instalada'));
+});

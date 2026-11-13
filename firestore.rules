@@ -76,7 +76,7 @@ service cloud.firestore {
         return soyMiembroAhora()
           && soloCambian(['miembros'])
           && cambianSoloMisDatos()
-          && request.resource.data.miembros[yo()].diff(resource.data.miembros[yo()]).affectedKeys().hasOnly(['nombre', 'vehiculo', 'gasto']);
+          && request.resource.data.miembros[yo()].diff(resource.data.miembros[yo()]).affectedKeys().hasOnly(['nombre', 'telefono', 'vehiculo', 'gasto']);
       }
 
       // Salir del equipo

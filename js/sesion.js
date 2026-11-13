@@ -13,7 +13,10 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { obtenerUsuario, guardarUsuario, escucharEquipo, actualizarMiembro } from './datos.js';
 import { VERSION_APP } from './firebase-config.js';
-import { ICONOS, esc, iniciales, abrirHoja, pintarNav, aviso, confirmar } from './ui.js';
+import { abrirGuia } from './guia.js';
+import { instalarApp, estaInstalada } from './instalar.js';
+import { definirZonaBusqueda } from './rutas.js';
+import { ICONOS, esc, iniciales, abrirHoja, pintarNav, aviso, confirmar, activarVerClave } from './ui.js';
 
 function esperarUsuario() {
   return new Promise((resolver) => {
@@ -73,6 +76,7 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
         return;
       }
 
+      definirZonaBusqueda(equipo.zona);
       pintarNav(pagina, { organizador: ctx.organizador });
       prepararMenu(ctx);
 
@@ -123,6 +127,9 @@ export function abrirMenu(ctx) {
       <span class="menu-grupo">Tu trabajo</span>
       ${item('', ICONOS.equipo, ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', '/pages/equipo.html')}
       ${ctx.organizador ? item('', ICONOS.clientes, 'Clientes habituales', '/pages/clientes.html') : ''}
+      <span class="menu-grupo">Ayuda</span>
+      ${item('guia', ICONOS.ayuda, 'Guía de uso')}
+      ${estaInstalada() ? '' : item('instalar', ICONOS.descargar, 'Instalar la app')}
       <div class="cajon-pie">
         ${item('salir', ICONO_SALIR, 'Cerrar sesión')}
         <span class="texto-tenue centrado-texto">Vueltrack v${esc(VERSION_APP)}</span>
@@ -151,6 +158,14 @@ export function abrirMenu(ctx) {
     if (accion === 'seguridad') {
       cerrar();
       abrirSeguridad(ctx);
+    }
+    if (accion === 'guia') {
+      cerrar();
+      abrirGuia(ctx);
+    }
+    if (accion === 'instalar') {
+      cerrar();
+      instalarApp();
     }
     if (accion === 'salir') {
       const ok = await confirmar({ titulo: '¿Cerrar sesión?', texto: 'Vas a tener que volver a ingresar.', aceptar: 'Cerrar sesión' });
@@ -225,6 +240,7 @@ export function abrirSeguridad(ctx) {
 
   const form = hoja.el.querySelector('#form-clave');
   if (!form) return;
+  activarVerClave(form);
   const error = hoja.el.querySelector('#clave-error');
   const mostrarError = (t) => {
     error.textContent = t;

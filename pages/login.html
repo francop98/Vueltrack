@@ -30,19 +30,23 @@
       <button type="button" role="tab" id="tab-crear" aria-selected="false">Crear cuenta</button>
     </div>
 
-    <form class="seccion" id="form" novalidate>
+    <form class="seccion" id="form" method="post" action="#" novalidate>
       <div class="campo oculto" id="campo-nombre">
         <label for="nombre">Tu nombre</label>
         <input id="nombre" autocomplete="name" placeholder="Nombre y apellido">
       </div>
       <div class="campo">
-        <label for="email">Mail</label>
-        <input id="email" type="email" autocomplete="email" inputmode="email" required>
+        <label for="email">Correo electrónico</label>
+        <input id="email" name="email" type="email" autocomplete="username" inputmode="email" required>
       </div>
       <div class="campo">
         <label for="clave">Contraseña</label>
-        <input id="clave" type="password" autocomplete="current-password" minlength="6" required>
+        <input id="clave" name="password" type="password" autocomplete="current-password" minlength="6" required>
       </div>
+      <label class="casilla-linea" for="recordar">
+        <input type="checkbox" id="recordar" checked>
+        Recordar mis datos en este celular
+      </label>
       <p class="error-texto oculto" id="error" role="alert"></p>
       <button type="submit" class="btn btn-primario btn-grande" id="btn-enviar">Ingresar</button>
       <button type="button" class="link" id="btn-olvide">Me olvidé la contraseña</button>

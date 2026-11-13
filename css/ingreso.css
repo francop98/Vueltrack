@@ -64,3 +64,51 @@
   font-size: 13px;
   color: var(--tenue);
 }
+
+/* ---------- Asistente de bienvenida ---------- */
+
+.ingreso.asistente {
+  justify-content: flex-start;
+  gap: 18px;
+  padding-top: calc(20px + env(safe-area-inset-top));
+}
+
+.asistente-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.asistente-cabecera .marca-texto {
+  font-size: 22px;
+}
+
+.progreso-asistente {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--superficie-2);
+  overflow: hidden;
+}
+
+.progreso-asistente span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ruta);
+  border-radius: 3px;
+  transition: width 0.25s ease;
+}
+
+.asistente-botones {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.asistente-botones .btn-grande {
+  flex: 1;
+}
+
+.asistente .link {
+  align-self: center;
+}

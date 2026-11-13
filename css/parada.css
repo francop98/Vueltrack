@@ -83,3 +83,8 @@
     font-size: 24px;
   }
 }
+
+.parada-cabecera .texto-chico-fuerte {
+  flex: 1;
+  text-align: right;
+}

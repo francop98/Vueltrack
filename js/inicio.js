@@ -2,6 +2,9 @@
    Vueltrack — Pantalla principal (menú)
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
+import { abrirGuia, guiaVista } from './guia.js';
+import { instalarApp, sePuedeInstalar } from './instalar.js';
+import { elegirZona } from './zona.js';
 import { escucharVuelta, fleterosDelEquipo } from './datos.js';
 import { gruposDeVuelta, resumen, paradasSinOrdenar, costoDeRuta, paradaHecha } from './vuelta.js';
 import {
@@ -31,13 +34,44 @@ ctx = await iniciarPantalla({
   }
 });
 
+/* Guía la primera vez (o si se pidió desde el onboarding) */
+if (new URLSearchParams(location.search).get('guia') === '1' || !guiaVista(ctx)) {
+  history.replaceState(null, '', '/');
+  setTimeout(() => abrirGuia(ctx), 400);
+}
+
+/* Aviso para instalar la app */
+function pintarInstalar() {
+  let oculto = false;
+  try {
+    oculto = localStorage.getItem('vueltrack_aviso_instalar') === 'no';
+  } catch (e) {
+    oculto = false;
+  }
+  $('aviso-instalar').classList.toggle('oculto', oculto || !sePuedeInstalar());
+}
+pintarInstalar();
+document.addEventListener('vueltrack:instalada', pintarInstalar);
+$('btn-instalar').addEventListener('click', instalarApp);
+$('btn-instalar-cerrar').addEventListener('click', () => {
+  try {
+    localStorage.setItem('vueltrack_aviso_instalar', 'no');
+  } catch (e) {
+    /* sin almacenamiento */
+  }
+  pintarInstalar();
+});
+
 escucharVuelta(ctx.equipo.id, fecha, (v) => {
   vuelta = v;
   pintar();
 });
 
+$('aviso-zona').addEventListener('click', () => elegirZona(ctx.equipo));
+
 function pintar() {
   $('cargando').classList.add('oculto');
+  $('aviso-zona').classList.toggle('oculto', !ctx.organizador || !!ctx.equipo.zona);
   const nombre = (ctx.yo.nombre || '').split(' ')[0];
   $('saludo').textContent = `Hola, ${nombre}`;
   $('equipo-nombre').textContent = ctx.equipo.modo === 'solo' ? 'Trabajás solo' : ctx.equipo.nombre;

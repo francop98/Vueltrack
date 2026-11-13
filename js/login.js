@@ -11,14 +11,41 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult
+  getRedirectResult,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { guardarUsuario } from './datos.js';
-import { aviso } from './ui.js';
+import { aviso, activarVerClave } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
 let modo = 'ingresar';
 let creando = false;
+const CLAVE_MAIL = 'vueltrack_mail';
+
+activarVerClave();
+
+/* Recordar el correo (la contraseña la guarda el celular si el usuario acepta) */
+try {
+  const guardado = localStorage.getItem(CLAVE_MAIL);
+  if (guardado) $('email').value = guardado;
+  if (localStorage.getItem('vueltrack_recordar') === 'no') $('recordar').checked = false;
+} catch (e) {
+  /* sin almacenamiento */
+}
+
+async function aplicarRecordar(email) {
+  const recordar = $('recordar').checked;
+  await setPersistence(auth, recordar ? browserLocalPersistence : browserSessionPersistence);
+  try {
+    localStorage.setItem('vueltrack_recordar', recordar ? 'si' : 'no');
+    if (recordar && email) localStorage.setItem(CLAVE_MAIL, email);
+    else if (!recordar) localStorage.removeItem(CLAVE_MAIL);
+  } catch (e) {
+    /* sin almacenamiento */
+  }
+}
 
 onAuthStateChanged(auth, (user) => {
   if (user && !creando) location.replace('/');
@@ -76,6 +103,7 @@ $('form').addEventListener('submit', async (ev) => {
   }
   $('btn-enviar').disabled = true;
   try {
+    await aplicarRecordar(email);
     if (modo === 'crear') {
       creando = true;
       const cred = await createUserWithEmailAndPassword(auth, email, clave);

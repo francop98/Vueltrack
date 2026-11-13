@@ -4,6 +4,8 @@
 import { iniciarPantalla } from './sesion.js';
 import { actualizarEquipo, actualizarMiembro, quitarMiembro, salirDelEquipo, fleterosDelEquipo } from './datos.js';
 import { ICONOS, COLORES_FLETERO, esc, iniciales, ordenarAlfa, aviso, confirmar, abrirHoja } from './ui.js';
+import { elegirZona, textoZona } from './zona.js';
+import { elegirPuntoDeSalida } from './salida.js';
 
 const $ = (id) => document.getElementById(id);
 let ctx;
@@ -34,6 +36,9 @@ function pintar() {
   const enEquipo = eq.modo !== 'solo';
 
   $('modos').classList.toggle('oculto', !ctx.organizador);
+  $('bloque-ajustes').classList.toggle('oculto', !ctx.organizador);
+  $('txt-zona').textContent = textoZona(eq.zona);
+  $('txt-base').textContent = eq.base ? eq.base.direccion : 'Sin cargar';
   document.querySelectorAll('#modos [data-modo]').forEach((b) => b.classList.toggle('activo', b.dataset.modo === (enEquipo ? 'equipo' : 'solo')));
 
   $('equipo-sobre').textContent = enEquipo ? 'Tu equipo' : 'Trabajás solo';
@@ -74,6 +79,11 @@ function pintar() {
   const puedeSalir = enEquipo && lista.length > 1 && (!ctx.organizador || orgs > 1);
   $('btn-salir-equipo').classList.toggle('oculto', !puedeSalir);
 }
+
+/* ---------- Ajustes del equipo ---------- */
+
+$('btn-zona').addEventListener('click', () => elegirZona(ctx.equipo));
+$('btn-base').addEventListener('click', () => elegirPuntoDeSalida(ctx.equipo));
 
 /* ---------- Modo de trabajo ---------- */
 
