@@ -1,0 +1,129 @@
+rules_version = '2';
+
+// =========================================================
+// Vueltrack — reglas de seguridad de Firestore
+// Pegalas en Firebase Console → Firestore Database → Reglas
+// =========================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logueado() {
+      return request.auth != null;
+    }
+
+    function datosEquipo(equipoId) {
+      return get(/databases/$(database)/documents/equipos/$(equipoId)).data;
+    }
+
+    function esMiembro(equipoId) {
+      return logueado() && request.auth.uid in datosEquipo(equipoId).miembrosIds;
+    }
+
+    function esOrganizador(equipoId) {
+      return esMiembro(equipoId)
+        && 'organizador' in datosEquipo(equipoId).miembros[request.auth.uid].roles;
+    }
+
+    function soloCambian(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // ---------- Usuarios: cada uno solo su propio documento ----------
+    match /usuarios/{uid} {
+      allow read, write: if logueado() && request.auth.uid == uid;
+    }
+
+    // ---------- Códigos para sumarse a un equipo ----------
+    match /codigos/{codigo} {
+      allow get: if logueado();
+      allow list: if false;
+      allow create: if logueado()
+        && getAfter(/databases/$(database)/documents/equipos/$(request.resource.data.equipoId)).data.creadoPor == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---------- Equipos ----------
+    match /equipos/{equipoId} {
+
+      function yo() {
+        return request.auth.uid;
+      }
+
+      function soyMiembroAhora() {
+        return yo() in resource.data.miembrosIds;
+      }
+
+      function soyOrganizadorAhora() {
+        return soyMiembroAhora() && 'organizador' in resource.data.miembros[yo()].roles;
+      }
+
+      function cambianSoloMisDatos() {
+        return request.resource.data.miembros.diff(resource.data.miembros).affectedKeys().hasOnly([yo()]);
+      }
+
+      // Sumarse con el código: entra solo como fletero
+      function meSumo() {
+        return !soyMiembroAhora()
+          && resource.data.modo == 'equipo'
+          && soloCambian(['miembros', 'miembrosIds'])
+          && cambianSoloMisDatos()
+          && request.resource.data.miembrosIds.toSet() == resource.data.miembrosIds.toSet().union([yo()].toSet())
+          && request.resource.data.miembros[yo()].roles == ['fletero'];
+      }
+
+      // Cambiar mi nombre
+      function cambioMiNombre() {
+        return soyMiembroAhora()
+          && soloCambian(['miembros'])
+          && cambianSoloMisDatos()
+          && request.resource.data.miembros[yo()].diff(resource.data.miembros[yo()]).affectedKeys().hasOnly(['nombre']);
+      }
+
+      // Salir del equipo
+      function meVoy() {
+        return soyMiembroAhora()
+          && soloCambian(['miembros', 'miembrosIds'])
+          && cambianSoloMisDatos()
+          && !(yo() in request.resource.data.miembros)
+          && request.resource.data.miembrosIds.toSet() == resource.data.miembrosIds.toSet().difference([yo()].toSet());
+      }
+
+      allow read: if logueado() && yo() in resource.data.miembrosIds;
+
+      allow create: if logueado()
+        && request.resource.data.creadoPor == yo()
+        && request.resource.data.miembrosIds == [yo()]
+        && request.resource.data.miembros.keys().hasOnly([yo()])
+        && 'organizador' in request.resource.data.miembros[yo()].roles;
+
+      allow update: if logueado() && (
+        (soyOrganizadorAhora()
+          && request.resource.data.codigo == resource.data.codigo
+          && request.resource.data.creadoPor == resource.data.creadoPor)
+        || meSumo()
+        || cambioMiNombre()
+        || meVoy()
+      );
+
+      allow delete: if false;
+
+      // ---------- Clientes habituales ----------
+      match /clientes/{clienteId} {
+        allow read: if esMiembro(equipoId);
+        allow create, delete: if esOrganizador(equipoId);
+        // Los fleteros solo pueden corregir la ubicación ("Estoy en la puerta")
+        allow update: if esOrganizador(equipoId)
+          || (esMiembro(equipoId) && soloCambian(['lat', 'lng', 'ubicacionVerificada']));
+      }
+
+      // ---------- Vueltas del día ----------
+      match /vueltas/{fecha} {
+        allow read: if esMiembro(equipoId);
+        allow create, delete: if esOrganizador(equipoId);
+        // Los fleteros solo marcan el estado de las paradas
+        allow update: if esOrganizador(equipoId)
+          || (esMiembro(equipoId) && soloCambian(['paradas', 'actualizado']));
+      }
+    }
+  }
+}

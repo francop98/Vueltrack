@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F6F5F1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Bienvenida</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/tema.js"></script>
+</head>
+<body>
+  <main class="ingreso">
+    <div class="ingreso-marca">
+      <img src="assets/icono.svg" alt="">
+      <span class="marca-texto">vuel<span>track</span></span>
+    </div>
+
+    <!-- Paso 1: cómo va a trabajar -->
+    <section class="seccion" id="paso-modo">
+      <div class="titulo-bloque">
+        <span class="sobre-titulo" id="saludo">¡Hola!</span>
+        <h1 class="titulo">¿Cómo vas a usar Vueltrack?</h1>
+      </div>
+      <button type="button" class="opcion-grande" data-modo="solo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/></svg>
+        <div><strong>Trabajo solo</strong><span>Armo y hago mi propia vuelta.</span></div>
+      </button>
+      <button type="button" class="opcion-grande" data-modo="equipo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h11v10H2zM13 10h4l4 4v2h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+        <div><strong>Armo un equipo</strong><span>Organizo las vueltas de varios fleteros.</span></div>
+      </button>
+      <button type="button" class="opcion-grande" data-modo="unirme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/></svg>
+        <div><strong>Me sumo a un equipo</strong><span>Tengo un código que me pasaron.</span></div>
+      </button>
+    </section>
+
+    <!-- Paso 2: datos del equipo / punto de salida -->
+    <section class="seccion oculto" id="paso-datos">
+      <div class="titulo-bloque">
+        <span class="sobre-titulo" id="datos-sobre">Último paso</span>
+        <h1 class="titulo">¿Desde dónde salís?</h1>
+      </div>
+      <div class="campo oculto" id="campo-equipo">
+        <label for="nombre-equipo">Nombre del equipo</label>
+        <input id="nombre-equipo" placeholder="Ej. Fletes del Sur">
+      </div>
+      <div class="campo buscador">
+        <label for="base">Punto de salida (depósito, casa o local)</label>
+        <div class="buscador-caja">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="base" placeholder="Calle y altura, ciudad">
+        </div>
+      </div>
+      <p class="texto-tenue" id="base-elegida">Lo usamos para empezar y terminar la vuelta. Lo podés cambiar cuando quieras.</p>
+      <p class="error-texto oculto" id="error-datos" role="alert"></p>
+      <button type="button" class="btn btn-primario btn-grande" id="btn-empezar">Empezar</button>
+      <button type="button" class="link" id="btn-volver-1">Volver</button>
+    </section>
+
+    <!-- Paso 2b: sumarse con código -->
+    <section class="seccion oculto" id="paso-codigo">
+      <div class="titulo-bloque">
+        <span class="sobre-titulo">Sumarme a un equipo</span>
+        <h1 class="titulo">Escribí el código</h1>
+      </div>
+      <div class="campo">
+        <label for="codigo">Código del equipo</label>
+        <input id="codigo" placeholder="VT-0000" autocapitalize="characters" autocomplete="off">
+      </div>
+      <p class="error-texto oculto" id="error-codigo" role="alert"></p>
+      <button type="button" class="btn btn-primario btn-grande" id="btn-sumarme">Sumarme</button>
+      <button type="button" class="link" id="btn-volver-2">Volver</button>
+    </section>
+  </main>
+
+  <script src="js/pwa.js"></script>
+  <script type="module" src="js/bienvenida.js"></script>
+</body>
+</html>

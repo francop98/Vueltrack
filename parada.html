@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F6F5F1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Parada</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/tema.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="parada-cabecera">
+      <div class="barra-sup">
+        <a class="btn-icono" href="index.html" aria-label="Volver a la vuelta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </a>
+        <span class="tenue texto-chico-fuerte" id="contexto"></span>
+        <button type="button" class="avatar avatar-oscuro" id="btn-cuenta" aria-label="Mi cuenta"></button>
+      </div>
+      <div class="progreso" id="progreso" aria-hidden="true"></div>
+      <div class="titulo-bloque">
+        <h1 id="nombre">Cargando…</h1>
+        <span class="tenue texto-direccion" id="direccion"></span>
+      </div>
+      <div class="chips" id="pastillas"></div>
+    </header>
+
+    <main class="contenido sin-nav">
+      <div class="grilla-2" id="acciones"></div>
+
+      <section class="tarjeta oculto" id="nota">
+        <span class="etiqueta-campo texto-tenue">Nota</span>
+        <span id="nota-texto"></span>
+      </section>
+
+      <a class="tarjeta enlace-plano oculto" id="siguiente"></a>
+
+      <button type="button" class="link" id="btn-ubicacion">Estoy en la puerta: guardar esta ubicación</button>
+
+      <div class="seccion" id="botones-estado"></div>
+    </main>
+  </div>
+
+  <script src="js/pwa.js"></script>
+  <script type="module" src="js/parada.js"></script>
+</body>
+</html>

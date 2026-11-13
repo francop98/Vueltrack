@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F6F5F1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Equipo</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/tema.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <a class="marca" href="index.html" aria-label="Vueltrack, inicio">
+          <img src="assets/icono.svg" alt="">
+          <span class="marca-texto">vuel<span>track</span></span>
+        </a>
+        <button type="button" class="avatar" id="btn-cuenta" aria-label="Mi cuenta"></button>
+      </header>
+
+      <div class="titulo-bloque">
+        <span class="sobre-titulo">Cómo trabajás</span>
+        <h1 class="titulo">Equipo</h1>
+      </div>
+
+      <div class="segmentado oculto" role="group" aria-label="Modo de trabajo" id="modos">
+        <button type="button" data-modo="solo">Trabajo solo</button>
+        <button type="button" data-modo="equipo">En equipo</button>
+      </div>
+
+      <section class="tarjeta-destacada" id="tarjeta-equipo">
+        <div class="fila-titulo">
+          <div class="titulo-bloque">
+            <span class="acento" id="equipo-sobre">Tu equipo</span>
+            <strong class="subtitulo" id="equipo-nombre"></strong>
+            <span class="tenue" id="equipo-detalle"></span>
+          </div>
+          <button type="button" class="btn-icono btn-oscuro oculto" id="btn-renombrar" aria-label="Cambiar el nombre del equipo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
+          </button>
+        </div>
+        <div class="codigo-caja oculto" id="codigo-caja">
+          <div class="titulo-bloque">
+            <span class="tenue">Código para sumarse</span>
+            <strong class="codigo" id="codigo"></strong>
+          </div>
+          <button type="button" class="btn btn-primario" id="btn-invitar">Invitar</button>
+        </div>
+      </section>
+
+      <section class="seccion" id="bloque-integrantes">
+        <h2 class="subtitulo">Integrantes</h2>
+        <div class="lista" id="integrantes"></div>
+      </section>
+
+      <section class="tarjeta">
+        <div class="botonera-texto">
+          <span class="etiqueta etiqueta-oscura">Organizador</span>
+          <span class="texto-tenue">Carga clientes, arma y reparte las vueltas, ve a todo el equipo.</span>
+        </div>
+        <div class="botonera-texto">
+          <span class="etiqueta etiqueta-acento">Fletero</span>
+          <span class="texto-tenue">Recibe su vuelta del día y marca cada parada.</span>
+        </div>
+      </section>
+
+      <button type="button" class="btn btn-peligro oculto" id="btn-salir-equipo">Salir del equipo</button>
+    </main>
+  </div>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+
+  <script src="js/pwa.js"></script>
+  <script type="module" src="js/equipo.js"></script>
+</body>
+</html>

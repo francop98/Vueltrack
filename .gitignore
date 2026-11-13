@@ -1,0 +1,12 @@
+# Variables de entorno (nunca subir claves)
+.env
+.env.*
+!.env.ejemplo
+
+# Vercel
+.vercel
+
+# Sistema
+.DS_Store
+Thumbs.db
+node_modules/

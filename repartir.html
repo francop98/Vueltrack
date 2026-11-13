@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F6F5F1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Repartir entre fleteros</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/tema.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <a class="btn-icono" id="btn-atras" href="armar.html" aria-label="Volver a Armar la vuelta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </a>
+        <button type="button" class="avatar" id="btn-cuenta" aria-label="Mi cuenta"></button>
+      </header>
+
+      <div class="titulo-bloque">
+        <span class="sobre-titulo" id="sobre"></span>
+        <h1 class="titulo">Repartir entre fleteros</h1>
+      </div>
+
+      <section class="seccion">
+        <span class="etiqueta-campo">¿Quiénes salen?</span>
+        <div class="chips" id="chips-fleteros" role="group" aria-label="Fleteros que salen"></div>
+      </section>
+
+      <div class="segmentado" role="group" aria-label="Forma de repartir" id="modos">
+        <button type="button" data-modo="zona" class="activo">Por zona</button>
+        <button type="button" data-modo="parejo">Parejo</button>
+        <button type="button" data-modo="mano">A mano</button>
+      </div>
+      <p class="texto-tenue" id="ayuda-modo"></p>
+
+      <div class="mapa alto">
+        <div class="mapa-lienzo" id="mapa" aria-label="Mapa con el reparto"></div>
+        <div class="mapa-leyenda" id="leyenda"></div>
+      </div>
+
+      <section class="seccion oculto" id="bloque-mano">
+        <h2 class="subtitulo">Asignar a mano</h2>
+        <div class="lista" id="lista-mano"></div>
+      </section>
+
+      <section class="seccion" id="tarjetas"></section>
+
+      <p class="error-texto oculto" id="aviso-sin-asignar" role="alert"></p>
+
+      <div class="seccion">
+        <button type="button" class="btn btn-contorno" id="btn-calcular">Calcular reparto</button>
+        <button type="button" class="btn btn-primario btn-grande" id="btn-confirmar" disabled>Confirmar y mandar las vueltas</button>
+      </div>
+    </main>
+  </div>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/pwa.js"></script>
+  <script type="module" src="js/repartir.js"></script>
+</body>
+</html>

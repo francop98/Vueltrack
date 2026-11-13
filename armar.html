@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F6F5F1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Armar la vuelta</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/tema.js"></script>
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <a class="marca" href="index.html" aria-label="Vueltrack, inicio">
+          <img src="assets/icono.svg" alt="">
+          <span class="marca-texto">vuel<span>track</span></span>
+        </a>
+        <button type="button" class="avatar" id="btn-cuenta" aria-label="Mi cuenta"></button>
+      </header>
+
+      <div class="fila-titulo">
+        <h1 class="titulo">Armar la vuelta</h1>
+        <label class="solo-lector" for="fecha">Día de la vuelta</label>
+        <input type="date" id="fecha" class="input input-fecha">
+      </div>
+
+      <div class="campo buscador">
+        <label for="dir">Agregar dirección</label>
+        <div class="buscador-caja">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="dir" placeholder="Calle y altura, ej. Estomba 410">
+        </div>
+      </div>
+
+      <section class="seccion">
+        <div class="fila-titulo">
+          <h2 class="subtitulo">Clientes habituales</h2>
+          <a class="link" href="clientes.html">Ver todos</a>
+        </div>
+        <div class="chips" id="chips-clientes"></div>
+        <button type="button" class="chip punteado oculto" id="btn-toca"></button>
+      </section>
+
+      <section class="seccion">
+        <h2 class="subtitulo" id="titulo-paradas">Paradas cargadas</h2>
+        <div class="lista" id="lista-paradas"></div>
+        <p class="texto-tenue oculto" id="sin-paradas">Todavía no cargaste paradas para este día.</p>
+      </section>
+
+      <section class="seccion">
+        <h2 class="subtitulo">Cómo sale la vuelta</h2>
+        <div class="lista ajustes">
+          <button type="button" class="fila" id="btn-base">
+            <span>Salgo desde</span>
+            <strong id="txt-base">Elegir…</strong>
+          </button>
+          <label class="fila" for="salida">
+            <span>Hora de salida</span>
+            <input type="time" id="salida" class="input input-hora">
+          </label>
+          <label class="fila interruptor" for="volver">
+            <span>Vuelvo al punto de salida</span>
+            <input type="checkbox" id="volver">
+          </label>
+          <label class="fila" for="demora">
+            <span>Demora por parada</span>
+            <select id="demora" class="input input-hora">
+              <option value="2">2 min</option>
+              <option value="3">3 min</option>
+              <option value="5">5 min</option>
+              <option value="8">8 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="20">20 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <div class="seccion">
+        <button type="button" class="btn btn-primario btn-grande" id="btn-ordenar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/></svg>
+          Ordenar la vuelta
+        </button>
+        <a class="btn btn-contorno oculto" id="btn-repartir" href="repartir.html">Repartir entre fleteros</a>
+      </div>
+    </main>
+  </div>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/pwa.js"></script>
+  <script type="module" src="js/armar.js"></script>
+</body>
+</html>

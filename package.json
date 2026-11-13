@@ -1,0 +1,10 @@
+{
+  "name": "vueltrack",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vueltrack — rutas para fleteros y comisionistas",
+  "engines": {
+    "node": ">=18"
+  }
+}

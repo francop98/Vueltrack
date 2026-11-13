@@ -1,0 +1,205 @@
+/* =========================================================
+   Vueltrack — datos en Firestore
+   usuarios/{uid}
+   equipos/{equipoId}                 (nombre, código, modo, ajustes, miembros)
+   equipos/{equipoId}/clientes/{id}   (clientes habituales)
+   equipos/{equipoId}/vueltas/{fecha} (paradas del día y rutas por fletero)
+   codigos/{codigo}                   (para sumarse a un equipo)
+   ========================================================= */
+import { db } from './firebase.js';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  onSnapshot,
+  runTransaction,
+  writeBatch,
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove,
+  deleteField
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { COLORES_FLETERO, idNuevo } from './ui.js';
+
+export const AJUSTES_INICIALES = { demora: 5, volver: true, salida: '08:00' };
+
+/* ---------- Usuarios ---------- */
+
+export async function obtenerUsuario(uid) {
+  const snap = await getDoc(doc(db, 'usuarios', uid));
+  return snap.exists() ? { id: uid, ...snap.data() } : null;
+}
+
+export async function guardarUsuario(uid, datos) {
+  await setDoc(doc(db, 'usuarios', uid), { ...datos, actualizado: serverTimestamp() }, { merge: true });
+}
+
+/* ---------- Equipos ---------- */
+
+function codigoAlAzar() {
+  return 'VT-' + String(Math.floor(1000 + Math.random() * 9000));
+}
+
+async function codigoLibre() {
+  for (let i = 0; i < 8; i++) {
+    const codigo = codigoAlAzar();
+    const snap = await getDoc(doc(db, 'codigos', codigo));
+    if (!snap.exists()) return codigo;
+  }
+  return 'VT-' + idNuevo().slice(-6).toUpperCase();
+}
+
+export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base }) {
+  const equipoRef = doc(collection(db, 'equipos'));
+  const codigo = await codigoLibre();
+  const lote = writeBatch(db);
+  lote.set(equipoRef, {
+    nombre: nombreEquipo || 'Mi vuelta',
+    codigo,
+    modo,
+    creadoPor: uid,
+    base: base || null,
+    ajustes: { ...AJUSTES_INICIALES },
+    miembros: {
+      [uid]: { nombre, roles: ['organizador', 'fletero'], vehiculo: '', color: COLORES_FLETERO[0] }
+    },
+    miembrosIds: [uid],
+    creado: serverTimestamp()
+  });
+  lote.set(doc(db, 'codigos', codigo), { equipoId: equipoRef.id });
+  lote.set(doc(db, 'usuarios', uid), { equipoId: equipoRef.id, actualizado: serverTimestamp() }, { merge: true });
+  await lote.commit();
+  return equipoRef.id;
+}
+
+export async function unirseConCodigo({ uid, nombre, codigo }) {
+  const limpio = String(codigo || '').trim().toUpperCase().replace(/\s/g, '');
+  const conPrefijo = limpio.startsWith('VT-') ? limpio : 'VT-' + limpio.replace(/^VT/, '');
+  const snap = await getDoc(doc(db, 'codigos', conPrefijo));
+  if (!snap.exists()) throw new Error('codigo-invalido');
+  const equipoId = snap.data().equipoId;
+  const equipoRef = doc(db, 'equipos', equipoId);
+  await updateDoc(equipoRef, {
+    [`miembros.${uid}`]: { nombre, roles: ['fletero'], vehiculo: '', color: '' },
+    miembrosIds: arrayUnion(uid)
+  });
+  await guardarUsuario(uid, { equipoId });
+  return equipoId;
+}
+
+export function escucharEquipo(equipoId, alCambiar) {
+  return onSnapshot(doc(db, 'equipos', equipoId), (snap) => {
+    alCambiar(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+  });
+}
+
+export async function obtenerEquipo(equipoId) {
+  const snap = await getDoc(doc(db, 'equipos', equipoId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export async function actualizarEquipo(equipoId, cambios) {
+  await updateDoc(doc(db, 'equipos', equipoId), cambios);
+}
+
+export async function actualizarMiembro(equipoId, uid, cambios) {
+  const datos = {};
+  Object.entries(cambios).forEach(([k, v]) => {
+    datos[`miembros.${uid}.${k}`] = v;
+  });
+  await updateDoc(doc(db, 'equipos', equipoId), datos);
+}
+
+export async function quitarMiembro(equipoId, uid) {
+  await updateDoc(doc(db, 'equipos', equipoId), {
+    [`miembros.${uid}`]: deleteField(),
+    miembrosIds: arrayRemove(uid)
+  });
+}
+
+export async function salirDelEquipo(equipoId, uid) {
+  await quitarMiembro(equipoId, uid);
+  await guardarUsuario(uid, { equipoId: null });
+}
+
+/* Colores fijos por fletero (si no tiene, se asigna por orden) */
+export function fleterosDelEquipo(equipo) {
+  const lista = Object.entries(equipo?.miembros || {})
+    .filter(([, m]) => (m.roles || []).includes('fletero'))
+    .map(([uid, m]) => ({ uid, ...m }))
+    .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es', { sensitivity: 'base' }));
+  const usados = new Set(lista.map((f) => f.color).filter(Boolean));
+  let i = 0;
+  lista.forEach((f) => {
+    if (!f.color) {
+      while (usados.has(COLORES_FLETERO[i % COLORES_FLETERO.length]) && i < COLORES_FLETERO.length) i++;
+      f.color = COLORES_FLETERO[i % COLORES_FLETERO.length];
+      usados.add(f.color);
+      i++;
+    }
+  });
+  return lista;
+}
+
+/* ---------- Clientes ---------- */
+
+export function escucharClientes(equipoId, alCambiar) {
+  return onSnapshot(collection(db, 'equipos', equipoId, 'clientes'), (snap) => {
+    alCambiar(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+}
+
+export async function guardarCliente(equipoId, cliente) {
+  const { id, ...datos } = cliente;
+  const ref = id ? doc(db, 'equipos', equipoId, 'clientes', id) : doc(collection(db, 'equipos', equipoId, 'clientes'));
+  await setDoc(ref, { ...datos, actualizado: serverTimestamp() }, { merge: true });
+  return ref.id;
+}
+
+export async function borrarCliente(equipoId, clienteId) {
+  await deleteDoc(doc(db, 'equipos', equipoId, 'clientes', clienteId));
+}
+
+export async function corregirUbicacionCliente(equipoId, clienteId, lat, lng) {
+  await updateDoc(doc(db, 'equipos', equipoId, 'clientes', clienteId), {
+    lat,
+    lng,
+    ubicacionVerificada: true
+  });
+}
+
+/* ---------- Vueltas ---------- */
+
+export function escucharVuelta(equipoId, fecha, alCambiar) {
+  return onSnapshot(doc(db, 'equipos', equipoId, 'vueltas', fecha), (snap) => {
+    alCambiar(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+  });
+}
+
+export async function guardarVuelta(equipoId, fecha, datos) {
+  await setDoc(
+    doc(db, 'equipos', equipoId, 'vueltas', fecha),
+    { fecha, ...datos, actualizado: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+/* Reemplaza la vuelta completa (al ordenar, para no dejar rutas viejas) */
+export async function reemplazarVuelta(equipoId, fecha, datos) {
+  await setDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha), { fecha, ...datos, actualizado: serverTimestamp() });
+}
+
+/* Cambia una parada sin pisar lo que otro fletero marcó al mismo tiempo */
+export async function cambiarParada(equipoId, fecha, paradaId, cambiar) {
+  const ref = doc(db, 'equipos', equipoId, 'vueltas', fecha);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('sin-vuelta');
+    const paradas = (snap.data().paradas || []).map((p) => ({ ...p }));
+    const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId));
+    tx.update(ref, { paradas: resultado || paradas, actualizado: serverTimestamp() });
+  });
+}
