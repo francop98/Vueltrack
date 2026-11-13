@@ -40,7 +40,8 @@ export function elegirPuntoDeSalida(equipo) {
 
   crearBuscador(hoja.el.querySelector('#nueva-base'), {
     foco: () => equipo.base,
-    alElegir: (r) => guardar({ direccion: r.direccion, lat: r.lat, lng: r.lng })
+    alElegir: (r) =>
+      guardar({ direccion: r.nombre ? [r.nombre, r.direccion].filter(Boolean).join(' · ') : r.direccion, lat: r.lat, lng: r.lng })
   });
 }
 

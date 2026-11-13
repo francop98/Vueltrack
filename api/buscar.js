@@ -1,24 +1,31 @@
 /* =========================================================
    GET /api/buscar?texto=...&lat=...&lng=...
-   Sugerencias de direcciones. Prueba en este orden y se queda
-   con lo primero que encuentre con altura:
-     1. Georef (servicio oficial de direcciones de Argentina)
-     2. OpenRouteService · autocompletar (también busca comercios)
-     3. OpenRouteService · búsqueda completa
-     4. Nominatim (OpenStreetMap)
-   Si solo aparece la calle sin la altura, devuelve la calle con la
-   altura que escribió el usuario y la marca como aproximada
-   (después se ajusta el pin en el mapa).
-   ========================================================= */
-import { verificarUsuario, pedirORS, pedirNominatim, pedirGeoref, responder } from './_comun.js';
+   Sugerencias de direcciones y de lugares (comercios, empresas).
 
-const MAX = 6;
+   Si el texto tiene altura ("Sarmiento 100") busca una DIRECCIÓN:
+     1. Georef (servicio oficial de direcciones de Argentina)
+     2. OpenRouteService · autocompletar y búsqueda
+     3. Nominatim (OpenStreetMap)
+   Si no tiene altura ("Ferretería Don Luis") busca un LUGAR por nombre:
+     1. OpenRouteService · autocompletar (comercios y calles)
+     2. Photon (bueno para nombres de lugares)
+     3. Nominatim
+     4. Overpass: todo lo cargado en OpenStreetMap cerca del punto de salida
+   Cada resultado trae:
+     nombre    nombre del lugar (solo si es un comercio o empresa)
+     direccion calle y altura
+     detalle   ciudad, provincia y aclaraciones
+     tipo      "direccion" | "lugar" | "calle"
+   ========================================================= */
+import { verificarUsuario, pedirORS, pedirNominatim, pedirGeoref, pedirPhoton, pedirOverpass, responder } from './_comun.js';
+
+const MAX = 7;
 
 function separarAltura(texto) {
   // Toma el último número como altura ("Av. 9 de Julio 1200" → calle "Av. 9 de Julio", altura 1200)
   const m = texto.match(/^(.*\D)\s+(?:n[°º]?\s*)?(\d{1,5})\b\s*,?\s*(.*)$/i);
-  if (!m || !m[1].trim()) return { calle: texto, numero: null, resto: '' };
-  return { calle: m[1].replace(/,\s*$/, '').trim(), numero: m[2], resto: m[3].trim() };
+  if (!m || !m[1].trim()) return { calle: texto, numero: null };
+  return { calle: m[1].replace(/,\s*$/, '').trim(), numero: m[2] };
 }
 
 function nombrePropio(texto) {
@@ -29,7 +36,12 @@ function nombrePropio(texto) {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
-/* Departamento y provincia del punto de salida (para que Georef busque en la ciudad correcta) */
+function armarDireccion(calle, altura) {
+  return calle ? `${calle}${altura ? ' ' + altura : ''}` : '';
+}
+
+/* ---------- Georef ---------- */
+
 const zonas = new Map();
 async function zonaDe(foco) {
   if (!foco) return null;
@@ -42,73 +54,183 @@ async function zonaDe(foco) {
   return zona;
 }
 
-async function buscarEnGeoref(texto, foco) {
-  const soloDireccion = texto.split(',')[0].trim();
+async function deGeoref(texto, foco) {
   const zona = await zonaDe(foco).catch(() => null);
-  const parametros = { direccion: soloDireccion, max: '5', campos: 'completo' };
-  if (zona) {
-    parametros.departamento = zona.departamento;
-    parametros.provincia = zona.provincia;
-  }
+  const parametros = { direccion: texto.split(',')[0].trim(), max: '5', campos: 'completo' };
+  if (zona) Object.assign(parametros, zona);
   const datos = await pedirGeoref('direcciones', parametros);
   return (datos.direcciones || [])
     .filter((d) => d.ubicacion && Number.isFinite(d.ubicacion.lat) && Number.isFinite(d.ubicacion.lon))
     .map((d) => {
       const calle = nombrePropio(d.calle && d.calle.nombre);
-      const altura = d.altura && d.altura.valor != null ? d.altura.valor : '';
+      const altura = d.altura && d.altura.valor != null ? String(d.altura.valor) : '';
       return {
+        tipo: altura ? 'direccion' : 'calle',
         calle,
-        direccion: altura !== '' ? `${calle} ${altura}` : calle,
+        direccion: armarDireccion(calle, altura),
         ciudad: nombrePropio((d.localidad_censal && d.localidad_censal.nombre) || (d.departamento && d.departamento.nombre) || ''),
         provincia: (d.provincia && d.provincia.nombre) || '',
         lat: d.ubicacion.lat,
-        lng: d.ubicacion.lon,
-        conAltura: altura !== ''
+        lng: d.ubicacion.lon
       };
     });
+}
+
+/* ---------- OpenRouteService (Pelias) ---------- */
+
+function parametrosPelias(texto, foco) {
+  const q = new URLSearchParams({ text: texto, 'boundary.country': 'AR', layers: 'venue,address,street', size: String(MAX) });
+  if (foco) {
+    q.set('focus.point.lat', String(foco.lat));
+    q.set('focus.point.lon', String(foco.lng));
+  }
+  return q.toString();
 }
 
 function desdePelias(datos) {
   return (datos.features || []).map((f) => {
     const p = f.properties || {};
     const [lng, lat] = f.geometry.coordinates;
+    const esLugar = p.layer === 'venue';
     const conAltura = p.layer === 'address' || !!p.housenumber;
     return {
-      calle: p.street || p.name || '',
-      direccion: p.name || p.label,
+      tipo: esLugar ? 'lugar' : conAltura ? 'direccion' : 'calle',
+      nombre: esLugar ? p.name : '',
+      calle: p.street || (esLugar ? '' : p.name) || '',
+      direccion: esLugar ? armarDireccion(p.street, p.housenumber) : p.name || p.label,
       ciudad: p.locality || p.localadmin || p.county || '',
       provincia: p.region || '',
       lat,
-      lng,
-      conAltura
+      lng
     };
   });
 }
+
+/* ---------- Photon ---------- */
+
+function desdePhoton(datos) {
+  return (datos.features || [])
+    .filter((f) => (f.properties || {}).countrycode === 'AR' || !(f.properties || {}).countrycode)
+    .map((f) => {
+      const p = f.properties || {};
+      const [lng, lat] = f.geometry.coordinates;
+      const esCalle = p.osm_key === 'highway';
+      const esZona = p.osm_key === 'place' || p.osm_key === 'boundary';
+      const esLugar = !!p.name && !esCalle && !esZona && p.type !== 'street' && p.type !== 'house';
+      return {
+        tipo: esLugar ? 'lugar' : p.housenumber ? 'direccion' : 'calle',
+        nombre: esLugar ? p.name : '',
+        calle: p.street || (esCalle ? p.name : '') || '',
+        direccion: armarDireccion(p.street || (esCalle ? p.name : ''), p.housenumber) || (esLugar ? '' : p.name || ''),
+        ciudad: p.city || p.town || p.village || p.district || '',
+        provincia: p.state || '',
+        lat,
+        lng,
+        zona: esZona
+      };
+    })
+    .filter((r) => !r.zona);
+}
+
+/* ---------- Nominatim ---------- */
 
 function desdeNominatim(lista) {
   return (lista || []).map((n) => {
     const a = n.address || {};
     const calle = a.road || a.pedestrian || a.footway || '';
-    const conAltura = !!a.house_number;
+    const nombre = (n.namedetails && n.namedetails.name) || n.name || '';
+    const esLugar = !!nombre && n.category !== 'highway' && n.category !== 'place' && n.category !== 'boundary' && nombre !== calle;
     return {
+      tipo: esLugar ? 'lugar' : a.house_number ? 'direccion' : 'calle',
+      nombre: esLugar ? nombre : '',
       calle,
-      direccion: calle ? `${calle}${conAltura ? ' ' + a.house_number : ''}` : (n.display_name || '').split(',')[0],
+      direccion: armarDireccion(calle, a.house_number) || (esLugar ? '' : (n.display_name || '').split(',')[0]),
       ciudad: a.city || a.town || a.village || a.suburb || a.municipality || '',
       provincia: a.state || '',
       lat: Number(n.lat),
-      lng: Number(n.lon),
-      conAltura
+      lng: Number(n.lon)
     };
   });
 }
 
-function parametrosPelias(texto, foco) {
-  const q = new URLSearchParams({ text: texto, 'boundary.country': 'AR', layers: 'address,street,venue', size: String(MAX) });
-  if (foco) {
-    q.set('focus.point.lat', String(foco.lat));
-    q.set('focus.point.lon', String(foco.lng));
+/* ---------- Overpass ---------- */
+
+function desdeOverpass(datos) {
+  return (datos.elements || [])
+    .map((e) => {
+      const t = e.tags || {};
+      const lat = e.lat ?? (e.center && e.center.lat);
+      const lng = e.lon ?? (e.center && e.center.lon);
+      if (!t.name || t.highway || t.place || t.boundary) return null;
+      return {
+        tipo: 'lugar',
+        nombre: t.name,
+        calle: t['addr:street'] || '',
+        direccion: armarDireccion(t['addr:street'], t['addr:housenumber']),
+        ciudad: t['addr:city'] || '',
+        provincia: '',
+        lat,
+        lng
+      };
+    })
+    .filter(Boolean);
+}
+
+/* ---------- Armado de la respuesta ---------- */
+
+function formatear(lista, numero) {
+  const vistos = new Set();
+  const orden = { lugar: 0, direccion: 1, calle: 2 };
+  return lista
+    .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng) && (r.nombre || r.direccion))
+    .map((r) => {
+      let direccion = r.direccion;
+      let aproximada = false;
+      if (r.tipo === 'calle' && numero) {
+        const yaTieneNumero = new RegExp(`\\b${numero}$`).test(String(r.calle || r.direccion).trim());
+        if (!yaTieneNumero) {
+          direccion = `${r.calle || r.direccion} ${numero}`;
+          aproximada = true;
+        }
+      }
+      const lugar = [r.ciudad, r.provincia].filter(Boolean).join(', ');
+      let aclaracion = '';
+      if (aproximada) aclaracion = 'altura aproximada, ajustá el pin';
+      else if (r.tipo === 'calle') aclaracion = 'sin altura';
+      return {
+        tipo: r.tipo,
+        nombre: r.nombre || '',
+        direccion: direccion || '',
+        detalle: [lugar, aclaracion].filter(Boolean).join(' · '),
+        lat: r.lat,
+        lng: r.lng,
+        aproximada
+      };
+    })
+    .sort((a, b) => (numero ? 0 : orden[a.tipo] - orden[b.tipo]))
+    .filter((r, _, todas) => !(r.aproximada && todas.some((x) => x.tipo === 'direccion')))
+    .filter((r) => {
+      const clave = `${(r.nombre || r.direccion).toLowerCase()}|${r.lat.toFixed(3)}|${r.lng.toFixed(3)}`;
+      if (vistos.has(clave)) return false;
+      vistos.add(clave);
+      return true;
+    })
+    .slice(0, MAX);
+}
+
+async function probar(intentos, listo) {
+  let encontrados = [];
+  let fallas = 0;
+  for (const intento of intentos) {
+    if (listo(encontrados)) break;
+    try {
+      encontrados = encontrados.concat(await intento());
+    } catch (e) {
+      fallas++;
+      console.log('[buscar] falló un intento', e.message, e.estado || '', JSON.stringify(e.detalle || '').slice(0, 200));
+    }
   }
-  return q.toString();
+  return { encontrados, todosFallaron: fallas === intentos.length };
 }
 
 export default async function handler(req, res) {
@@ -124,71 +246,38 @@ export default async function handler(req, res) {
   const foco = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   const { calle, numero } = separarAltura(texto);
 
-  let encontrados = [];
-  let fallas = 0;
-  const hayConAltura = () => encontrados.some((r) => r.conAltura);
-
-  const intentos = [
-    async () => (numero ? buscarEnGeoref(texto, foco) : []),
-    async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`)),
-    async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(texto, foco)}`)),
-    async () => desdeNominatim(await pedirNominatim(texto, foco))
-  ];
-
-  for (const intento of intentos) {
-    if (hayConAltura()) break;
-    try {
-      encontrados = encontrados.concat(await intento());
-    } catch (e) {
-      fallas++;
-      console.log('[buscar] falló un intento', e.message, e.estado || '', JSON.stringify(e.detalle || '').slice(0, 300));
-    }
+  let resultado;
+  if (numero) {
+    // Dirección con altura
+    resultado = await probar(
+      [
+        () => deGeoref(texto, foco),
+        async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`)),
+        async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(texto, foco)}`)),
+        async () => desdeNominatim(await pedirNominatim(texto, foco)),
+        async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(calle, foco)}`))
+      ],
+      (lista) => lista.some((r) => r.tipo === 'direccion')
+    );
+  } else {
+    // Nombre de un lugar o de una calle
+    const hayLugares = (lista) => lista.filter((r) => r.tipo === 'lugar').length >= 3;
+    resultado = await probar(
+      [
+        async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`)),
+        async () => desdePhoton(await pedirPhoton(texto, foco)),
+        async () => desdeNominatim(await pedirNominatim(texto, foco)),
+        async () => desdeOverpass(await pedirOverpass(texto, foco))
+      ],
+      hayLugares
+    );
   }
 
-  // Sin resultados y con altura escrita: buscar solo la calle
-  if (!encontrados.length && numero && calle.length >= 3) {
-    try {
-      encontrados = desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(calle, foco)}`));
-      if (!encontrados.length) encontrados = desdeNominatim(await pedirNominatim(calle, foco));
-    } catch (e) {
-      fallas++;
-    }
-  }
-
-  if (!encontrados.length && fallas >= intentos.length) {
+  if (!resultado.encontrados.length && resultado.todosFallaron) {
     return responder(res, 502, { error: 'busqueda' });
   }
 
-  const vistos = new Set();
-  const resultados = encontrados
-    .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng) && r.direccion)
-    .map((r) => {
-      const nombreCalle = String(r.calle || r.direccion);
-      const yaTieneNumero = numero && new RegExp(`\\b${numero}$`).test(nombreCalle.trim());
-      const aproximada = !r.conAltura && !!numero && !yaTieneNumero;
-      const direccion = aproximada ? `${nombreCalle} ${numero}` : r.direccion;
-      const lugar = [r.ciudad, r.provincia].filter(Boolean).join(', ');
-      return {
-        direccion,
-        detalle: lugar + (aproximada ? ' · altura aproximada, ajustá el pin' : !r.conAltura && !yaTieneNumero ? ' · sin altura' : ''),
-        lat: r.lat,
-        lng: r.lng,
-        aproximada,
-        conAltura: r.conAltura
-      };
-    })
-    .sort((a, b) => Number(b.conAltura) - Number(a.conAltura))
-    // Si hay direcciones con altura exacta, no se muestran las aproximadas
-    .filter((r, _, todas) => !(r.aproximada && todas.some((x) => x.conAltura)))
-    .filter((r) => {
-      const clave = `${r.direccion.toLowerCase()}|${r.lat.toFixed(4)}|${r.lng.toFixed(4)}`;
-      if (vistos.has(clave)) return false;
-      vistos.add(clave);
-      return true;
-    })
-    .slice(0, MAX)
-    .map(({ conAltura, ...r }) => r);
-
-  console.log('[buscar]', JSON.stringify({ texto, resultados: resultados.length, conAltura: hayConAltura() }));
+  const resultados = formatear(resultado.encontrados, numero);
+  console.log('[buscar]', JSON.stringify({ texto, conAltura: !!numero, resultados: resultados.length, lugares: resultados.filter((r) => r.tipo === 'lugar').length }));
   return responder(res, 200, { resultados });
 }

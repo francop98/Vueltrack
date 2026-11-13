@@ -212,8 +212,11 @@ function abrirEditor(cliente) {
   crearBuscador(el.querySelector('#c-direccion'), {
     foco: () => ctx.equipo.base,
     alElegir: (r) => {
-      ubicacion = { direccion: r.direccion, lat: r.lat, lng: r.lng };
-      el.querySelector('#c-direccion').value = r.direccion;
+      const direccion = r.direccion || r.nombre;
+      ubicacion = { direccion, lat: r.lat, lng: r.lng };
+      el.querySelector('#c-direccion').value = direccion;
+      const campoNombre = el.querySelector('#c-nombre');
+      if (r.nombre && !campoNombre.value.trim()) campoNombre.value = r.nombre;
       ponerPin();
     }
   });

@@ -53,9 +53,10 @@ $('btn-volver-2').addEventListener('click', () => verPaso('paso-modo'));
 
 crearBuscador($('base'), {
   alElegir: (r) => {
-    base = { direccion: r.direccion, lat: r.lat, lng: r.lng };
-    $('base').value = r.direccion;
-    $('base-elegida').innerHTML = `Salís desde <strong>${esc(r.direccion)}</strong>${r.detalle ? `, ${esc(r.detalle)}` : ''}.`;
+    const direccion = r.nombre ? [r.nombre, r.direccion].filter(Boolean).join(' · ') : r.direccion;
+    base = { direccion, lat: r.lat, lng: r.lng };
+    $('base').value = direccion;
+    $('base-elegida').innerHTML = `Salís desde <strong>${esc(direccion)}</strong>${r.detalle ? `, ${esc(r.detalle)}` : ''}.`;
   }
 });
 

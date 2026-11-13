@@ -1280,3 +1280,20 @@ fieldset.sin-borde legend {
     padding: 0 12px;
   }
 }
+
+.sugerencias .sug-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.sugerencias .sug-titulo .etiqueta {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.sugerencias {
+  max-height: 60vh;
+  overflow-y: auto;
+}

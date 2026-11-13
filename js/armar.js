@@ -82,12 +82,25 @@ async function guardarParadas(nuevas) {
 
 const buscador = crearBuscador($('dir'), {
   foco: () => ctx.equipo.base,
+  clientes: () => clientes,
   alElegir: async (r) => {
+    if (r.tipo === 'cliente') {
+      const cliente = clientes.find((c) => c.id === r.clienteId);
+      buscador.limpiar();
+      if (!cliente) return;
+      if (idsClientesEnVuelta().has(cliente.id)) {
+        aviso('Ya está en la vuelta');
+        return;
+      }
+      await guardarParadas([...paradas(), paradaDesdeCliente(cliente)]);
+      aviso(`${cliente.nombre} sumado a la vuelta`);
+      return;
+    }
     const nueva = {
       id: idNuevo(),
       clienteId: null,
-      nombre: r.direccion,
-      direccion: r.direccion,
+      nombre: r.nombre || r.direccion,
+      direccion: r.direccion || r.nombre,
       lat: r.lat,
       lng: r.lng,
       telefono: '',

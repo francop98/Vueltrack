@@ -82,6 +82,7 @@ export async function pedirNominatim(texto, foco) {
     q: texto,
     format: 'jsonv2',
     addressdetails: '1',
+    namedetails: '1',
     countrycodes: 'ar',
     limit: '6'
   });
@@ -91,12 +92,75 @@ export async function pedirNominatim(texto, foco) {
   }
   const resp = await fetch(`https://nominatim.openstreetmap.org/search?${q.toString()}`, {
     headers: {
-      'User-Agent': 'Vueltrack/1.1 (https://vueltrack.vercel.app)',
+      'User-Agent': 'Vueltrack/2.2 (https://vueltrack.vercel.app)',
       'Accept-Language': 'es'
     }
   });
   if (!resp.ok) {
     const error = new Error('nominatim');
+    error.estado = resp.status;
+    throw error;
+  }
+  return resp.json();
+}
+
+/* Pedido con tiempo máximo (para no colgar la búsqueda si un servicio tarda) */
+async function conTiempo(url, opciones = {}, ms = 6000) {
+  const control = new AbortController();
+  const corte = setTimeout(() => control.abort(), ms);
+  try {
+    return await fetch(url, { ...opciones, signal: control.signal });
+  } finally {
+    clearTimeout(corte);
+  }
+}
+
+/* Photon (komoot): buscador de OpenStreetMap muy bueno para nombres de lugares.
+   Gratis y sin clave, con uso moderado. */
+export async function pedirPhoton(texto, foco) {
+  const q = new URLSearchParams({ q: texto, limit: '8' });
+  if (foco) {
+    q.set('lat', String(foco.lat));
+    q.set('lon', String(foco.lng));
+    q.set('location_bias_scale', '0.4');
+  }
+  const resp = await conTiempo(`https://photon.komoot.io/api/?${q.toString()}`, {
+    headers: { 'User-Agent': 'Vueltrack/2.2 (https://vueltrack.vercel.app)' }
+  });
+  if (!resp.ok) {
+    const error = new Error('photon');
+    error.estado = resp.status;
+    throw error;
+  }
+  return resp.json();
+}
+
+/* Overpass: busca por nombre todo lo cargado en OpenStreetMap alrededor del punto de salida.
+   Encuentra comercios que los buscadores a veces no indexan. */
+export async function pedirOverpass(texto, foco, radioMetros = 25000) {
+  const limpio = texto.replace(/[\\^$.|?*+()[\]{}"]/g, ' ').trim();
+  if (!limpio || !foco) return { elements: [] };
+  // Sin importar tildes ni mayúsculas: "ferreteria" encuentra "Ferretería"
+  const VOCALES = { a: '[aáAÁ]', e: '[eéEÉ]', i: '[iíIÍ]', o: '[oóOÓ]', u: '[uúüUÚÜ]', n: '[nñNÑ]' };
+  const patron = limpio
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split('')
+    .map((c) => VOCALES[c] || c)
+    .join('');
+  const consulta = `[out:json][timeout:8];nwr["name"~"${patron}",i](around:${radioMetros},${foco.lat},${foco.lng});out center tags 8;`;
+  const resp = await conTiempo(
+    'https://overpass-api.de/api/interpreter',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Vueltrack/2.2 (https://vueltrack.vercel.app)' },
+      body: 'data=' + encodeURIComponent(consulta)
+    },
+    9000
+  );
+  if (!resp.ok) {
+    const error = new Error('overpass');
     error.estado = resp.status;
     throw error;
   }
