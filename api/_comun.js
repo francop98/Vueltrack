@@ -60,6 +60,21 @@ export async function pedirORS(ruta, { method = 'GET', body } = {}) {
   return datos;
 }
 
+/* Georef (datos.gob.ar): servicio oficial de direcciones de Argentina.
+   Gratis y sin clave. Entiende "calle + altura" y ubica la altura sobre la cuadra. */
+export async function pedirGeoref(recurso, parametros) {
+  const q = new URLSearchParams(parametros);
+  const resp = await fetch(`https://apis.datos.gob.ar/georef/api/v2.0/${recurso}?${q.toString()}`, {
+    headers: { Accept: 'application/json' }
+  });
+  if (!resp.ok) {
+    const error = new Error('georef');
+    error.estado = resp.status;
+    throw error;
+  }
+  return resp.json();
+}
+
 /* Nominatim (buscador oficial de OpenStreetMap). Gratis, con uso moderado:
    máximo 1 pedido por segundo e identificando la app. */
 export async function pedirNominatim(texto, foco) {

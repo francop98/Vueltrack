@@ -4,7 +4,7 @@
    Estilos, scripts e íconos: copia guardada y se actualiza por detrás.
    Al publicar una versión nueva, subí el número de VERSION.
    ========================================================= */
-const VERSION = 'vueltrack-v1.1';
+const VERSION = 'vueltrack-v1.2';
 
 const ARCHIVOS = [
   './',

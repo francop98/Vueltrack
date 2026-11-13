@@ -2,14 +2,15 @@
    GET /api/buscar?texto=...&lat=...&lng=...
    Sugerencias de direcciones. Prueba en este orden y se queda
    con lo primero que encuentre con altura:
-     1. OpenRouteService · autocompletar
-     2. OpenRouteService · búsqueda completa
-     3. Nominatim (OpenStreetMap), que entiende mejor "calle + altura"
+     1. Georef (servicio oficial de direcciones de Argentina)
+     2. OpenRouteService · autocompletar (también busca comercios)
+     3. OpenRouteService · búsqueda completa
+     4. Nominatim (OpenStreetMap)
    Si solo aparece la calle sin la altura, devuelve la calle con la
    altura que escribió el usuario y la marca como aproximada
    (después se ajusta el pin en el mapa).
    ========================================================= */
-import { verificarUsuario, pedirORS, pedirNominatim, responder } from './_comun.js';
+import { verificarUsuario, pedirORS, pedirNominatim, pedirGeoref, responder } from './_comun.js';
 
 const MAX = 6;
 
@@ -18,6 +19,53 @@ function separarAltura(texto) {
   const m = texto.match(/^(.*\D)\s+(?:n[°º]?\s*)?(\d{1,5})\b\s*,?\s*(.*)$/i);
   if (!m || !m[1].trim()) return { calle: texto, numero: null, resto: '' };
   return { calle: m[1].replace(/,\s*$/, '').trim(), numero: m[2], resto: m[3].trim() };
+}
+
+function nombrePropio(texto) {
+  return String(texto || '')
+    .toLowerCase()
+    .replace(/(^|[\s.(-])([a-záéíóúñü])/g, (m, a, b) => a + b.toUpperCase())
+    .replace(/\b(De|Del|La|Las|Los|Y)\b/g, (m) => m.toLowerCase())
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+/* Departamento y provincia del punto de salida (para que Georef busque en la ciudad correcta) */
+const zonas = new Map();
+async function zonaDe(foco) {
+  if (!foco) return null;
+  const clave = `${foco.lat.toFixed(2)},${foco.lng.toFixed(2)}`;
+  if (zonas.has(clave)) return zonas.get(clave);
+  const datos = await pedirGeoref('ubicacion', { lat: foco.lat, lon: foco.lng });
+  const u = datos.ubicacion || {};
+  const zona = u.departamento && u.departamento.id ? { departamento: u.departamento.id, provincia: u.provincia.id } : null;
+  zonas.set(clave, zona);
+  return zona;
+}
+
+async function buscarEnGeoref(texto, foco) {
+  const soloDireccion = texto.split(',')[0].trim();
+  const zona = await zonaDe(foco).catch(() => null);
+  const parametros = { direccion: soloDireccion, max: '5', campos: 'completo' };
+  if (zona) {
+    parametros.departamento = zona.departamento;
+    parametros.provincia = zona.provincia;
+  }
+  const datos = await pedirGeoref('direcciones', parametros);
+  return (datos.direcciones || [])
+    .filter((d) => d.ubicacion && Number.isFinite(d.ubicacion.lat) && Number.isFinite(d.ubicacion.lon))
+    .map((d) => {
+      const calle = nombrePropio(d.calle && d.calle.nombre);
+      const altura = d.altura && d.altura.valor != null ? d.altura.valor : '';
+      return {
+        calle,
+        direccion: altura !== '' ? `${calle} ${altura}` : calle,
+        ciudad: nombrePropio((d.localidad_censal && d.localidad_censal.nombre) || (d.departamento && d.departamento.nombre) || ''),
+        provincia: (d.provincia && d.provincia.nombre) || '',
+        lat: d.ubicacion.lat,
+        lng: d.ubicacion.lon,
+        conAltura: altura !== ''
+      };
+    });
 }
 
 function desdePelias(datos) {
@@ -81,6 +129,7 @@ export default async function handler(req, res) {
   const hayConAltura = () => encontrados.some((r) => r.conAltura);
 
   const intentos = [
+    async () => (numero ? buscarEnGeoref(texto, foco) : []),
     async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`)),
     async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(texto, foco)}`)),
     async () => desdeNominatim(await pedirNominatim(texto, foco))
