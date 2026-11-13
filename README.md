@@ -1,4 +1,4 @@
-# Vueltrack v2.2
+# Vueltrack v2.3
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,12 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v2.3
+- Corrige la búsqueda de comercios: Photon marca muchos comercios como “casa” y se estaban descartando. Photon y OpenRouteService se consultan a la vez.
+- Destinos: botones para editar (nombre, dirección, pin, teléfono, horario de cierre, nota, urgente) y eliminar, en Armar y en la pantalla de cada parada.
+- Inicio queda solo en la barra de abajo (ícono de casa). Arriba a la derecha, menú desplegable con Mis datos, Seguridad (cambiar contraseña), Mi vehículo, Equipo, Clientes y Cerrar sesión.
+- Textos de ayuda formales y simples en todos los campos.
 
 ### v2.2
 - Búsqueda de comercios y empresas por nombre (ej. “Ferretería Don Luis”), además de calle y altura. Usa OpenRouteService, Photon, Nominatim y Overpass (todo OpenStreetMap, gratis).

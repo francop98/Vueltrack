@@ -137,7 +137,7 @@ function editarMiembro(uid) {
         <label class="interruptor tarjeta" for="r-org"><span><strong>Organizador</strong><br><span class="texto-tenue">Arma y reparte las vueltas</span></span><input type="checkbox" id="r-org" ${roles.includes('organizador') ? 'checked' : ''}></label>
         <label class="interruptor tarjeta" for="r-flet"><span><strong>Fletero</strong><br><span class="texto-tenue">Recibe una vuelta para hacer</span></span><input type="checkbox" id="r-flet" ${roles.includes('fletero') ? 'checked' : ''}></label>
       </fieldset>
-      <div class="campo"><label for="r-vehiculo">Vehículo</label><input id="r-vehiculo" value="${esc(m.vehiculo || '')}" placeholder="Ej. Kangoo, Fiorino, moto"></div>
+      <div class="campo"><label for="r-vehiculo">Vehículo</label><input id="r-vehiculo" value="${esc(m.vehiculo || '')}" placeholder="Marca y modelo"></div>
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Color en el mapa</legend>
         <div class="casillas">

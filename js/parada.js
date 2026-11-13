@@ -4,6 +4,7 @@
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, cambiarParada, corregirUbicacionCliente, fleterosDelEquipo } from './datos.js';
 import { paradasDe, paradaHecha } from './vuelta.js';
+import { editarParada, confirmarQuitar } from './editarParada.js';
 import {
   ICONOS,
   esc,
@@ -53,6 +54,7 @@ function pintar() {
     $('acciones').innerHTML = '<a class="btn btn-primario" href="/pages/hoy.html">Volver a la vuelta</a>';
     $('botones-estado').innerHTML = '';
     $('btn-ubicacion').classList.add('oculto');
+    $('gestion').classList.add('oculto');
     return;
   }
 
@@ -71,7 +73,7 @@ function pintar() {
 
   const pastillas = [];
   if (p.llegada != null && !paradaHecha(p)) pastillas.push(`Llegás ${horaDeSegundos(p.llegada)}`);
-  if (p.hasta) pastillas.push(`Recibe hasta ${p.hasta}`);
+  if (p.hasta) pastillas.push(`Cierra ${p.hasta}`);
   if (p.urgente) pastillas.push('Urgente');
   if (p.estado === 'entregado') pastillas.push(`Entregado ${p.horaEstado || ''}`);
   if (p.estado === 'noEstaba') pastillas.push(`No estaba (${p.horaEstado || ''})`);
@@ -117,6 +119,8 @@ function pintar() {
   } else {
     $('siguiente').classList.add('oculto');
   }
+
+  $('gestion').classList.toggle('oculto', !ctx.organizador);
 
   const puede = puedoMarcar(p);
   $('btn-ubicacion').classList.toggle('oculto', !puede);
@@ -206,4 +210,33 @@ $('btn-ubicacion').addEventListener('click', async () => {
     () => aviso('No se pudo obtener la ubicación. Revisá el permiso de ubicación.'),
     { enableHighAccuracy: true, timeout: 15000 }
   );
+});
+
+/* ---------- Editar o eliminar el destino (organizador) ---------- */
+
+$('btn-editar').addEventListener('click', () => {
+  const p = laParada();
+  if (!p) return;
+  editarParada({
+    parada: p,
+    equipo: ctx.equipo,
+    ordenada: true,
+    guardar: (cambios) =>
+      cambiarParada(ctx.equipo.id, fecha, id, (paradas, i) => {
+        if (i >= 0) paradas[i] = { ...paradas[i], ...cambios };
+        return paradas;
+      }),
+    quitar: async () => {
+      await cambiarParada(ctx.equipo.id, fecha, id, (paradas) => paradas.filter((x) => x.id !== id));
+      location.href = '/pages/hoy.html';
+    }
+  });
+});
+
+$('btn-eliminar').addEventListener('click', async () => {
+  const p = laParada();
+  if (!p || !(await confirmarQuitar(p))) return;
+  await cambiarParada(ctx.equipo.id, fecha, id, (paradas) => paradas.filter((x) => x.id !== id));
+  aviso('Destino eliminado');
+  location.href = '/pages/hoy.html';
 });

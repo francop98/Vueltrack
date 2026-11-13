@@ -21,15 +21,12 @@
     <main class="contenido">
       <header class="barra-sup">
         <div class="barra-izq">
-          <a class="btn-icono" href="/" aria-label="Menú principal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-          </a>
           <a class="marca" href="/" aria-label="Vueltrack, inicio">
             <img src="/assets/icono.svg" alt="">
             <span class="marca-texto">vuel<span>track</span></span>
           </a>
         </div>
-        <button type="button" class="avatar" id="btn-cuenta" aria-label="Mi cuenta"></button>
+        <button type="button" class="btn-icono" id="btn-menu" aria-label="Abrir menú" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       </header>
 
       <div class="titulo-bloque">
@@ -46,7 +43,7 @@
       <form class="seccion" id="form" novalidate>
         <div class="campo">
           <label for="nombre">Vehículo</label>
-          <input id="nombre" placeholder="Ej. Renault Kangoo" autocomplete="off">
+          <input id="nombre" placeholder="Marca y modelo" autocomplete="off">
         </div>
 
         <fieldset class="campo sin-borde">
@@ -73,18 +70,18 @@
         <div class="grilla-2 siempre">
           <div class="campo">
             <label for="rinde" id="label-rinde">Rinde (km por litro)</label>
-            <input id="rinde" type="number" inputmode="decimal" min="0" step="0.1" placeholder="Ej. 11">
+            <input id="rinde" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0">
           </div>
           <div class="campo">
             <label for="precio" id="label-precio">Precio ($ por litro)</label>
-            <input id="precio" type="number" inputmode="decimal" min="0" step="1" placeholder="Ej. 1500">
+            <input id="precio" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
           </div>
         </div>
         <p class="texto-tenue">¿No sabés cuánto rinde? Llená el tanque, anotá los km del tablero y en la próxima carga dividí los km recorridos por los litros que entraron.</p>
 
         <div class="campo">
-          <label for="extra">Otros gastos por km (opcional)</label>
-          <input id="extra" type="number" inputmode="decimal" min="0" step="1" placeholder="Ej. 40 (service, cubiertas, desgaste)">
+          <label for="extra">Otros gastos por km, opcional (service, cubiertas, desgaste)</label>
+          <input id="extra" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
         </div>
 
         <p class="error-texto oculto" id="error" role="alert"></p>

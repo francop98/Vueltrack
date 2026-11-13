@@ -175,7 +175,7 @@ function pintarProxima(grupos) {
       <div class="titulo-bloque">
         <span class="acento">Próxima parada · ${p.numero} de ${grupo.paradas.length}${grupos.length > 1 && filtro === 'todos' ? ` · ${esc(grupo.nombre)}` : ''}</span>
         <strong id="proxima-nombre" class="subtitulo">${esc(p.nombre)}</strong>
-        <span class="tenue">${esc(p.direccion)}${p.hasta ? ` · recibe hasta ${esc(p.hasta)}` : ''}</span>
+        <span class="tenue">${esc(p.direccion)}${p.hasta ? ` · cierra ${esc(p.hasta)}` : ''}</span>
       </div>
       <div class="titulo-bloque">
         <strong class="subtitulo">${horaDeSegundos(p.llegada)}</strong>

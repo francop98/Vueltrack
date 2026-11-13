@@ -4,7 +4,7 @@
    Estilos, scripts e íconos: copia guardada y se actualiza por detrás.
    Al publicar una versión nueva, subí el número de VERSION.
    ========================================================= */
-const VERSION = 'vueltrack-v2.2';
+const VERSION = 'vueltrack-v2.3';
 
 const ARCHIVOS = [
   '/',
@@ -30,6 +30,7 @@ const ARCHIVOS = [
   '/js/buscador.js',
   '/js/clientes.js',
   '/js/datos.js',
+  '/js/editarParada.js',
   '/js/equipo.js',
   '/js/firebase-config.js',
   '/js/firebase.js',

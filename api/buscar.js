@@ -116,7 +116,8 @@ function desdePhoton(datos) {
       const [lng, lat] = f.geometry.coordinates;
       const esCalle = p.osm_key === 'highway';
       const esZona = p.osm_key === 'place' || p.osm_key === 'boundary';
-      const esLugar = !!p.name && !esCalle && !esZona && p.type !== 'street' && p.type !== 'house';
+      // Photon marca muchos comercios como "house": cuenta como lugar si tiene nombre propio
+      const esLugar = !!p.name && !esCalle && !esZona && p.name !== p.street;
       return {
         tipo: esLugar ? 'lugar' : p.housenumber ? 'direccion' : 'calle',
         nombre: esLugar ? p.name : '',
@@ -264,8 +265,15 @@ export default async function handler(req, res) {
     const hayLugares = (lista) => lista.filter((r) => r.tipo === 'lugar').length >= 3;
     resultado = await probar(
       [
-        async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`)),
-        async () => desdePhoton(await pedirPhoton(texto, foco)),
+        // Photon y OpenRouteService a la vez (los dos son rápidos)
+        async () => {
+          const [photon, pelias] = await Promise.allSettled([
+            pedirPhoton(texto, foco).then(desdePhoton),
+            pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`).then(desdePelias)
+          ]);
+          if (photon.status === 'rejected' && pelias.status === 'rejected') throw photon.reason;
+          return [...(photon.value || []), ...(pelias.value || [])];
+        },
         async () => desdeNominatim(await pedirNominatim(texto, foco)),
         async () => desdeOverpass(await pedirOverpass(texto, foco))
       ],

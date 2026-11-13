@@ -1,7 +1,7 @@
 /* =========================================================
    Vueltrack — Pantalla principal (menú)
    ========================================================= */
-import { iniciarPantalla, abrirCuenta } from './sesion.js';
+import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, fleterosDelEquipo } from './datos.js';
 import { gruposDeVuelta, resumen, paradasSinOrdenar, costoDeRuta, paradaHecha } from './vuelta.js';
 import {
@@ -145,9 +145,7 @@ function pintarMosaico() {
     ctx.organizador && varios && { href: `/pages/repartir.html?fecha=${fecha}`, icono: ICONOS.equipo, titulo: 'Repartir', texto: 'Dividir entre fleteros' },
     ctx.organizador && { href: '/pages/clientes.html', icono: ICONOS.clientes, titulo: 'Clientes', texto: 'Tus clientes habituales' },
     ctx.fletero && { href: '/pages/vehiculo.html', icono: ICONOS.auto, titulo: 'Mi vehículo', texto: 'Consumo y gastos' },
-    { href: '/pages/equipo.html', icono: ICONOS.equipo, titulo: 'Equipo', texto: ctx.equipo.modo === 'solo' ? 'Trabajo solo' : 'Integrantes y roles' },
-    { id: 'baldosa-cuenta', icono: ICONOS.cuenta, titulo: 'Mi cuenta', texto: 'Nombre y sesión' }
+    { href: '/pages/equipo.html', icono: ICONOS.equipo, titulo: 'Equipo', texto: ctx.equipo.modo === 'solo' ? 'Trabajo solo' : 'Integrantes y roles' }
   ].filter(Boolean);
   $('mosaico').innerHTML = items.map(baldosa).join('');
-  $('baldosa-cuenta').addEventListener('click', () => abrirCuenta(ctx));
 }

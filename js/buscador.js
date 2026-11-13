@@ -112,7 +112,7 @@ export function crearBuscador(input, { foco = () => null, alElegir, clientes = (
 }
 
 /* Markup del buscador (para hojas que se arman con JS) */
-export function htmlBuscador(id, etiqueta, placeholder = 'Calle y altura, ej. Estomba 410', valor = '') {
+export function htmlBuscador(id, etiqueta, placeholder = 'Dirección o nombre del lugar', valor = '') {
   return `
     <div class="campo buscador">
       <label for="${id}">${esc(etiqueta)}</label>

@@ -14,7 +14,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/mapa.css">
   <link rel="stylesheet" href="/css/parada.css">
 </head>
 <body>
@@ -25,7 +27,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
         </a>
         <span class="tenue texto-chico-fuerte" id="contexto"></span>
-        <button type="button" class="avatar avatar-oscuro" id="btn-cuenta" aria-label="Mi cuenta"></button>
+        <button type="button" class="btn-icono" id="btn-menu" aria-label="Abrir menú" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       </div>
       <div class="progreso" id="progreso" aria-hidden="true"></div>
       <div class="titulo-bloque">
@@ -48,9 +50,21 @@
       <button type="button" class="link" id="btn-ubicacion">Estoy en la puerta: guardar esta ubicación</button>
 
       <div class="seccion" id="botones-estado"></div>
+
+      <div class="grilla-2 siempre oculto" id="gestion">
+        <button type="button" class="btn" id="btn-editar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
+          Editar destino
+        </button>
+        <button type="button" class="btn btn-peligro" id="btn-eliminar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+          Eliminar
+        </button>
+      </div>
     </main>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/js/pwa.js"></script>
   <script type="module" src="/js/parada.js"></script>
 </body>

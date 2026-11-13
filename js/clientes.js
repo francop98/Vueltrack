@@ -169,13 +169,13 @@ function abrirEditor(cliente) {
   const hoja = abrirHoja({
     titulo: cliente ? 'Editar cliente' : 'Nuevo cliente',
     html: `
-      <div class="campo"><label for="c-nombre">Nombre</label><input id="c-nombre" value="${esc(c.nombre)}" placeholder="Ej. Ferretería Don Luis"></div>
-      ${htmlBuscador('c-direccion', 'Dirección', 'Calle y altura', c.direccion)}
+      <div class="campo"><label for="c-nombre">Nombre</label><input id="c-nombre" value="${esc(c.nombre)}" placeholder="Nombre del cliente"></div>
+      ${htmlBuscador('c-direccion', 'Dirección', 'Dirección o nombre del lugar', c.direccion)}
       <div class="mapa chico ${ubicacion ? '' : 'oculto'}" id="c-mapa-caja"><div class="mapa-lienzo" id="c-mapa"></div></div>
       <span class="texto-tenue ${ubicacion ? '' : 'oculto'}" id="c-ayuda-pin">Si el pin quedó corrido, arrastralo a la puerta.</span>
       <div class="grilla-2">
         <div class="campo"><label for="c-tel">Teléfono</label><input id="c-tel" type="tel" inputmode="tel" value="${esc(c.telefono)}"></div>
-        <div class="campo"><label for="c-hasta">Recibe hasta</label><input id="c-hasta" type="time" value="${esc(c.hasta)}"></div>
+        <div class="campo"><label for="c-hasta">Horario de cierre</label><input id="c-hasta" type="time" value="${esc(c.hasta)}"></div>
       </div>
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Días que le toca</legend>
@@ -188,7 +188,7 @@ function abrirEditor(cliente) {
             .join('')}
         </div>
       </fieldset>
-      <div class="campo"><label for="c-nota">Nota para el fletero</label><textarea id="c-nota" placeholder="Ej. Entrar por el portón de al lado">${esc(c.nota)}</textarea></div>
+      <div class="campo"><label for="c-nota">Nota para el fletero</label><textarea id="c-nota" placeholder="Indicaciones para la entrega">${esc(c.nota)}</textarea></div>
       <p class="error-texto oculto" id="c-error" role="alert"></p>
       <button type="button" class="btn btn-primario btn-grande" id="c-guardar">Guardar cliente</button>
       ${cliente ? `<button type="button" class="btn btn-peligro" id="c-borrar">${ICONOS.basura}Eliminar cliente</button>` : ''}`

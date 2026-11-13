@@ -73,7 +73,8 @@ export function pintarVuelta(mapa, { base, grupos, alTocarParada, ajustar = true
 /* Mapa chico con un pin que se puede arrastrar para corregir una ubicación */
 export function mapaConPin(elemento, { lat, lng }, alMover) {
   const mapa = crearMapa(elemento, { centro: { lat, lng }, zoom: 17 });
-  const marcador = L.marker([lat, lng], { draggable: true, autoPan: true }).addTo(mapa);
+  const icono = L.divIcon({ className: '', html: '<div class="pin-editar"></div>', iconSize: [28, 28], iconAnchor: [14, 28] });
+  const marcador = L.marker([lat, lng], { draggable: true, autoPan: true, icon: icono, title: 'Arrastrá el pin' }).addTo(mapa);
   marcador.on('dragend', () => {
     const p = marcador.getLatLng();
     alMover(p.lat, p.lng);

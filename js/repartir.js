@@ -309,7 +309,7 @@ async function calcular() {
     $('btn-confirmar').disabled = false;
     const aviso1 = $('aviso-sin-asignar');
     aviso1.textContent = calculo.sinAsignar
-      ? `${calculo.sinAsignar} paradas no entran en el horario de nadie. Revisá los “recibe hasta” o sumá otro fletero.`
+      ? `${calculo.sinAsignar} paradas no entran en el horario de nadie. Revisá los horarios de cierre o sumá otro fletero.`
       : '';
     aviso1.classList.toggle('oculto', !calculo.sinAsignar);
   } catch (e) {

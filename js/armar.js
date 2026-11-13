@@ -7,13 +7,12 @@ import {
   escucharClientes,
   guardarVuelta,
   actualizarEquipo,
-  fleterosDelEquipo,
-  corregirUbicacionCliente
+  fleterosDelEquipo
 } from './datos.js';
 import { crearBuscador } from './buscador.js';
-import { mapaConPin } from './mapa.js';
 import { ordenarYGuardar, mensajeError, horaDeSalida, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirPuntoDeSalida, elegirOrden } from './salida.js';
+import { editarParada, confirmarQuitar } from './editarParada.js';
 import { paradaHecha, paradaDesdeCliente } from './vuelta.js';
 import {
   ICONOS,
@@ -115,7 +114,7 @@ const buscador = crearBuscador($('dir'), {
     if (r.aproximada) {
       // La altura no está en el mapa: se abre la parada para ubicar el pin en la puerta
       aviso('No tenemos esa altura exacta: arrastrá el pin hasta la puerta');
-      setTimeout(() => editarParada(nueva.id), 300);
+      setTimeout(() => editar(nueva.id), 300);
     } else {
       aviso('Parada agregada');
     }
@@ -183,74 +182,49 @@ function pintarParadas() {
   $('lista-paradas').innerHTML = visibles
     .map(
       (p) => `
-      <button type="button" class="fila" data-parada="${esc(p.id)}">
-        <span class="numero ${paradaHecha(p) ? 'ok' : ''}">${paradaHecha(p) ? ICONOS.check : ordenada && p.orden ? p.orden : ICONOS.pin}</span>
-        <span class="fila-cuerpo">
-          <span class="fila-titulo-texto">${esc(p.nombre)}</span>
-          <span class="fila-detalle">${p.clienteId ? '' : 'Dirección suelta · '}${esc(p.direccion)}</span>
-        </span>
-        ${p.urgente ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''}
-        ${p.hasta ? `<span class="etiqueta etiqueta-aviso">hasta ${esc(p.hasta)}</span>` : ''}
-      </button>`
+      <div class="fila">
+        <button type="button" class="fila enlace-plano sin-padding" data-editar="${esc(p.id)}">
+          <span class="numero ${paradaHecha(p) ? 'ok' : ''}">${paradaHecha(p) ? ICONOS.check : ordenada && p.orden ? p.orden : ICONOS.pin}</span>
+          <span class="fila-cuerpo">
+            <span class="fila-titulo-texto">${esc(p.nombre)}</span>
+            <span class="fila-detalle">${esc(p.direccion)}${p.hasta ? ` · cierra ${esc(p.hasta)}` : ''}</span>
+          </span>
+          ${p.urgente ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''}
+        </button>
+        <button type="button" class="btn-icono sin-borde" data-editar="${esc(p.id)}" aria-label="Editar ${esc(p.nombre)}">${ICONOS.lapiz}</button>
+        <button type="button" class="btn-icono sin-borde btn-peligro" data-quitar="${esc(p.id)}" aria-label="Eliminar ${esc(p.nombre)}">${ICONOS.basura}</button>
+      </div>`
     )
     .join('');
   pintarBotones();
 }
 
 $('lista-paradas').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-parada]');
-  if (b) editarParada(b.dataset.parada);
+  const quitar = e.target.closest('[data-quitar]');
+  if (quitar) {
+    quitarDirecto(quitar.dataset.quitar);
+    return;
+  }
+  const b = e.target.closest('[data-editar]');
+  if (b) editar(b.dataset.editar);
 });
 
-function editarParada(id) {
+function editar(id) {
   const p = paradas().find((x) => x.id === id);
   if (!p) return;
-  let lat = p.lat;
-  let lng = p.lng;
-  const hoja = abrirHoja({
-    titulo: 'Parada',
-    html: `
-      <div class="campo"><label for="ep-nombre">Nombre</label><input id="ep-nombre" value="${esc(p.nombre)}"></div>
-      <span class="texto-tenue">${esc(p.direccion)}</span>
-      <div class="grilla-2">
-        <div class="campo"><label for="ep-tel">Teléfono</label><input id="ep-tel" type="tel" inputmode="tel" value="${esc(p.telefono)}"></div>
-        <div class="campo"><label for="ep-hasta">Recibe hasta</label><input id="ep-hasta" type="time" value="${esc(p.hasta)}"></div>
-      </div>
-      <div class="campo"><label for="ep-nota">Nota para el fletero</label><textarea id="ep-nota">${esc(p.nota)}</textarea></div>
-      <label class="interruptor tarjeta" for="ep-urgente"><span class="etiqueta-campo">Urgente (va primero)</span><input type="checkbox" id="ep-urgente" ${p.urgente ? 'checked' : ''}></label>
-      <span class="etiqueta-campo">Ubicación — arrastrá el pin si quedó corrido</span>
-      <div class="mapa chico"><div class="mapa-lienzo" id="ep-mapa"></div></div>
-      <button type="button" class="btn btn-primario btn-grande" id="ep-guardar">Guardar</button>
-      <button type="button" class="btn btn-peligro" id="ep-quitar">${ICONOS.basura}Quitar de la vuelta</button>`
+  editarParada({
+    parada: p,
+    equipo: ctx.equipo,
+    guardar: (cambios) => guardarParadas(paradas().map((x) => (x.id === id ? { ...x, ...cambios } : x))),
+    quitar: () => guardarParadas(paradas().filter((x) => x.id !== id))
   });
-  mapaConPin(hoja.el.querySelector('#ep-mapa'), { lat, lng }, (nLat, nLng) => {
-    lat = nLat;
-    lng = nLng;
-  });
+}
 
-  hoja.el.querySelector('#ep-guardar').addEventListener('click', async () => {
-    const movida = lat !== p.lat || lng !== p.lng;
-    const cambios = {
-      nombre: hoja.el.querySelector('#ep-nombre').value.trim() || p.direccion,
-      telefono: hoja.el.querySelector('#ep-tel').value.trim(),
-      hasta: hoja.el.querySelector('#ep-hasta').value,
-      nota: hoja.el.querySelector('#ep-nota').value.trim(),
-      urgente: hoja.el.querySelector('#ep-urgente').checked,
-      lat,
-      lng
-    };
-    await guardarParadas(paradas().map((x) => (x.id === id ? { ...x, ...cambios } : x)));
-    if (movida && p.clienteId) await corregirUbicacionCliente(ctx.equipo.id, p.clienteId, lat, lng);
-    hoja.cerrar();
-    aviso(movida ? 'Guardado. La vuelta se vuelve a ordenar con la ubicación nueva.' : 'Guardado');
-  });
-
-  hoja.el.querySelector('#ep-quitar').addEventListener('click', async () => {
-    const ok = await confirmar({ titulo: '¿Quitar esta parada?', texto: p.nombre, aceptar: 'Quitar', peligro: true });
-    if (!ok) return;
-    await guardarParadas(paradas().filter((x) => x.id !== id));
-    hoja.cerrar();
-  });
+async function quitarDirecto(id) {
+  const p = paradas().find((x) => x.id === id);
+  if (!p || !(await confirmarQuitar(p))) return;
+  await guardarParadas(paradas().filter((x) => x.id !== id));
+  aviso('Destino eliminado');
 }
 
 /* ---------- Ajustes de salida ---------- */
@@ -331,7 +305,7 @@ $('btn-ordenar').addEventListener('click', async () => {
       salida: $('salida').value || horaDeSalida(vuelta, ctx.equipo, fecha),
       orden: (ctx.equipo.ajustes || {}).orden || 'optimo'
     });
-    if (sinAsignar) aviso(`${sinAsignar} paradas no entran en el horario. Revisá los “recibe hasta”.`);
+    if (sinAsignar) aviso(`${sinAsignar} paradas no entran en el horario. Revisá los horarios de cierre.`);
     else if (llegaTarde) aviso(`Con este orden, ${llegaTarde} paradas llegan después de su horario de cierre.`);
     location.href = fecha === fechaISO() ? '/pages/hoy.html' : `/pages/armar.html?fecha=${fecha}`;
   } catch (e) {
