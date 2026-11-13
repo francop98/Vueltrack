@@ -1,0 +1,85 @@
+/* =========================================================
+   Vueltrack — pantalla de la parada (modo fletero)
+   ========================================================= */
+
+.parada-cabecera {
+  background: var(--destacado);
+  color: var(--destacado-texto);
+  padding: 20px 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 0 0 24px 24px;
+}
+
+.parada-cabecera .btn-icono {
+  background: var(--destacado-2);
+  border-color: var(--destacado-2);
+  color: var(--destacado-texto);
+}
+
+.parada-cabecera .tenue {
+  color: var(--destacado-tenue);
+}
+
+.parada-cabecera h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+}
+
+.progreso {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.progreso span {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--destacado-2);
+}
+
+.progreso span.hecho {
+  background: var(--ruta);
+}
+
+.progreso span.actual {
+  background: #FFFFFF;
+}
+
+.pastilla {
+  background: var(--destacado-2);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.texto-chico-fuerte {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.texto-direccion {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.parada-cabecera .avatar-oscuro {
+  background: var(--destacado-2);
+  border-color: var(--destacado-2);
+  color: var(--destacado-texto);
+}
+
+.celda-completa {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 380px) {
+  .parada-cabecera h1 {
+    font-size: 24px;
+  }
+}

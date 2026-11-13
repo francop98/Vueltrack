@@ -1,6 +1,6 @@
 /* =========================================================
    Vueltrack — mapa propio (Leaflet + OpenStreetMap)
-   Cambia solo a la versión oscura cuando la app está en modo oscuro.
+   Mapa en versión oscura, igual que la app.
    ========================================================= */
 import { decodificarPolilinea } from './rutas.js';
 import { esc } from './ui.js';
@@ -8,27 +8,12 @@ import { esc } from './ui.js';
 /* Centro por defecto si el equipo todavía no cargó su punto de salida */
 export const CENTRO_DEFECTO = { lat: -38.7183, lng: -62.2663 };
 
-const CAPAS = {
-  claro: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  oscuro: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-};
+const CAPA = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 const ATRIBUCION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
-
-function temaActual() {
-  return document.documentElement.getAttribute('data-tema') === 'oscuro' ? 'oscuro' : 'claro';
-}
 
 export function crearMapa(elemento, { centro = CENTRO_DEFECTO, zoom = 13 } = {}) {
   const mapa = L.map(elemento, { zoomControl: false, attributionControl: true }).setView([centro.lat, centro.lng], zoom);
-  let capa = L.tileLayer(CAPAS[temaActual()], { maxZoom: 19, subdomains: 'abcd', attribution: ATRIBUCION }).addTo(mapa);
-
-  document.addEventListener('vueltrack:tema', () => {
-    const url = CAPAS[temaActual()];
-    if (capa._url !== url) {
-      mapa.removeLayer(capa);
-      capa = L.tileLayer(url, { maxZoom: 19, subdomains: 'abcd', attribution: ATRIBUCION }).addTo(mapa);
-    }
-  });
+  L.tileLayer(CAPA, { maxZoom: 19, subdomains: 'abcd', attribution: ATRIBUCION }).addTo(mapa);
 
   mapa.capaVuelta = L.layerGroup().addTo(mapa);
   setTimeout(() => mapa.invalidateSize(), 150);

@@ -1,0 +1,7 @@
+/* =========================================================
+   Vueltrack — repartir entre fleteros
+   ========================================================= */
+
+.tarjeta-fletero {
+  box-shadow: inset 4px 0 0 var(--color-fletero, var(--ruta));
+}

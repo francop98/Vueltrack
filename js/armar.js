@@ -10,9 +10,10 @@ import {
   fleterosDelEquipo,
   corregirUbicacionCliente
 } from './datos.js';
-import { crearBuscador, htmlBuscador } from './buscador.js';
+import { crearBuscador } from './buscador.js';
 import { mapaConPin } from './mapa.js';
-import { ordenarYGuardar, mensajeError } from './ordenar.js';
+import { ordenarYGuardar, mensajeError, horaDeSalida, nombreOrden, ORDENES } from './ordenar.js';
+import { elegirPuntoDeSalida, elegirOrden } from './salida.js';
 import { paradaHecha, paradaDesdeCliente } from './vuelta.js';
 import {
   ICONOS,
@@ -24,7 +25,8 @@ import {
   aviso,
   confirmar,
   abrirHoja,
-  botonCargando
+  botonCargando,
+  horaAhora
 } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -51,7 +53,7 @@ $('fecha').min = fechaISO();
 $('fecha').addEventListener('change', () => {
   if (!$('fecha').value) return;
   fecha = $('fecha').value;
-  history.replaceState(null, '', `armar.html?fecha=${fecha}`);
+  history.replaceState(null, '', `/pages/armar.html?fecha=${fecha}`);
   escucharDia();
 });
 
@@ -65,6 +67,7 @@ function escucharDia() {
   cortarVuelta = escucharVuelta(ctx.equipo.id, fecha, (v) => {
     vuelta = v;
     pintarParadas();
+    pintarAjustes();
     pintarClientes();
   });
 }
@@ -119,7 +122,7 @@ function pintarClientes() {
   const primero = [...lesToca, ...clientes.filter((c) => !lesToca.includes(c))].slice(0, 10);
 
   if (!clientes.length) {
-    $('chips-clientes').innerHTML = '<a class="chip punteado" href="clientes.html">Cargá tus clientes habituales para sumarlos con un toque</a>';
+    $('chips-clientes').innerHTML = '<a class="chip punteado" href="/pages/clientes.html">Cargá tus clientes habituales para sumarlos con un toque</a>';
   } else {
     $('chips-clientes').innerHTML = primero
       .map((c) =>
@@ -242,34 +245,42 @@ function editarParada(id) {
 function pintarAjustes() {
   const a = ctx.equipo.ajustes || {};
   $('txt-base').textContent = ctx.equipo.base ? ctx.equipo.base.direccion : 'Elegir…';
-  $('salida').value = a.salida || '08:00';
+  if (document.activeElement !== $('salida')) $('salida').value = horaDeSalida(vuelta, ctx.equipo, fecha);
   $('volver').checked = a.volver !== false;
   $('demora').value = String(a.demora ?? 5);
+  $('txt-orden').textContent = nombreOrden(a.orden || 'optimo');
   pintarBotones();
 }
 
-$('salida').addEventListener('change', () => actualizarEquipo(ctx.equipo.id, { 'ajustes.salida': $('salida').value || '08:00' }));
+async function guardarSalida(hora) {
+  await guardarVuelta(ctx.equipo.id, fecha, { salida: hora });
+  await actualizarEquipo(ctx.equipo.id, { 'ajustes.salida': hora });
+}
+
+$('salida').addEventListener('change', () => {
+  if ($('salida').value) guardarSalida($('salida').value);
+});
+$('btn-ahora').addEventListener('click', async () => {
+  const hora = horaAhora();
+  $('salida').value = hora;
+  await guardarSalida(hora);
+  aviso(`Salida a las ${hora}`);
+});
 $('volver').addEventListener('change', () => actualizarEquipo(ctx.equipo.id, { 'ajustes.volver': $('volver').checked }));
 $('demora').addEventListener('change', () => actualizarEquipo(ctx.equipo.id, { 'ajustes.demora': Number($('demora').value) }));
 
-$('btn-base').addEventListener('click', elegirBase);
+$('btn-base').addEventListener('click', () => elegirPuntoDeSalida(ctx.equipo));
 
-function elegirBase() {
-  const hoja = abrirHoja({
-    titulo: 'Punto de salida',
-    html: `${htmlBuscador('nueva-base', 'Depósito, casa o local')}
-      <p class="texto-tenue">La vuelta arranca y termina acá.</p>`
-  });
-  crearBuscador(hoja.el.querySelector('#nueva-base'), {
-    foco: () => ctx.equipo.base,
-    alElegir: async (r) => {
-      await actualizarEquipo(ctx.equipo.id, { base: { direccion: r.direccion, lat: r.lat, lng: r.lng } });
-      hoja.cerrar();
-      aviso('Punto de salida guardado');
+$('btn-orden').addEventListener('click', () =>
+  elegirOrden({
+    actual: (ctx.equipo.ajustes || {}).orden || 'optimo',
+    ordenes: ORDENES,
+    alElegir: async (orden) => {
+      await actualizarEquipo(ctx.equipo.id, { 'ajustes.orden': orden });
+      aviso(`Orden: ${nombreOrden(orden)}. Tocá “Ordenar la vuelta”.`);
     }
-  });
-  hoja.el.querySelector('#nueva-base').focus();
-}
+  })
+);
 
 /* ---------- Ordenar / repartir ---------- */
 
@@ -278,18 +289,18 @@ function pintarBotones() {
   const hay = paradas().some((p) => !paradaHecha(p));
   $('btn-ordenar').disabled = !hay;
   $('btn-repartir').classList.toggle('oculto', fleteros.length < 2 || !hay);
-  $('btn-repartir').href = `repartir.html?fecha=${fecha}`;
+  $('btn-repartir').href = `/pages/repartir.html?fecha=${fecha}`;
 }
 
 $('btn-ordenar').addEventListener('click', async () => {
   if (!ctx.equipo.base) {
     aviso('Primero elegí desde dónde salís');
-    elegirBase();
+    elegirPuntoDeSalida(ctx.equipo);
     return;
   }
   const fleteros = fleterosDelEquipo(ctx.equipo);
   if (fleteros.length > 1) {
-    location.href = `repartir.html?fecha=${fecha}`;
+    location.href = `/pages/repartir.html?fecha=${fecha}`;
     return;
   }
   const uid = fleteros.length ? fleteros[0].uid : ctx.user.uid;
@@ -298,15 +309,18 @@ $('btn-ordenar').addEventListener('click', async () => {
   botonCargando(boton, true);
   try {
     const lista = paradas().map((p) => (paradaHecha(p) ? p : { ...p, fleteroUid: uid }));
-    const { sinAsignar } = await ordenarYGuardar({
+    const { sinAsignar, llegaTarde } = await ordenarYGuardar({
       equipo: ctx.equipo,
       fecha,
       paradas: lista,
       vehiculos: [uid],
-      modo: 'grupos'
+      modo: 'grupos',
+      salida: $('salida').value || horaDeSalida(vuelta, ctx.equipo, fecha),
+      orden: (ctx.equipo.ajustes || {}).orden || 'optimo'
     });
     if (sinAsignar) aviso(`${sinAsignar} paradas no entran en el horario. Revisá los “recibe hasta”.`);
-    location.href = fecha === fechaISO() ? 'index.html' : `armar.html?fecha=${fecha}`;
+    else if (llegaTarde) aviso(`Con este orden, ${llegaTarde} paradas llegan después de su horario de cierre.`);
+    location.href = fecha === fechaISO() ? '/pages/hoy.html' : `/pages/armar.html?fecha=${fecha}`;
   } catch (e) {
     aviso(mensajeError(e));
   } finally {

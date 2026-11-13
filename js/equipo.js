@@ -205,5 +205,5 @@ $('btn-salir-equipo').addEventListener('click', async () => {
   });
   if (!ok) return;
   await salirDelEquipo(ctx.equipo.id, ctx.user.uid);
-  location.replace('bienvenida.html');
+  location.replace('/pages/bienvenida.html');
 });

@@ -1,4 +1,4 @@
-# Vueltrack v1.2
+# Vueltrack v2.1
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -12,40 +12,32 @@ Hecha en HTML, CSS y JavaScript sin frameworks, con Firebase (cuentas y datos), 
 
 ```
 vueltrack/
-├── index.html          Hoy: la vuelta del día, próxima parada y mapa
-├── login.html          Ingresar / crear cuenta (mail o Google)
-├── bienvenida.html     Trabajar solo, armar equipo o sumarse con código
-├── armar.html          Cargar direcciones y clientes, ajustes de salida
-├── repartir.html       Repartir entre fleteros (por zona, parejo o a mano)
-├── clientes.html       Clientes habituales (orden alfabético)
-├── equipo.html         Modo de trabajo, integrantes y roles
-├── parada.html         Modo fletero: navegar, avisar, entregado / no estaba
+├── index.html          Inicio: pantalla principal (menú)
+├── styles.css          Estilos generales de todas las pantallas
 ├── manifest.json       Datos de la app instalable
 ├── sw.js               Service worker (funciona con poca señal)
+├── vercel.json         Redirecciones de direcciones viejas
 ├── firestore.rules     Reglas de seguridad de Firestore
 ├── package.json
-├── css/
-│   └── estilos.css     Todos los estilos (modo claro y oscuro)
-├── js/
-│   ├── tema.js         Modo claro / oscuro / automático
-│   ├── pwa.js          Registro del service worker
-│   ├── firebase-config.js   ← COMPLETAR con los datos de tu proyecto
-│   ├── firebase.js     Inicio de Firebase
-│   ├── sesion.js       Usuario, equipo, roles y menú "Mi cuenta"
-│   ├── datos.js        Lectura y escritura en Firestore
-│   ├── ui.js           Utilidades (formatos, avisos, hojas, navegación)
-│   ├── rutas.js        Búsqueda de direcciones, reparto por zona
-│   ├── ordenar.js      Calcular y guardar la vuelta ordenada
-│   ├── vuelta.js       Ayudas para leer una vuelta
-│   ├── mapa.js         Mapa propio (Leaflet)
-│   ├── buscador.js     Buscador de direcciones con sugerencias
-│   └── (uno por pantalla) login, bienvenida, hoy, armar, repartir, clientes, equipo, parada
-├── api/                Servidor en Vercel (guarda la clave de OpenRouteService)
-│   ├── _comun.js
-│   ├── buscar.js       GET  /api/buscar
-│   └── optimizar.js    POST /api/optimizar
+├── README.md
+├── pages/              Todas las pantallas (menos Inicio)
+│   ├── hoy.html        La vuelta del día: mapa, próxima parada, navegar
+│   ├── login.html      Ingresar / crear cuenta (mail o Google)
+│   ├── bienvenida.html Trabajar solo, armar equipo o sumarse con código
+│   ├── armar.html      Cargar direcciones y clientes, salida y orden
+│   ├── repartir.html   Repartir entre fleteros
+│   ├── clientes.html   Clientes habituales
+│   ├── equipo.html     Modo de trabajo, integrantes y roles
+│   ├── parada.html     Modo fletero: navegar, avisar, entregado / no estaba
+│   └── vehiculo.html   Mi vehículo: consumo y gasto estimado
+├── css/                Estilos propios de cada pantalla
+│   ├── mapa.css · ingreso.css · inicio.css · parada.css · equipo.css · repartir.css
+├── js/                 Toda la lógica (un archivo por pantalla + módulos compartidos)
+├── api/                Servidor en Vercel (buscar, optimizar, lugar)
 └── assets/             Íconos de la app
 ```
+
+Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/...`), así funcionan igual desde `index.html` y desde `pages/`.
 
 ---
 
@@ -85,7 +77,10 @@ vueltrack/
 - **Repartir**: por zona (cada uno su zona del mapa), parejo (cantidades parejas) o a mano. Tocando un pin en el mapa se pasa la parada a otro fletero.
 - **Navegar**: cada parada se abre en Google Maps o Waze.
 - **Ubicaciones**: si un pin cae corrido, se arrastra al lugar correcto o el fletero toca “Estoy en la puerta”. En los clientes habituales queda guardada para siempre.
-- **Modo claro / oscuro**: en “Mi cuenta” (tocá tu inicial arriba a la derecha): Claro, Oscuro o Automático (sigue al celular). El mapa también cambia.
+- **Diseño**: solo modo oscuro, pensado para usar desde el celular.
+- **Orden de la vuelta**: más conveniente, de la más cercana a la más lejana, de la más lejana a la más cercana o por horario de cierre (las que no tienen horario quedan al final). Las urgentes siempre primero. Desde Hoy se puede reordenar arrancando desde donde estás.
+- **Navegar**: “Toda la vuelta” abre Google Maps con las próximas paradas (hasta 10 por tramo) o “Solo esta” para una sola. Waze va de a una.
+- **Mi vehículo**: rinde y precio del combustible para calcular el gasto estimado de cada vuelta.
 
 ## Límites del plan gratis de OpenRouteService
 
@@ -98,6 +93,21 @@ vueltrack/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v2.1
+- Nueva estructura de carpetas: `pages/` para las pantallas, `styles.css` en la raíz y `css/` con los estilos de cada pantalla.
+- `vercel.json` redirige las direcciones viejas (ej. `/hoy.html`) a `/pages/`.
+
+### v2.0
+- Solo modo oscuro y ajustes para celulares chicos.
+- Pantalla principal (Inicio) con botón de menú en todas las pantallas. La vuelta del día pasa a `hoy.html`.
+- Orden de las paradas: conveniente, cerca → lejos, lejos → cerca o por horario de cierre. Reordenar desde Hoy, opcionalmente desde tu ubicación.
+- Navegar toda la vuelta en Google Maps (de a 10 paradas) o una sola parada.
+- Mi vehículo: consumo, precio del combustible y gasto estimado por vuelta.
+- Salgo desde: opción “Usar mi ubicación actual”.
+- Hora de salida: arranca en la hora actual y se puede cambiar.
+- Reglas de Firestore actualizadas (hay que volver a publicarlas).
+- Se elimina `js/tema.js`.
 
 ### v1.2
 - Las direcciones se buscan primero en **Georef** (servicio oficial de direcciones de Argentina, datos.gob.ar), que ubica la altura sobre la cuadra. Busca dentro del partido del punto de salida.

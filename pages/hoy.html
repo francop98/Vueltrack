@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E1420">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — La vuelta de hoy</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/mapa.css">
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <div class="barra-izq">
+          <a class="btn-icono" href="/" aria-label="Menú principal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </a>
+          <a class="marca" href="/" aria-label="Vueltrack, inicio">
+          <img src="/assets/icono.svg" alt="">
+          <span class="marca-texto">vuel<span>track</span></span>
+        </a>
+        </div>
+        <button type="button" class="avatar" id="btn-cuenta" aria-label="Mi cuenta"></button>
+      </header>
+
+      <div class="titulo-bloque">
+        <span class="sobre-titulo" id="fecha"></span>
+        <h1 class="titulo" id="titulo">Tu vuelta de hoy</h1>
+      </div>
+
+      <div class="chips desplazable oculto" id="filtro" role="group" aria-label="Ver la vuelta de"></div>
+
+      <div class="cargando" id="cargando" aria-label="Cargando"></div>
+
+      <div class="vacio oculto" id="vacio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/></svg>
+        <strong id="vacio-titulo">Todavía no hay vuelta para hoy</strong>
+        <p id="vacio-texto"></p>
+        <a class="btn btn-primario oculto" id="vacio-boton" href="/pages/armar.html">Armar la vuelta</a>
+      </div>
+
+      <div class="grilla-stats oculto" id="stats">
+        <div class="stat"><span class="stat-valor" id="st-paradas">—</span><span class="stat-nombre">paradas</span></div>
+        <div class="stat"><span class="stat-valor" id="st-km">—</span><span class="stat-nombre">recorrido</span></div>
+        <div class="stat"><span class="stat-valor" id="st-tiempo">—</span><span class="stat-nombre">estimado</span></div>
+        <div class="stat"><span class="stat-valor" id="st-fin">—</span><span class="stat-nombre">terminás</span></div>
+      </div>
+
+      <a class="gasto oculto" id="gasto" href="/pages/vehiculo.html"></a>
+
+      <div class="mapa oculto" id="mapa-caja">
+        <div class="mapa-lienzo" id="mapa" aria-label="Mapa de la vuelta"></div>
+        <div class="mapa-leyenda" id="leyenda"></div>
+      </div>
+
+      <section class="tarjeta-destacada oculto" id="proxima" aria-labelledby="proxima-nombre"></section>
+
+      <section class="seccion oculto" id="bloque-lista">
+        <div class="fila-titulo">
+          <h2 class="subtitulo" id="lista-titulo">Paradas</h2>
+          <span class="fila-boton">
+            <button type="button" class="chip oculto" id="btn-reordenar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>
+              Reordenar
+            </button>
+            <a class="chip oculto" id="link-editar" href="/pages/armar.html">Editar</a>
+          </span>
+        </div>
+        <div id="listas" class="seccion"></div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/js/pwa.js"></script>
+  <script type="module" src="/js/hoy.js"></script>
+</body>
+</html>

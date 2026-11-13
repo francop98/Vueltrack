@@ -26,7 +26,7 @@ function esperarUsuario() {
 export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambiarEquipo } = {}) {
   const user = await esperarUsuario();
   if (!user) {
-    location.replace('login.html');
+    location.replace('/pages/login.html');
     return new Promise(() => {});
   }
 
@@ -42,7 +42,7 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
   }
 
   if (!usuario.equipoId) {
-    location.replace('bienvenida.html');
+    location.replace('/pages/bienvenida.html');
     return new Promise(() => {});
   }
 
@@ -53,7 +53,7 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
     escucharEquipo(usuario.equipoId, async (equipo) => {
       if (!equipo || !(equipo.miembrosIds || []).includes(user.uid)) {
         await guardarUsuario(user.uid, { equipoId: null });
-        location.replace('bienvenida.html');
+        location.replace('/pages/bienvenida.html');
         return;
       }
       ctx.equipo = equipo;
@@ -62,7 +62,7 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
       ctx.fletero = (ctx.yo.roles || []).includes('fletero');
 
       if (soloOrganizador && !ctx.organizador) {
-        location.replace('index.html');
+        location.replace('/');
         return;
       }
 
@@ -87,7 +87,6 @@ function prepararBotonCuenta(ctx) {
 }
 
 export function abrirCuenta(ctx) {
-  const pref = window.VueltrackTema ? window.VueltrackTema.preferencia() : 'auto';
   const hoja = abrirHoja({
     titulo: 'Mi cuenta',
     html: `
@@ -99,24 +98,8 @@ export function abrirCuenta(ctx) {
         <span class="texto-tenue">${esc(ctx.user.email || '')}</span>
         <button type="button" class="btn" id="cuenta-guardar">Guardar nombre</button>
       </div>
-      <div class="seccion">
-        <span class="etiqueta-campo">Apariencia</span>
-        <div class="segmentado" role="group" aria-label="Apariencia">
-          <button type="button" data-tema="claro" class="${pref === 'claro' ? 'activo' : ''}">Claro</button>
-          <button type="button" data-tema="oscuro" class="${pref === 'oscuro' ? 'activo' : ''}">Oscuro</button>
-          <button type="button" data-tema="auto" class="${pref === 'auto' ? 'activo' : ''}">Automático</button>
-        </div>
-        <span class="texto-tenue">Automático sigue el modo de tu celular.</span>
-      </div>
       <button type="button" class="btn btn-bloque btn-peligro" id="cuenta-salir">Cerrar sesión</button>
       <span class="texto-tenue centrado-texto">Vueltrack v${esc(VERSION_APP)}</span>`
-  });
-
-  hoja.el.querySelectorAll('[data-tema]').forEach((b) => {
-    b.addEventListener('click', () => {
-      window.VueltrackTema.guardar(b.dataset.tema);
-      hoja.el.querySelectorAll('[data-tema]').forEach((x) => x.classList.toggle('activo', x === b));
-    });
   });
 
   hoja.el.querySelector('#cuenta-guardar').addEventListener('click', async () => {
@@ -129,7 +112,7 @@ export function abrirCuenta(ctx) {
 
   hoja.el.querySelector('#cuenta-salir').addEventListener('click', async () => {
     await signOut(auth);
-    location.replace('login.html');
+    location.replace('/pages/login.html');
   });
 }
 

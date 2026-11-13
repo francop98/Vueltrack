@@ -1,0 +1,52 @@
+/* =========================================================
+   Vueltrack — pantalla principal
+   ========================================================= */
+
+.mosaico {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.baldosa {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 18px;
+  padding: 16px 14px;
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--tinta);
+  text-align: left;
+}
+
+.baldosa:hover {
+  color: var(--tinta);
+}
+
+.baldosa svg {
+  width: 26px;
+  height: 26px;
+  color: var(--ruta);
+}
+
+.baldosa strong {
+  display: block;
+  font-size: 15px;
+}
+
+.baldosa span {
+  font-size: 12px;
+  color: var(--tenue);
+}
+
+.baldosa.ancha {
+  grid-column: 1 / -1;
+  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E1420">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Mi vehículo</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <div class="barra-izq">
+          <a class="btn-icono" href="/" aria-label="Menú principal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </a>
+          <a class="marca" href="/" aria-label="Vueltrack, inicio">
+            <img src="/assets/icono.svg" alt="">
+            <span class="marca-texto">vuel<span>track</span></span>
+          </a>
+        </div>
+        <button type="button" class="avatar" id="btn-cuenta" aria-label="Mi cuenta"></button>
+      </header>
+
+      <div class="titulo-bloque">
+        <span class="sobre-titulo">Para calcular cuánto gastás</span>
+        <h1 class="titulo">Mi vehículo</h1>
+      </div>
+
+      <section class="tarjeta-destacada" id="resumen" aria-live="polite">
+        <span class="acento">Gasto estimado</span>
+        <strong class="subtitulo" id="res-hoy">Completá los datos</strong>
+        <span class="tenue" id="res-100"></span>
+      </section>
+
+      <form class="seccion" id="form" novalidate>
+        <div class="campo">
+          <label for="nombre">Vehículo</label>
+          <input id="nombre" placeholder="Ej. Renault Kangoo" autocomplete="off">
+        </div>
+
+        <fieldset class="campo sin-borde">
+          <legend class="etiqueta-campo">Tipo</legend>
+          <div class="casillas" id="tipos">
+            <label class="casilla"><input type="radio" name="tipo" value="auto"><span>Auto</span></label>
+            <label class="casilla"><input type="radio" name="tipo" value="utilitario" checked><span>Utilitario</span></label>
+            <label class="casilla"><input type="radio" name="tipo" value="camioneta"><span>Camioneta</span></label>
+            <label class="casilla"><input type="radio" name="tipo" value="camion"><span>Camión</span></label>
+            <label class="casilla"><input type="radio" name="tipo" value="moto"><span>Moto</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="campo sin-borde">
+          <legend class="etiqueta-campo">Combustible</legend>
+          <div class="casillas" id="combustibles">
+            <label class="casilla"><input type="radio" name="combustible" value="nafta" checked><span>Nafta</span></label>
+            <label class="casilla"><input type="radio" name="combustible" value="gasoil"><span>Gasoil</span></label>
+            <label class="casilla"><input type="radio" name="combustible" value="gnc"><span>GNC</span></label>
+            <label class="casilla"><input type="radio" name="combustible" value="electrico"><span>Eléctrico</span></label>
+          </div>
+        </fieldset>
+
+        <div class="grilla-2 siempre">
+          <div class="campo">
+            <label for="rinde" id="label-rinde">Rinde (km por litro)</label>
+            <input id="rinde" type="number" inputmode="decimal" min="0" step="0.1" placeholder="Ej. 11">
+          </div>
+          <div class="campo">
+            <label for="precio" id="label-precio">Precio ($ por litro)</label>
+            <input id="precio" type="number" inputmode="decimal" min="0" step="1" placeholder="Ej. 1500">
+          </div>
+        </div>
+        <p class="texto-tenue">¿No sabés cuánto rinde? Llená el tanque, anotá los km del tablero y en la próxima carga dividí los km recorridos por los litros que entraron.</p>
+
+        <div class="campo">
+          <label for="extra">Otros gastos por km (opcional)</label>
+          <input id="extra" type="number" inputmode="decimal" min="0" step="1" placeholder="Ej. 40 (service, cubiertas, desgaste)">
+        </div>
+
+        <p class="error-texto oculto" id="error" role="alert"></p>
+        <button type="submit" class="btn btn-primario btn-grande">Guardar vehículo</button>
+      </form>
+    </main>
+  </div>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+
+  <script src="/js/pwa.js"></script>
+  <script type="module" src="/js/vehiculo.js"></script>
+</body>
+</html>

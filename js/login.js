@@ -21,7 +21,7 @@ let modo = 'ingresar';
 let creando = false;
 
 onAuthStateChanged(auth, (user) => {
-  if (user && !creando) location.replace('index.html');
+  if (user && !creando) location.replace('/');
 });
 
 getRedirectResult(auth).catch((e) => mostrarError(traducir(e)));
@@ -81,7 +81,7 @@ $('form').addEventListener('submit', async (ev) => {
       const cred = await createUserWithEmailAndPassword(auth, email, clave);
       await updateProfile(cred.user, { displayName: nombre });
       await guardarUsuario(cred.user.uid, { nombre, email, equipoId: null });
-      location.replace('bienvenida.html');
+      location.replace('/pages/bienvenida.html');
     } else {
       await signInWithEmailAndPassword(auth, email, clave);
     }

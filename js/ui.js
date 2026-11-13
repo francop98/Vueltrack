@@ -18,6 +18,12 @@ export const ICONOS = {
   pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
   volver: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
   puntos: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  inicio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+  auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5 16V11l2-5h10l2 5v5M3 16h18v3h-3v-1H6v1H3zM5 11h14"/><circle cx="7.5" cy="13.5" r="1"/><circle cx="16.5" cy="13.5" r="1"/></svg>',
+  ubicacion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
+  ordenar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
+  cuenta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
   estrella: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>'
 };
 
@@ -83,6 +89,15 @@ export function horaDeSegundos(seg) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/* Hora actual redondeada hacia arriba (por defecto, a los próximos 5 minutos) */
+export function horaAhora(redondeo = 5) {
+  const a = new Date();
+  let min = a.getHours() * 60 + a.getMinutes();
+  min = Math.ceil(min / redondeo) * redondeo;
+  const h = Math.floor(min / 60) % 24;
+  return `${String(h).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+}
+
 export function segundosAhora() {
   const a = new Date();
   return a.getHours() * 3600 + a.getMinutes() * 60 + a.getSeconds();
@@ -101,6 +116,11 @@ export function formatoKm(metros) {
   if (metros == null || isNaN(metros)) return '—';
   if (metros < 1000) return `${Math.round(metros)} m`;
   return `${Math.round(metros / 1000)} km`;
+}
+
+export function formatoPlata(valor) {
+  if (valor == null || isNaN(valor)) return '—';
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(valor);
 }
 
 /* ---------- Textos ---------- */
@@ -145,6 +165,25 @@ export function idNuevo() {
 
 export function linkGoogleMaps(lat, lng) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+}
+
+/* Google Maps acepta hasta 10 paradas por viaje (9 intermedias + destino).
+   Sin origen: arranca desde donde está el celular. */
+export const PARADAS_POR_TRAMO = 10;
+
+export function linkGoogleMapsVuelta(paradas) {
+  const tramo = paradas.slice(0, PARADAS_POR_TRAMO);
+  if (!tramo.length) return '';
+  const destino = tramo[tramo.length - 1];
+  const intermedias = tramo.slice(0, -1).map((p) => `${p.lat},${p.lng}`).join('|');
+  const q = new URLSearchParams({
+    api: '1',
+    destination: `${destino.lat},${destino.lng}`,
+    travelmode: 'driving',
+    dir_action: 'navigate'
+  });
+  if (intermedias) q.set('waypoints', intermedias);
+  return `https://www.google.com/maps/dir/?${q.toString()}`;
 }
 
 export function linkWaze(lat, lng) {
@@ -269,10 +308,11 @@ export function pintarNav(activa, { organizador }) {
   const nav = document.getElementById('nav');
   if (!nav) return;
   const items = [
-    { id: 'hoy', href: 'index.html', texto: 'Hoy', icono: ICONOS.ruta, ver: true },
-    { id: 'armar', href: 'armar.html', texto: 'Armar', icono: ICONOS.armar, ver: organizador },
-    { id: 'clientes', href: 'clientes.html', texto: 'Clientes', icono: ICONOS.clientes, ver: organizador },
-    { id: 'equipo', href: 'equipo.html', texto: 'Equipo', icono: ICONOS.equipo, ver: true }
+    { id: 'inicio', href: '/', texto: 'Inicio', icono: ICONOS.inicio, ver: true },
+    { id: 'hoy', href: '/pages/hoy.html', texto: 'Hoy', icono: ICONOS.ruta, ver: true },
+    { id: 'armar', href: '/pages/armar.html', texto: 'Armar', icono: ICONOS.armar, ver: organizador },
+    { id: 'clientes', href: '/pages/clientes.html', texto: 'Clientes', icono: ICONOS.clientes, ver: organizador },
+    { id: 'equipo', href: '/pages/equipo.html', texto: 'Equipo', icono: ICONOS.equipo, ver: true }
   ];
   nav.innerHTML = `<div class="nav-inferior-interno">${items
     .filter((i) => i.ver)

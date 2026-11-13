@@ -41,10 +41,35 @@ export async function buscarDirecciones(texto, foco) {
  * modo "grupos": cada parada trae su fletero (vehiculo) y se ordena cada grupo.
  * modo "parejo": el servidor reparte para que todos tengan una cantidad pareja.
  */
-export async function optimizar({ base, volver, demora, salida, vehiculos, paradas, modo }) {
+export async function optimizar({ base, desde, volver, demora, salida, vehiculos, paradas, modo, orden }) {
   return pedir('/api/optimizar', {
     method: 'POST',
-    body: JSON.stringify({ base, volver, demora, salida, vehiculos, paradas, modo })
+    body: JSON.stringify({ base, desde, volver, demora, salida, vehiculos, paradas, modo, orden })
+  });
+}
+
+/* Dirección aproximada de un punto (para "Usar mi ubicación actual") */
+export async function direccionDe(lat, lng) {
+  try {
+    const datos = await pedir(`/api/lugar?lat=${lat}&lng=${lng}`);
+    return datos.direccion || 'Mi ubicación';
+  } catch (e) {
+    return 'Mi ubicación';
+  }
+}
+
+/* Ubicación actual del celular */
+export function miUbicacion() {
+  return new Promise((resolver, rechazar) => {
+    if (!navigator.geolocation) {
+      rechazar(new Error('sin-gps'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolver({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => rechazar(new Error('sin-permiso')),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
   });
 }
 

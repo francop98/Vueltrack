@@ -2,16 +2,45 @@
    Vueltrack — ordenar la vuelta y guardarla
    Las paradas ya hechas quedan primero; solo se reordenan
    las pendientes.
+   Órdenes posibles:
+     optimo  recorrido más conveniente (menos tiempo)
+     cerca   de la más cercana a la más lejana del punto de salida
+     lejos   de la más lejana a la más cercana
+     cierre  por horario de cierre (las que no tienen horario van al final)
    ========================================================= */
 import { optimizar, aplicarResultado, dividirPorZona } from './rutas.js';
-import { reemplazarVuelta } from './datos.js';
-import { paradaHecha } from './vuelta.js';
-import { fechaISO, segundosAhora, segundosDeHora } from './ui.js';
+import { reemplazarVuelta, guardarVuelta } from './datos.js';
+import { paradaHecha, paradasDe } from './vuelta.js';
+import { fechaISO, segundosDeHora, horaAhora } from './ui.js';
 
-export function salidaEnSegundos(equipo, fecha) {
-  const pactada = segundosDeHora(equipo.ajustes?.salida || '08:00');
-  if (fecha === fechaISO()) return Math.max(pactada, segundosAhora());
-  return pactada;
+export const ORDENES = [
+  { id: 'optimo', titulo: 'Más conveniente', texto: 'El recorrido más corto en tiempo' },
+  { id: 'cerca', titulo: 'De la más cercana a la más lejana', texto: 'Respecto del punto de salida' },
+  { id: 'lejos', titulo: 'De la más lejana a la más cercana', texto: 'Respecto del punto de salida' },
+  { id: 'cierre', titulo: 'Por horario de cierre', texto: 'Primero las que cierran antes; las demás al final' }
+];
+
+export function nombreOrden(id) {
+  const o = ORDENES.find((x) => x.id === id);
+  return o ? o.titulo : ORDENES[0].titulo;
+}
+
+/* Hora de salida: la que se eligió para esa vuelta; si no, hoy = ahora, otro día = la última usada */
+export function horaDeSalida(vuelta, equipo, fecha) {
+  if (vuelta && vuelta.salida) return vuelta.salida;
+  if (fecha === fechaISO()) return horaAhora();
+  return (equipo.ajustes && equipo.ajustes.salida) || '08:00';
+}
+
+function pendientesParaEnviar(pendientes, modo) {
+  return pendientes.map((p) => ({
+    id: p.id,
+    lat: p.lat,
+    lng: p.lng,
+    urgente: !!p.urgente,
+    hasta: p.hasta ? segundosDeHora(p.hasta) : null,
+    vehiculo: modo === 'grupos' ? p.fleteroUid : null
+  }));
 }
 
 /**
@@ -21,19 +50,23 @@ export function salidaEnSegundos(equipo, fecha) {
  * @param {Array}  op.paradas    todas las paradas de la vuelta
  * @param {Array}  op.vehiculos  uids de los fleteros que trabajan
  * @param {string} op.modo       "grupos" (cada parada ya tiene fleteroUid) o "parejo"
+ * @param {string} op.salida     "HH:MM"
+ * @param {string} op.orden      optimo | cerca | lejos | cierre
+ * @param {object} op.desde      {lat, lng} opcional: arrancar desde acá
  */
-export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: modoPedido }) {
+export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: modoPedido, salida, orden = 'optimo', desde = null }) {
   let modo = modoPedido;
   if (!equipo.base || equipo.base.lat == null) throw new Error('sin-base');
 
   const hechas = paradas.filter(paradaHecha).map((p) => ({ ...p }));
   const pendientes = paradas.filter((p) => !paradaHecha(p)).map((p) => ({ ...p }));
-  const salida = salidaEnSegundos(equipo, fecha);
+  const horaSalida = salida || horaDeSalida(null, equipo, fecha);
   const ajustes = equipo.ajustes || {};
 
   let rutas = {};
   let ordenadas = [];
   let sinAsignar = 0;
+  let llegaTarde = 0;
 
   // El plan gratis resuelve "parejo" hasta 3 fleteros y 48 paradas; si se pasa, se reparte por zonas parejas
   if (modo === 'parejo' && (vehiculos.length > 3 || pendientes.length > 48)) {
@@ -47,24 +80,20 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
   if (pendientes.length) {
     const resultado = await optimizar({
       base: { lat: equipo.base.lat, lng: equipo.base.lng },
+      desde,
       volver: ajustes.volver !== false,
       demora: Number(ajustes.demora ?? 5),
-      salida,
+      salida: segundosDeHora(horaSalida),
       vehiculos,
       modo,
-      paradas: pendientes.map((p) => ({
-        id: p.id,
-        lat: p.lat,
-        lng: p.lng,
-        urgente: !!p.urgente,
-        hasta: p.hasta ? segundosDeHora(p.hasta) : null,
-        vehiculo: modo === 'grupos' ? p.fleteroUid : null
-      }))
+      orden,
+      paradas: pendientesParaEnviar(pendientes, modo)
     });
-    const aplicado = aplicarResultado(pendientes, resultado, { salida });
+    const aplicado = aplicarResultado(pendientes, resultado, { salida: segundosDeHora(horaSalida) });
     rutas = aplicado.rutas;
     ordenadas = aplicado.paradas;
     sinAsignar = (resultado.sinAsignar || []).length;
+    llegaTarde = (resultado.llegaTarde || []).length;
   }
 
   // Numeración: primero lo ya hecho de cada fletero, después lo nuevo
@@ -79,13 +108,15 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
     if (p.orden) p.orden += hechasPorFletero[p.fleteroUid] || 0;
   });
 
-  return { paradas: [...hechas, ...ordenadas], rutas, sinAsignar };
+  return { paradas: [...hechas, ...ordenadas], rutas, sinAsignar, llegaTarde, salida: horaSalida, orden };
 }
 
 export async function guardarCalculo(equipo, fecha, calculo) {
   await reemplazarVuelta(equipo.id, fecha, {
     paradas: calculo.paradas,
     rutas: calculo.rutas,
+    salida: calculo.salida,
+    orden: calculo.orden,
     ordenada: true
   });
 }
@@ -93,6 +124,35 @@ export async function guardarCalculo(equipo, fecha, calculo) {
 export async function ordenarYGuardar(op) {
   const calculo = await calcularVuelta(op);
   await guardarCalculo(op.equipo, op.fecha, calculo);
+  return calculo;
+}
+
+/**
+ * Reordena solo la vuelta de un fletero (desde la pantalla Hoy),
+ * opcionalmente arrancando desde donde está ahora.
+ */
+export async function reordenarFletero({ equipo, fecha, vuelta, uid, orden, desde }) {
+  const suyas = paradasDe(vuelta, uid);
+  const pendientes = suyas.filter((p) => !paradaHecha(p));
+  if (!pendientes.length) return { sinAsignar: 0, llegaTarde: 0 };
+  const salida = fecha === fechaISO() ? horaAhora(1) : horaDeSalida(vuelta, equipo, fecha);
+  const calculo = await calcularVuelta({
+    equipo,
+    fecha,
+    paradas: suyas,
+    vehiculos: [uid],
+    modo: 'grupos',
+    salida,
+    orden,
+    desde
+  });
+  const nuevas = new Map(calculo.paradas.map((p) => [p.id, p]));
+  const paradas = (vuelta.paradas || []).map((p) => nuevas.get(p.id) || p);
+  await guardarVuelta(equipo.id, fecha, {
+    paradas,
+    rutas: { ...(vuelta.rutas || {}), [uid]: calculo.rutas[uid] || null },
+    orden
+  });
   return calculo;
 }
 

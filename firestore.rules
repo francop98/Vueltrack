@@ -71,12 +71,12 @@ service cloud.firestore {
           && request.resource.data.miembros[yo()].roles == ['fletero'];
       }
 
-      // Cambiar mi nombre
-      function cambioMiNombre() {
+      // Cambiar mis datos: nombre y vehículo (sin tocar los roles)
+      function cambioMisDatos() {
         return soyMiembroAhora()
           && soloCambian(['miembros'])
           && cambianSoloMisDatos()
-          && request.resource.data.miembros[yo()].diff(resource.data.miembros[yo()]).affectedKeys().hasOnly(['nombre']);
+          && request.resource.data.miembros[yo()].diff(resource.data.miembros[yo()]).affectedKeys().hasOnly(['nombre', 'vehiculo', 'gasto']);
       }
 
       // Salir del equipo
@@ -101,7 +101,7 @@ service cloud.firestore {
           && request.resource.data.codigo == resource.data.codigo
           && request.resource.data.creadoPor == resource.data.creadoPor)
         || meSumo()
-        || cambioMiNombre()
+        || cambioMisDatos()
         || meVoy()
       );
 
@@ -120,9 +120,9 @@ service cloud.firestore {
       match /vueltas/{fecha} {
         allow read: if esMiembro(equipoId);
         allow create, delete: if esOrganizador(equipoId);
-        // Los fleteros solo marcan el estado de las paradas
+        // Los fleteros marcan el estado de las paradas y pueden reordenar su vuelta
         allow update: if esOrganizador(equipoId)
-          || (esMiembro(equipoId) && soloCambian(['paradas', 'actualizado']));
+          || (esMiembro(equipoId) && soloCambian(['paradas', 'rutas', 'orden', 'actualizado']));
       }
     }
   }

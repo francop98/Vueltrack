@@ -8,8 +8,10 @@ import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, fleterosDelEquipo } from './datos.js';
 import { crearMapa, pintarVuelta } from './mapa.js';
 import { dividirPorZona } from './rutas.js';
-import { calcularVuelta, guardarCalculo, mensajeError } from './ordenar.js';
-import { gruposDeVuelta, paradaHecha } from './vuelta.js';
+import { calcularVuelta, guardarCalculo, mensajeError, horaDeSalida, nombreOrden, ORDENES } from './ordenar.js';
+import { elegirOrden } from './salida.js';
+import { actualizarEquipo } from './datos.js';
+import { gruposDeVuelta, paradaHecha, costoDeRuta } from './vuelta.js';
 import {
   esc,
   fechaISO,
@@ -19,7 +21,9 @@ import {
   formatoDuracion,
   horaDeSegundos,
   aviso,
-  botonCargando
+  botonCargando,
+  formatoPlata,
+  ICONOS
 } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -46,7 +50,7 @@ const fleterosActivos = () => fleteros.filter((f) => seleccionados.includes(f.ui
 ctx = await iniciarPantalla({ pagina: 'armar', soloOrganizador: true });
 fleteros = fleterosDelEquipo(ctx.equipo);
 seleccionados = fleteros.map((f) => f.uid);
-$('btn-atras').href = `armar.html?fecha=${fecha}`;
+$('btn-atras').href = `/pages/armar.html?fecha=${fecha}`;
 mapa = crearMapa($('mapa'), { centro: ctx.equipo.base || undefined });
 
 escucharVuelta(ctx.equipo.id, fecha, (v) => {
@@ -91,6 +95,7 @@ function pintarTodo() {
   $('sobre').textContent = `${lista.length} paradas · ${fechaCorta(fecha)}`;
   pintarChips();
   pintarModos();
+  pintarOrden();
   pintarMapa();
   pintarMano();
   pintarTarjetas();
@@ -129,6 +134,24 @@ $('chips-fleteros').addEventListener('click', (e) => {
   invalidar();
   pintarTodo();
 });
+
+function pintarOrden() {
+  $('btn-orden').innerHTML = `${ICONOS.ordenar}Orden: ${esc(nombreOrden((ctx.equipo.ajustes || {}).orden || 'optimo'))}`;
+}
+
+$('btn-orden').addEventListener('click', () =>
+  elegirOrden({
+    actual: (ctx.equipo.ajustes || {}).orden || 'optimo',
+    ordenes: ORDENES,
+    alElegir: async (orden) => {
+      ctx.equipo.ajustes = { ...(ctx.equipo.ajustes || {}), orden };
+      await actualizarEquipo(ctx.equipo.id, { 'ajustes.orden': orden });
+      invalidar();
+      pintarOrden();
+      calcular();
+    }
+  })
+);
 
 function pintarModos() {
   document.querySelectorAll('#modos [data-modo]').forEach((b) => b.classList.toggle('activo', b.dataset.modo === modo));
@@ -228,6 +251,7 @@ function pintarTarjetas() {
       const cant = v.paradas.filter((p) => p.fleteroUid === f.uid).length;
       const ruta = calculo ? calculo.rutas[f.uid] : null;
       const sinDatos = !calculo;
+      const costo = ruta ? costoDeRuta(ruta.distancia, f.gasto) : null;
       return `
         <div class="tarjeta tarjeta-fletero" style="--color-fletero:${esc(f.color)}">
           <div class="fila-titulo">
@@ -240,6 +264,7 @@ function pintarTarjetas() {
             </div>
             <strong>${ruta && ruta.fin != null ? `vuelve ${horaDeSegundos(ruta.fin)}` : ''}</strong>
           </div>
+          ${costo ? `<span class="texto-tenue">Gasto estimado: <strong>${formatoPlata(costo.total)}</strong></span>` : ''}
           <div class="grilla-stats de-3">
             <div class="stat"><span class="stat-valor">${sinDatos && modo === 'parejo' ? '—' : cant}</span><span class="stat-nombre">paradas</span></div>
             <div class="stat"><span class="stat-valor">${ruta ? formatoKm(ruta.distancia) : '—'}</span><span class="stat-nombre">recorrido</span></div>
@@ -274,7 +299,9 @@ async function calcular() {
       fecha,
       paradas: todas,
       vehiculos: seleccionados,
-      modo: modo === 'parejo' ? 'parejo' : 'grupos'
+      modo: modo === 'parejo' ? 'parejo' : 'grupos',
+      salida: horaDeSalida(vuelta, ctx.equipo, fecha),
+      orden: (ctx.equipo.ajustes || {}).orden || 'optimo'
     });
     calculo.paradas.forEach((p) => {
       if (!paradaHecha(p) && p.fleteroUid) asignacion.set(p.id, p.fleteroUid);
@@ -301,7 +328,7 @@ $('btn-confirmar').addEventListener('click', async () => {
   try {
     await guardarCalculo(ctx.equipo, fecha, calculo);
     aviso('Listo, cada fletero ya ve su vuelta');
-    location.href = fecha === fechaISO() ? 'index.html' : `armar.html?fecha=${fecha}`;
+    location.href = fecha === fechaISO() ? '/pages/hoy.html' : `/pages/armar.html?fecha=${fecha}`;
   } catch (e) {
     aviso('No se pudo guardar. Probá de nuevo.');
     $('btn-confirmar').disabled = false;

@@ -5,6 +5,7 @@ import { auth } from './firebase.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { obtenerUsuario, guardarUsuario, crearEquipo, unirseConCodigo } from './datos.js';
 import { crearBuscador } from './buscador.js';
+import { miUbicacion, direccionDe } from './rutas.js';
 import { esc } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -15,13 +16,13 @@ let base = null;
 
 onAuthStateChanged(auth, async (u) => {
   if (!u) {
-    location.replace('login.html');
+    location.replace('/pages/login.html');
     return;
   }
   user = u;
   const usuario = await obtenerUsuario(u.uid);
   if (usuario && usuario.equipoId) {
-    location.replace('index.html');
+    location.replace('/');
     return;
   }
   nombre = (usuario && usuario.nombre) || u.displayName || (u.email || 'Usuario').split('@')[0];
@@ -58,6 +59,22 @@ crearBuscador($('base'), {
   }
 });
 
+$('btn-base-aca').addEventListener('click', async () => {
+  const boton = $('btn-base-aca');
+  boton.disabled = true;
+  try {
+    const { lat, lng } = await miUbicacion();
+    const direccion = await direccionDe(lat, lng);
+    base = { direccion, lat, lng };
+    $('base').value = direccion;
+    $('base-elegida').innerHTML = `Salís desde <strong>${esc(direccion)}</strong> (tu ubicación actual).`;
+  } catch (e) {
+    $('base-elegida').textContent = 'No se pudo obtener tu ubicación. Revisá el permiso o buscá la dirección.';
+  } finally {
+    boton.disabled = false;
+  }
+});
+
 $('btn-empezar').addEventListener('click', async () => {
   const nombreEquipo = $('nombre-equipo').value.trim();
   if (modo === 'equipo' && !nombreEquipo) {
@@ -74,7 +91,7 @@ $('btn-empezar').addEventListener('click', async () => {
       modo,
       base
     });
-    location.replace(modo === 'equipo' ? 'equipo.html' : 'armar.html');
+    location.replace(modo === 'equipo' ? '/pages/equipo.html' : '/pages/armar.html');
   } catch (e) {
     $('error-datos').textContent = 'No se pudo crear. Revisá la conexión y probá de nuevo.';
     $('error-datos').classList.remove('oculto');
@@ -88,7 +105,7 @@ $('btn-sumarme').addEventListener('click', async () => {
   $('btn-sumarme').disabled = true;
   try {
     await unirseConCodigo({ uid: user.uid, nombre, codigo });
-    location.replace('index.html');
+    location.replace('/');
   } catch (e) {
     $('error-codigo').textContent =
       e.message === 'codigo-invalido' ? 'Ese código no existe. Revisalo con quien te lo pasó.' : 'No se pudo sumar. Probá de nuevo.';

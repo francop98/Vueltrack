@@ -4,45 +4,54 @@
    Estilos, scripts e íconos: copia guardada y se actualiza por detrás.
    Al publicar una versión nueva, subí el número de VERSION.
    ========================================================= */
-const VERSION = 'vueltrack-v1.2';
+const VERSION = 'vueltrack-v2.1';
 
 const ARCHIVOS = [
-  './',
-  'index.html',
-  'login.html',
-  'bienvenida.html',
-  'armar.html',
-  'repartir.html',
-  'clientes.html',
-  'equipo.html',
-  'parada.html',
-  'css/estilos.css',
-  'js/tema.js',
-  'js/pwa.js',
-  'js/firebase-config.js',
-  'js/firebase.js',
-  'js/sesion.js',
-  'js/ui.js',
-  'js/datos.js',
-  'js/rutas.js',
-  'js/mapa.js',
-  'js/vuelta.js',
-  'js/ordenar.js',
-  'js/buscador.js',
-  'js/login.js',
-  'js/bienvenida.js',
-  'js/hoy.js',
-  'js/armar.js',
-  'js/repartir.js',
-  'js/clientes.js',
-  'js/equipo.js',
-  'js/parada.js',
-  'assets/icono.svg',
-  'assets/icono-180.png',
-  'assets/icono-192.png',
-  'assets/icono-512.png',
-  'assets/icono-maskable-512.png',
-  'manifest.json'
+  '/',
+  '/styles.css',
+  '/manifest.json',
+  '/pages/hoy.html',
+  '/pages/login.html',
+  '/pages/bienvenida.html',
+  '/pages/armar.html',
+  '/pages/repartir.html',
+  '/pages/clientes.html',
+  '/pages/equipo.html',
+  '/pages/parada.html',
+  '/pages/vehiculo.html',
+  '/css/equipo.css',
+  '/css/ingreso.css',
+  '/css/inicio.css',
+  '/css/mapa.css',
+  '/css/parada.css',
+  '/css/repartir.css',
+  '/js/armar.js',
+  '/js/bienvenida.js',
+  '/js/buscador.js',
+  '/js/clientes.js',
+  '/js/datos.js',
+  '/js/equipo.js',
+  '/js/firebase-config.js',
+  '/js/firebase.js',
+  '/js/hoy.js',
+  '/js/inicio.js',
+  '/js/login.js',
+  '/js/mapa.js',
+  '/js/ordenar.js',
+  '/js/parada.js',
+  '/js/pwa.js',
+  '/js/repartir.js',
+  '/js/rutas.js',
+  '/js/salida.js',
+  '/js/sesion.js',
+  '/js/ui.js',
+  '/js/vehiculo.js',
+  '/js/vuelta.js',
+  '/assets/icono-180.png',
+  '/assets/icono-192.png',
+  '/assets/icono-512.png',
+  '/assets/icono-maskable-512.png',
+  '/assets/icono.svg'
 ];
 
 self.addEventListener('install', (evento) => {
@@ -79,7 +88,7 @@ self.addEventListener('fetch', (evento) => {
           caches.open(VERSION).then((cache) => cache.put(pedido, copia));
           return resp;
         })
-        .catch(() => caches.match(pedido, { ignoreSearch: true }).then((r) => r || caches.match('index.html')))
+        .catch(() => caches.match(pedido, { ignoreSearch: true }).then((r) => r || caches.match('/')))
     );
     return;
   }

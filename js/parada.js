@@ -14,6 +14,8 @@ import {
   linkWaze,
   linkTel,
   linkWhatsApp,
+  linkGoogleMapsVuelta,
+  PARADAS_POR_TRAMO,
   aviso,
   confirmar
 } from './ui.js';
@@ -48,7 +50,7 @@ function pintar() {
   const p = laParada();
   if (!p) {
     $('nombre').textContent = 'Esta parada ya no está en la vuelta';
-    $('acciones').innerHTML = '<a class="btn btn-primario" href="index.html">Volver a la vuelta</a>';
+    $('acciones').innerHTML = '<a class="btn btn-primario" href="/pages/hoy.html">Volver a la vuelta</a>';
     $('botones-estado').innerHTML = '';
     $('btn-ubicacion').classList.add('oculto');
     return;
@@ -75,10 +77,19 @@ function pintar() {
   if (p.estado === 'noEstaba') pastillas.push(`No estaba (${p.horaEstado || ''})`);
   $('pastillas').innerHTML = pastillas.map((t) => `<span class="pastilla">${esc(t)}</span>`).join('');
 
+  const desdeEsta = suyas.findIndex((x) => x.id === p.id);
+  const restantes = paradaHecha(p) ? [] : suyas.slice(desdeEsta).filter((x) => !paradaHecha(x));
   const faltan = p.llegada != null ? Math.max(0, Math.round((p.llegada - segundosAhora()) / 60)) : null;
   const mensaje = `¡Hola! Soy ${ctx.yo.nombre} de ${ctx.equipo.nombre}. Estoy llegando${faltan ? ` en unos ${faltan} minutos` : ''}.`;
   $('acciones').innerHTML = `
-    <a class="btn btn-primario btn-grande" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}Google Maps</a>
+    ${
+      restantes.length > 1
+        ? `<a class="btn btn-primario btn-grande celda-completa" href="${linkGoogleMapsVuelta(restantes)}" target="_blank" rel="noopener">${ICONOS.navegar}Navegar toda la vuelta desde acá${
+            restantes.length > PARADAS_POR_TRAMO ? ` (${PARADAS_POR_TRAMO} de ${restantes.length})` : ''
+          }</a>`
+        : ''
+    }
+    <a class="btn ${restantes.length > 1 ? 'btn-contorno' : 'btn-primario'} btn-grande" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}Solo esta</a>
     <a class="btn btn-contorno btn-grande" href="${linkWaze(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}Waze</a>
     ${
       p.telefono
@@ -93,7 +104,7 @@ function pintar() {
   const siguiente = suyas.find((x) => !paradaHecha(x) && x.id !== p.id && (x.orden || 0) > (p.orden || 0)) || suyas.find((x) => !paradaHecha(x) && x.id !== p.id);
   if (siguiente) {
     $('siguiente').classList.remove('oculto');
-    $('siguiente').href = `parada.html?id=${encodeURIComponent(siguiente.id)}`;
+    $('siguiente').href = `/pages/parada.html?id=${encodeURIComponent(siguiente.id)}`;
     $('siguiente').innerHTML = `
       <div class="botonera-texto">
         <span class="numero">${suyas.findIndex((x) => x.id === siguiente.id) + 1}</span>
@@ -126,7 +137,7 @@ function pintar() {
 function irALaSiguiente() {
   const p = laParada();
   const pendiente = paradasDe(vuelta, p ? p.fleteroUid : ctx.user.uid).find((x) => !paradaHecha(x) && x.id !== id);
-  location.href = pendiente ? `parada.html?id=${encodeURIComponent(pendiente.id)}` : 'index.html';
+  location.href = pendiente ? `/pages/parada.html?id=${encodeURIComponent(pendiente.id)}` : '/pages/hoy.html';
 }
 
 $('botones-estado').addEventListener('click', async (e) => {

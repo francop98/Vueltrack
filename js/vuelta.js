@@ -83,3 +83,24 @@ export function resumen(grupos) {
   });
   return { paradas, hechas, distancia, duracion, fin };
 }
+
+/* ---------- Gastos del vehículo ---------- */
+
+export const COMBUSTIBLES = {
+  nafta: { nombre: 'Nafta', unidad: 'litro', rinde: 'km por litro' },
+  gasoil: { nombre: 'Gasoil', unidad: 'litro', rinde: 'km por litro' },
+  gnc: { nombre: 'GNC', unidad: 'm³', rinde: 'km por m³' },
+  electrico: { nombre: 'Eléctrico', unidad: 'kWh', rinde: 'km por kWh' }
+};
+
+/* Gasto estimado de una ruta según los datos del vehículo del fletero */
+export function costoDeRuta(distanciaMetros, gasto) {
+  if (!gasto || !distanciaMetros) return null;
+  const rinde = Number(gasto.rinde);
+  const precio = Number(gasto.precio);
+  if (!(rinde > 0) || !(precio >= 0)) return null;
+  const km = distanciaMetros / 1000;
+  const combustible = (km / rinde) * precio;
+  const extra = km * (Number(gasto.extraKm) || 0);
+  return { km, unidades: km / rinde, combustible, extra, total: combustible + extra };
+}

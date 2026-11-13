@@ -1,0 +1,13 @@
+{
+  "redirects": [
+    { "source": "/hoy.html", "destination": "/pages/hoy.html", "permanent": true },
+    { "source": "/login.html", "destination": "/pages/login.html", "permanent": true },
+    { "source": "/bienvenida.html", "destination": "/pages/bienvenida.html", "permanent": true },
+    { "source": "/armar.html", "destination": "/pages/armar.html", "permanent": true },
+    { "source": "/repartir.html", "destination": "/pages/repartir.html", "permanent": true },
+    { "source": "/clientes.html", "destination": "/pages/clientes.html", "permanent": true },
+    { "source": "/equipo.html", "destination": "/pages/equipo.html", "permanent": true },
+    { "source": "/parada.html", "destination": "/pages/parada.html", "permanent": true },
+    { "source": "/vehiculo.html", "destination": "/pages/vehiculo.html", "permanent": true }
+  ]
+}
