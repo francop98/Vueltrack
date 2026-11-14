@@ -6,6 +6,7 @@
    (son del equipo).
    ========================================================= */
 import { auth } from './firebase.js';
+import { rindeSugerido } from './consumos.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { obtenerUsuario, guardarUsuario, crearEquipo, unirseConCodigo, codigoValido } from './datos.js';
 import { crearBuscador } from './buscador.js';
@@ -194,6 +195,21 @@ function etiquetasVehiculo() {
   document.querySelector('label[for="precio"]').textContent = `Precio por ${c.unidad} ($)`;
 }
 document.querySelectorAll('input[name="combustible"]').forEach((i) => i.addEventListener('change', etiquetasVehiculo));
+
+/* Rinde aproximado según el modelo: se completa solo mientras el fletero no lo cambie */
+let rindeAuto = true;
+function sugerirRinde() {
+  if (!rindeAuto && $('rinde').value) return;
+  const combustible = (document.querySelector('input[name="combustible"]:checked') || {}).value || 'nafta';
+  const s = rindeSugerido({ nombre: $('vehiculo').value, tipo: 'utilitario', combustible });
+  $('rinde').value = s && $('vehiculo').value.trim() ? s.valor : '';
+  rindeAuto = true;
+}
+$('vehiculo').addEventListener('input', sugerirRinde);
+document.querySelectorAll('input[name="combustible"]').forEach((i) => i.addEventListener('change', sugerirRinde));
+$('rinde').addEventListener('input', () => {
+  rindeAuto = false;
+});
 
 function datosVehiculo() {
   const rinde = Number(String($('rinde').value).replace(',', '.')) || 0;

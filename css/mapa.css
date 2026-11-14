@@ -92,3 +92,33 @@
   transform: rotate(-45deg);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
+
+/* Mapa de OpenStreetMap llevado a tonos oscuros, igual que la app */
+.capa-oscura {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.5);
+}
+
+/* Retiro: pin cuadrado para distinguirlo de una entrega */
+.pin.retiro {
+  border-radius: 6px;
+}
+
+/* Fletero en vivo */
+.pin-fletero {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.mapa-leyenda.arriba {
+  top: 10px;
+  bottom: auto;
+}

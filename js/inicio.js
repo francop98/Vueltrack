@@ -7,6 +7,7 @@ import { instalarApp, sePuedeInstalar } from './instalar.js';
 import { elegirZona } from './zona.js';
 import { escucharVuelta, fleterosDelEquipo } from './datos.js';
 import { gruposDeVuelta, resumen, paradasSinOrdenar, costoDeRuta, paradaHecha } from './vuelta.js';
+import { alertasDelVehiculo, kmRecorridosDesde, tieneService } from './mantenimiento.js';
 import {
   ICONOS,
   esc,
@@ -78,6 +79,26 @@ function pintar() {
   pintarResumen();
   pintarGasto();
   pintarMosaico();
+  pintarAlertas();
+}
+
+/* Vencimientos y service del vehículo */
+let kmService = null;
+async function pintarAlertas() {
+  const caja = $('alertas');
+  const gasto = ctx.yo.gasto;
+  if (!ctx.fletero || !gasto) {
+    caja.classList.add('oculto');
+    return;
+  }
+  if (tieneService(gasto) && kmService === null) {
+    kmService = await kmRecorridosDesde(ctx.equipo.id, ctx.user.uid, gasto.service.tableroFecha);
+  }
+  const alertas = alertasDelVehiculo(gasto, kmService || 0);
+  caja.classList.toggle('oculto', !alertas.length);
+  caja.innerHTML = alertas
+    .map((a) => `<span class="alerta ${a.nivel}">${ICONOS.auto}<span>${esc(a.texto)}</span></span>`)
+    .join('');
 }
 
 function grupoPropioOGeneral() {
@@ -178,7 +199,10 @@ function pintarMosaico() {
     ctx.organizador && { href: '/pages/armar.html', icono: ICONOS.armar, titulo: 'Armar la vuelta', texto: 'Cargar y ordenar paradas' },
     ctx.organizador && varios && { href: `/pages/repartir.html?fecha=${fecha}`, icono: ICONOS.equipo, titulo: 'Repartir', texto: 'Dividir entre fleteros' },
     ctx.organizador && { href: '/pages/clientes.html', icono: ICONOS.clientes, titulo: 'Clientes', texto: 'Tus clientes habituales' },
-    ctx.fletero && { href: '/pages/vehiculo.html', icono: ICONOS.auto, titulo: 'Mi vehículo', texto: 'Consumo y gastos' },
+    ctx.fletero && { href: '/pages/manejo.html', icono: ICONOS.navegar, titulo: 'Modo manejo', texto: 'Una parada por vez' },
+    ctx.fletero && { href: '/pages/vehiculo.html', icono: ICONOS.auto, titulo: 'Mi vehículo', texto: 'Gastos y vencimientos' },
+    { href: '/pages/cotizar.html', icono: ICONOS.plata, titulo: 'Cotizar un flete', texto: 'Costo y presupuesto' },
+    { href: '/pages/historial.html', icono: ICONOS.historial, titulo: 'Historial', texto: 'Km, gastos y entregas' },
     { href: '/pages/equipo.html', icono: ICONOS.equipo, titulo: 'Equipo', texto: ctx.equipo.modo === 'solo' ? 'Trabajo solo' : 'Integrantes y roles' }
   ].filter(Boolean);
   $('mosaico').innerHTML = items.map(baldosa).join('');

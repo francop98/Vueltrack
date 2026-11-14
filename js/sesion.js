@@ -127,6 +127,8 @@ export function abrirMenu(ctx) {
       <span class="menu-grupo">Tu trabajo</span>
       ${item('', ICONOS.equipo, ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', '/pages/equipo.html')}
       ${ctx.organizador ? item('', ICONOS.clientes, 'Clientes habituales', '/pages/clientes.html') : ''}
+      ${item('', ICONOS.plata, 'Cotizar un flete', '/pages/cotizar.html')}
+      ${item('', ICONOS.historial, 'Historial', '/pages/historial.html')}
       <span class="menu-grupo">Ayuda</span>
       ${item('guia', ICONOS.ayuda, 'Guía de uso')}
       ${estaInstalada() ? '' : item('instalar', ICONOS.descargar, 'Instalar la app')}

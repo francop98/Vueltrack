@@ -36,25 +36,25 @@ function pasos(ctx) {
       icono: ICONOS.navegar,
       titulo: `${lista.length + 1}. Salí a la calle`,
       texto:
-        'En Hoy tocá “Toda la vuelta” para navegar con Google Maps, o “Solo esta” para ir a un destino. Desde cada parada podés llamar o avisar por WhatsApp.'
+        'En Hoy tocá “Toda la vuelta” para navegar con Google Maps, o “Solo esta” para ir a un destino. El Modo manejo te muestra una parada por vez con botones grandes. Con “Avisar” le mandás al cliente un WhatsApp con un link para seguir su entrega.'
     },
     {
       icono: ICONOS.check,
       titulo: `${lista.length + 2}. Marcá cada entrega`,
-      texto: 'Al llegar tocá Entregado, No estaba o Pasar para el final. La vuelta se actualiza para todo el equipo.'
+      texto: 'Al llegar tocá Entregado o “No se pudo entregar” (no estaba, rechazado) y pasala a otro día si hace falta. Podés sacar una foto o pedir la firma como comprobante.'
     }
   );
   if (ctx.fletero) {
     lista.push({
       icono: ICONOS.auto,
       titulo: `${lista.length + 1}. Controlá tus gastos`,
-      texto: 'Cargá tu vehículo en el menú ☰ y vas a ver cuánto gastás en combustible en cada vuelta.'
+      texto: 'Cargá tu vehículo en el menú ☰: ves cuánto gastás en cada vuelta y te avisamos de la VTV, el seguro y el service.'
     });
   }
   lista.push({
     icono: ICONOS.menu,
     titulo: 'El menú',
-    texto: 'Con ☰ arriba a la izquierda llegás a tus datos, seguridad, vehículo, equipo, esta guía e instalar la app. Inicio siempre está abajo, en la casita.'
+    texto: 'Con ☰ arriba a la izquierda llegás a tus datos, vehículo, equipo, el cotizador de fletes, el historial, esta guía e instalar la app. Inicio siempre está abajo, en la casita.'
   });
   return lista;
 }

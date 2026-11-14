@@ -2,9 +2,11 @@
    Vueltrack — pantalla Hoy
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
-import { escucharVuelta, fleterosDelEquipo } from './datos.js';
-import { crearMapa, pintarVuelta } from './mapa.js';
-import { gruposDeVuelta, resumen, paradasSinOrdenar, costoDeRuta, paradaHecha } from './vuelta.js';
+import { escucharVuelta, fleterosDelEquipo, escucharUbicaciones } from './datos.js';
+import { crearMapa, pintarVuelta, pintarFleteros } from './mapa.js';
+import { gruposDeVuelta, resumen, paradasSinOrdenar, costoDeRuta, textoHorario } from './vuelta.js';
+import { conectarAviso, textoResultado } from './estados.js';
+import { compartirSiCorresponde, puedeCompartir, estaCompartiendo, cambiarCompartir, haceCuanto, ubicacionesRecientes } from './enVivo.js';
 import { reordenarFletero, mensajeError, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirOrden } from './salida.js';
 import { miUbicacion } from './rutas.js';
@@ -20,7 +22,6 @@ import {
   linkGoogleMaps,
   linkWaze,
   linkTel,
-  linkWhatsApp,
   linkGoogleMapsVuelta,
   PARADAS_POR_TRAMO,
   formatoPlata,
@@ -45,6 +46,44 @@ ctx = await iniciarPantalla({
 });
 
 filtro = ctx.organizador ? 'todos' : ctx.user.uid;
+compartirSiCorresponde(ctx);
+
+/* ---------- Ubicación en vivo ---------- */
+let ubicaciones = [];
+function pintarCompartir() {
+  const caja = $('compartir');
+  const ver = puedeCompartir(ctx);
+  caja.classList.toggle('oculto', !ver);
+  if (ver) $('compartir-check').checked = estaCompartiendo();
+}
+$('compartir-check').addEventListener('change', async (e) => {
+  await cambiarCompartir(ctx, e.target.checked);
+  aviso(e.target.checked ? 'El equipo ve dónde estás mientras tengas la app abierta' : 'Dejaste de compartir tu ubicación');
+});
+pintarCompartir();
+
+if (ctx.organizador && ctx.equipo.modo === 'equipo') {
+  escucharUbicaciones(ctx.equipo.id, (lista) => {
+    ubicaciones = ubicacionesRecientes(lista).filter((u) => u.uid !== ctx.user.uid);
+    pintarEnVivo();
+  });
+}
+
+function pintarEnVivo() {
+  if (!mapa) return;
+  const fleteros = fleterosDelEquipo(ctx.equipo);
+  const visibles = ubicaciones
+    .filter((u) => filtro === 'todos' || u.uid === filtro)
+    .map((u) => {
+      const f = fleteros.find((x) => x.uid === u.uid);
+      return { ...u, color: f ? f.color : '#475569', nombre: f ? f.nombre : u.nombre, detalle: haceCuanto(u.ts) };
+    });
+  pintarFleteros(mapa, visibles);
+  $('en-vivo').classList.toggle('oculto', !visibles.length);
+  $('en-vivo').innerHTML = visibles
+    .map((u) => `<span><i class="punto" style="background:${esc(u.color)}"></i>${esc(u.nombre)} · ${esc(u.detalle)}</span>`)
+    .join('');
+}
 
 escucharVuelta(ctx.equipo.id, fecha, (v) => {
   vuelta = v;
@@ -98,6 +137,7 @@ function pintar() {
           .join('')
       : '';
 
+  pintarEnVivo();
   pintarProxima(grupos);
   pintarListas(grupos);
 }
@@ -169,13 +209,13 @@ function pintarProxima(grupos) {
   }
   const pendientes = grupo.paradas.filter((x) => !x.hecha);
   const faltan = p.llegada != null ? Math.max(0, Math.round((p.llegada - segundosAhora()) / 60)) : null;
-  const texto = `¡Hola! Soy ${ctx.yo.nombre} de ${ctx.equipo.nombre}. Estoy llegando${faltan ? ` en unos ${faltan} minutos` : ''}.`;
+  const esMia = grupo.uid === ctx.user.uid;
   caja.innerHTML = `
     <a class="fila-titulo enlace-plano" href="/pages/parada.html?id=${encodeURIComponent(p.id)}">
       <div class="titulo-bloque">
         <span class="acento">Próxima parada · ${p.numero} de ${grupo.paradas.length}${grupos.length > 1 && filtro === 'todos' ? ` · ${esc(grupo.nombre)}` : ''}</span>
         <strong id="proxima-nombre" class="subtitulo">${esc(p.nombre)}</strong>
-        <span class="tenue">${esc(p.direccion)}${p.hasta ? ` · cierra ${esc(p.hasta)}` : ''}</span>
+        <span class="tenue">${p.tipo === 'retiro' ? 'Retiro · ' : ''}${esc(p.direccion)}${textoHorario(p) ? ` · ${esc(textoHorario(p))}` : ''}</span>
       </div>
       <div class="titulo-bloque">
         <strong class="subtitulo">${horaDeSegundos(p.llegada)}</strong>
@@ -193,28 +233,35 @@ function pintarProxima(grupos) {
       <a class="btn ${pendientes.length > 1 ? 'btn-oscuro' : 'btn-primario'}" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}Solo esta</a>
       <a class="btn btn-oscuro" href="${linkWaze(p.lat, p.lng)}" target="_blank" rel="noopener">Waze</a>
       ${p.telefono ? `<a class="btn-icono btn-oscuro" href="${linkTel(p.telefono)}" aria-label="Llamar a ${esc(p.nombre)}">${ICONOS.telefono}</a>` : ''}
-      ${p.telefono ? `<a class="btn-icono btn-oscuro" href="${linkWhatsApp(p.telefono, texto)}" target="_blank" rel="noopener" aria-label="Avisar por WhatsApp que llegás">${ICONOS.mensaje}</a>` : ''}
+      <a class="btn-icono btn-oscuro" id="btn-avisar" href="#" target="_blank" rel="noopener" aria-label="Avisar por WhatsApp que vas">${ICONOS.mensaje}</a>
     </div>
+    ${esMia ? `<a class="btn btn-oscuro" href="/pages/manejo.html">${ICONOS.auto}Modo manejo</a>` : ''}
     ${
       pendientes.length > PARADAS_POR_TRAMO
         ? `<span class="tenue texto-chico">Google Maps navega hasta ${PARADAS_POR_TRAMO} paradas por vez. Al terminar ese tramo, volvé a tocar “Toda la vuelta”.</span>`
         : ''
     }`;
+  conectarAviso($('btn-avisar'), ctx, fecha, () => vuelta, () => (vuelta.paradas || []).find((x) => x.id === p.id));
 }
 
 function filaParada(p) {
   let icono = p.numero;
-  let claseNum = '';
-  let detalle = `${esc(p.direccion)}${p.llegada != null ? ` · ${horaDeSegundos(p.llegada)}` : ''}${p.hasta ? ` · cierra ${esc(p.hasta)}` : ''}`;
+  let claseNum = p.tipo === 'retiro' ? 'retiro' : '';
+  const horario = textoHorario(p);
+  let detalle = `${esc(p.direccion)}${p.llegada != null ? ` · ${horaDeSegundos(p.llegada)}` : ''}${horario ? ` · ${esc(horario)}` : ''}`;
   if (p.estado === 'entregado') {
     icono = ICONOS.check;
     claseNum = 'ok';
-    detalle = `${esc(p.direccion)} · entregado ${p.horaEstado ? esc(p.horaEstado) : ''}`;
-  } else if (p.estado === 'noEstaba') {
+    detalle = `${esc(p.direccion)} · ${esc(textoResultado(p))}`;
+  } else if (p.hecha) {
     icono = '!';
     claseNum = 'no';
-    detalle = `${esc(p.direccion)} · no estaba`;
+    detalle = `${esc(p.direccion)} · ${esc(textoResultado(p))}`;
   }
+  const etiquetas = [
+    p.tipo === 'retiro' && !p.hecha ? '<span class="etiqueta etiqueta-azul">retiro</span>' : '',
+    p.urgente && !p.hecha ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''
+  ].join('');
   return `
     <div class="fila ${p.hecha ? 'hecha' : ''} ${p.actual ? 'actual' : ''}">
       <a class="fila enlace-plano sin-padding" href="/pages/parada.html?id=${encodeURIComponent(p.id)}">
@@ -223,7 +270,7 @@ function filaParada(p) {
           <span class="fila-titulo-texto">${esc(p.nombre)}</span>
           <span class="fila-detalle">${detalle}</span>
         </span>
-        ${p.urgente && !p.hecha ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''}
+        ${etiquetas}
       </a>
       ${
         p.hecha

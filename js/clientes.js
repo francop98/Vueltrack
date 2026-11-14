@@ -5,7 +5,7 @@ import { iniciarPantalla } from './sesion.js';
 import { escucharClientes, escucharVuelta, guardarVuelta, guardarCliente, borrarCliente } from './datos.js';
 import { crearBuscador, htmlBuscador } from './buscador.js';
 import { mapaConPin } from './mapa.js';
-import { paradaDesdeCliente } from './vuelta.js';
+import { paradaDesdeCliente, textoHorario } from './vuelta.js';
 import {
   ICONOS,
   esc,
@@ -99,7 +99,7 @@ function pintar() {
       <div class="lista">
         ${grupos[letra]
           .map((c) => {
-            const detalle = [c.direccion, textoDias(c.dias), c.hasta ? `hasta ${c.hasta} hs` : ''].filter(Boolean).join(' · ');
+            const detalle = [c.direccion, textoDias(c.dias), textoHorario(c), c.nota ? 'con nota' : ''].filter(Boolean).join(' · ');
             const esta = yaEstan.has(c.id);
             return `
             <div class="fila">
@@ -161,7 +161,7 @@ $('btn-nuevo').addEventListener('click', () => abrirEditor(null));
 /* ---------- Alta y edición ---------- */
 
 function abrirEditor(cliente) {
-  const c = cliente || { nombre: '', direccion: '', telefono: '', dias: [], hasta: '', nota: '' };
+  const c = cliente || { nombre: '', direccion: '', telefono: '', dias: [], desde: '', hasta: '', nota: '', bultos: 1 };
   let ubicacion = cliente ? { direccion: c.direccion, lat: c.lat, lng: c.lng } : null;
   let pin = null;
   const orden = [1, 2, 3, 4, 5, 6, 0];
@@ -173,9 +173,13 @@ function abrirEditor(cliente) {
       ${htmlBuscador('c-direccion', 'Dirección', 'Dirección o nombre del lugar', c.direccion)}
       <div class="mapa chico ${ubicacion ? '' : 'oculto'}" id="c-mapa-caja"><div class="mapa-lienzo" id="c-mapa"></div></div>
       <span class="texto-tenue ${ubicacion ? '' : 'oculto'}" id="c-ayuda-pin">Si el pin quedó corrido, arrastralo a la puerta.</span>
-      <div class="grilla-2">
-        <div class="campo"><label for="c-tel">Teléfono</label><input id="c-tel" type="tel" inputmode="tel" value="${esc(c.telefono)}"></div>
-        <div class="campo"><label for="c-hasta">Horario de cierre</label><input id="c-hasta" type="time" value="${esc(c.hasta)}"></div>
+      <div class="grilla-2 siempre">
+        <div class="campo"><label for="c-tel">Teléfono</label><input id="c-tel" type="tel" inputmode="tel" value="${esc(c.telefono)}" placeholder="Celular"></div>
+        <div class="campo"><label for="c-bultos">Bultos habituales</label><input id="c-bultos" type="number" inputmode="numeric" min="0" step="1" value="${esc(c.bultos ?? 1)}"></div>
+      </div>
+      <div class="grilla-2 siempre">
+        <div class="campo"><label for="c-desde">Recibe desde</label><input id="c-desde" type="time" value="${esc(c.desde || '')}"></div>
+        <div class="campo"><label for="c-hasta">Recibe hasta</label><input id="c-hasta" type="time" value="${esc(c.hasta)}"></div>
       </div>
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Días que le toca</legend>
@@ -188,7 +192,7 @@ function abrirEditor(cliente) {
             .join('')}
         </div>
       </fieldset>
-      <div class="campo"><label for="c-nota">Nota para el fletero</label><textarea id="c-nota" placeholder="Indicaciones para la entrega">${esc(c.nota)}</textarea></div>
+      <div class="campo"><label for="c-nota">Nota fija para el fletero</label><textarea id="c-nota" placeholder="Ej.: timbre 2B, dejar en portería, entrar por el portón lateral">${esc(c.nota)}</textarea></div>
       <p class="error-texto oculto" id="c-error" role="alert"></p>
       <button type="button" class="btn btn-primario btn-grande" id="c-guardar">Guardar cliente</button>
       ${cliente ? `<button type="button" class="btn btn-peligro" id="c-borrar">${ICONOS.basura}Eliminar cliente</button>` : ''}`
@@ -224,8 +228,14 @@ function abrirEditor(cliente) {
   el.querySelector('#c-guardar').addEventListener('click', async () => {
     const nombre = el.querySelector('#c-nombre').value.trim();
     const error = el.querySelector('#c-error');
-    if (!nombre || !ubicacion) {
-      error.textContent = !nombre ? 'Falta el nombre.' : 'Elegí la dirección de la lista de sugerencias.';
+    const desdeH = el.querySelector('#c-desde').value;
+    const hastaH = el.querySelector('#c-hasta').value;
+    if (!nombre || !ubicacion || (desdeH && hastaH && desdeH >= hastaH)) {
+      error.textContent = !nombre
+        ? 'Falta el nombre.'
+        : !ubicacion
+          ? 'Elegí la dirección de la lista de sugerencias.'
+          : 'El horario “desde” tiene que ser antes que el “hasta”.';
       error.classList.remove('oculto');
       return;
     }
@@ -237,7 +247,9 @@ function abrirEditor(cliente) {
       lat: ubicacion.lat,
       lng: ubicacion.lng,
       telefono: el.querySelector('#c-tel').value.trim(),
+      desde: el.querySelector('#c-desde').value,
       hasta: el.querySelector('#c-hasta').value,
+      bultos: Math.max(0, Number(el.querySelector('#c-bultos').value) || 0),
       nota: el.querySelector('#c-nota').value.trim(),
       dias
     });

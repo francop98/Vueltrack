@@ -5,7 +5,7 @@
 .parada-cabecera {
   background: var(--destacado);
   color: var(--destacado-texto);
-  padding: 20px 16px 22px;
+  padding: calc(20px + env(safe-area-inset-top)) 16px 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -87,4 +87,13 @@
 .parada-cabecera .texto-chico-fuerte {
   flex: 1;
   text-align: right;
+}
+
+/* La cabecera ya respeta la zona de la hora: el contenido de abajo no */
+.parada-cabecera + .contenido {
+  padding-top: 20px;
+}
+
+body::before {
+  background: var(--destacado);
 }

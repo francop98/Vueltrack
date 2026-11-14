@@ -1,6 +1,7 @@
 /* =========================================================
    Vueltrack — ayudas para leer una vuelta (por fletero)
-   Estados de parada: pendiente | entregado | noEstaba
+   Estados de parada: pendiente | entregado | noEstaba | rechazado | reprogramado
+   Tipos de parada:   entrega (por defecto) | retiro (lleva entregaId)
    ========================================================= */
 import { idNuevo } from './ui.js';
 
@@ -15,15 +16,68 @@ export function paradaDesdeCliente(c) {
     lng: c.lng,
     telefono: c.telefono || '',
     nota: c.nota || '',
+    desde: c.desde || '',
     hasta: c.hasta || '',
+    bultos: Number(c.bultos) || 1,
+    tipo: 'entrega',
     urgente: false,
     estado: 'pendiente',
     fleteroUid: null
   };
 }
 
+export const ESTADOS = {
+  pendiente: { texto: 'Pendiente', corto: 'pendiente' },
+  entregado: { texto: 'Entregado', corto: 'entregado' },
+  noEstaba: { texto: 'No estaba', corto: 'no estaba' },
+  rechazado: { texto: 'Rechazado', corto: 'rechazado' },
+  reprogramado: { texto: 'Reprogramado', corto: 'reprogramado' }
+};
+
 export function paradaHecha(p) {
-  return p.estado === 'entregado' || p.estado === 'noEstaba';
+  return ['entregado', 'noEstaba', 'rechazado', 'reprogramado'].includes(p.estado);
+}
+
+/* Entregada con éxito (para retiros también cuenta "entregado") */
+export function paradaExitosa(p) {
+  return p.estado === 'entregado';
+}
+
+/* Texto del horario en que recibe: "9:00 a 13:00", "hasta 13:00", "desde 9:00" */
+export function textoHorario(p) {
+  if (p.desde && p.hasta) return `recibe ${p.desde} a ${p.hasta}`;
+  if (p.hasta) return `cierra ${p.hasta}`;
+  if (p.desde) return `recibe desde ${p.desde}`;
+  return '';
+}
+
+/* Parada nueva vacía (dirección suelta) */
+export function paradaNueva(datos) {
+  return {
+    id: idNuevo(),
+    clienteId: null,
+    nombre: '',
+    direccion: '',
+    lat: null,
+    lng: null,
+    telefono: '',
+    nota: '',
+    desde: '',
+    hasta: '',
+    bultos: 1,
+    tipo: 'entrega',
+    urgente: false,
+    estado: 'pendiente',
+    fleteroUid: null,
+    ...datos
+  };
+}
+
+/* Copia de una parada para otro día: nueva, pendiente y sin fletero */
+export function copiaParaOtroDia(p, extra = {}) {
+  const limpia = { ...p };
+  ['orden', 'llegada', 'horaEstado', 'marcadoPor', 'motivo', 'sinAsignar', 'token', 'comprobante', 'reprogramadaA'].forEach((k) => delete limpia[k]);
+  return { ...limpia, id: idNuevo(), estado: 'pendiente', fleteroUid: null, ...extra };
 }
 
 /* Paradas de un fletero, en el orden de su vuelta */
@@ -102,5 +156,6 @@ export function costoDeRuta(distanciaMetros, gasto) {
   const km = distanciaMetros / 1000;
   const combustible = (km / rinde) * precio;
   const extra = km * (Number(gasto.extraKm) || 0);
+  if (!Number.isFinite(combustible)) return null;
   return { km, unidades: km / rinde, combustible, extra, total: combustible + extra };
 }

@@ -3,18 +3,19 @@
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, cambiarParada, corregirUbicacionCliente, fleterosDelEquipo } from './datos.js';
-import { paradasDe, paradaHecha } from './vuelta.js';
+import { paradasDe, paradaHecha, textoHorario } from './vuelta.js';
 import { editarParada, confirmarQuitar } from './editarParada.js';
+import { marcarEstado, elegirNoEntregado, pasarAlFinal, conectarAviso, textoResultado } from './estados.js';
+import { pintarComprobante } from './comprobante.js';
+import { compartirSiCorresponde } from './enVivo.js';
 import {
   ICONOS,
   esc,
   fechaISO,
   horaDeSegundos,
-  segundosAhora,
   linkGoogleMaps,
   linkWaze,
   linkTel,
-  linkWhatsApp,
   linkGoogleMapsVuelta,
   PARADAS_POR_TRAMO,
   aviso,
@@ -29,6 +30,8 @@ let vuelta = null;
 let ocupado = false;
 
 ctx = await iniciarPantalla({ pagina: 'parada' });
+compartirSiCorresponde(ctx);
+let comprobanteDe = null;
 
 escucharVuelta(ctx.equipo.id, fecha, (v) => {
   vuelta = v;
@@ -41,10 +44,6 @@ function laParada() {
 
 function puedoMarcar(p) {
   return ctx.organizador || p.fleteroUid === ctx.user.uid;
-}
-
-function horaAhora() {
-  return horaDeSegundos(segundosAhora());
 }
 
 function pintar() {
@@ -72,17 +71,16 @@ function pintar() {
   document.title = `Vueltrack — ${p.nombre}`;
 
   const pastillas = [];
+  if (p.tipo === 'retiro') pastillas.push('Retiro');
   if (p.llegada != null && !paradaHecha(p)) pastillas.push(`Llegás ${horaDeSegundos(p.llegada)}`);
-  if (p.hasta) pastillas.push(`Cierra ${p.hasta}`);
+  if (textoHorario(p)) pastillas.push(textoHorario(p).replace(/^./, (c) => c.toUpperCase()));
+  if (Number(p.bultos) > 1) pastillas.push(`${p.bultos} bultos`);
   if (p.urgente) pastillas.push('Urgente');
-  if (p.estado === 'entregado') pastillas.push(`Entregado ${p.horaEstado || ''}`);
-  if (p.estado === 'noEstaba') pastillas.push(`No estaba (${p.horaEstado || ''})`);
+  if (paradaHecha(p)) pastillas.push(textoResultado(p).replace(/^./, (c) => c.toUpperCase()));
   $('pastillas').innerHTML = pastillas.map((t) => `<span class="pastilla">${esc(t)}</span>`).join('');
 
   const desdeEsta = suyas.findIndex((x) => x.id === p.id);
   const restantes = paradaHecha(p) ? [] : suyas.slice(desdeEsta).filter((x) => !paradaHecha(x));
-  const faltan = p.llegada != null ? Math.max(0, Math.round((p.llegada - segundosAhora()) / 60)) : null;
-  const mensaje = `¡Hola! Soy ${ctx.yo.nombre} de ${ctx.equipo.nombre}. Estoy llegando${faltan ? ` en unos ${faltan} minutos` : ''}.`;
   $('acciones').innerHTML = `
     ${
       restantes.length > 1
@@ -93,12 +91,12 @@ function pintar() {
     }
     <a class="btn ${restantes.length > 1 ? 'btn-contorno' : 'btn-primario'} btn-grande" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}Solo esta</a>
     <a class="btn btn-contorno btn-grande" href="${linkWaze(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}Waze</a>
-    ${
-      p.telefono
-        ? `<a class="btn" href="${linkTel(p.telefono)}">${ICONOS.telefono}Llamar</a>
-           <a class="btn" href="${linkWhatsApp(p.telefono, mensaje)}" target="_blank" rel="noopener">${ICONOS.mensaje}Avisar que llego</a>`
-        : '<span class="texto-tenue celda-completa">Sin teléfono cargado para llamar o avisar.</span>'
-    }`;
+    ${p.telefono ? `<a class="btn" href="${linkTel(p.telefono)}">${ICONOS.telefono}Llamar</a>` : ''}
+    ${paradaHecha(p) ? '' : `<a class="btn ${p.telefono ? '' : 'celda-completa'}" id="btn-avisar" href="#" target="_blank" rel="noopener">${ICONOS.mensaje}Avisar que voy</a>`}`;
+  if (!paradaHecha(p)) conectarAviso($('btn-avisar'), ctx, fecha, () => vuelta, laParada);
+
+  $('motivo').classList.toggle('oculto', !p.motivo);
+  $('motivo-texto').textContent = p.motivo || '';
 
   $('nota').classList.toggle('oculto', !p.nota);
   $('nota-texto').textContent = p.nota || '';
@@ -124,17 +122,27 @@ function pintar() {
 
   const puede = puedoMarcar(p);
   $('btn-ubicacion').classList.toggle('oculto', !puede);
+  const palabra = p.tipo === 'retiro' ? 'Retirado' : 'Entregado';
   if (!puede) {
     $('botones-estado').innerHTML = '';
   } else if (paradaHecha(p)) {
-    $('botones-estado').innerHTML = `<button type="button" class="btn" data-accion="deshacer">Volver a dejarla pendiente</button>`;
+    $('botones-estado').innerHTML =
+      p.estado === 'reprogramado'
+        ? `<span class="texto-tenue">Ya se sumó pendiente a la vuelta de ese día.</span>`
+        : `<button type="button" class="btn" data-accion="deshacer">Volver a dejarla pendiente</button>`;
   } else {
     $('botones-estado').innerHTML = `
-      <button type="button" class="btn btn-ok" data-accion="entregado">${ICONOS.check}Entregado</button>
+      <button type="button" class="btn btn-ok btn-grande" data-accion="entregado">${ICONOS.check}${palabra}</button>
       <div class="grilla-2">
-        <button type="button" class="btn" data-accion="noEstaba">No estaba</button>
+        <button type="button" class="btn" data-accion="no">${p.tipo === 'retiro' ? 'No se pudo retirar' : 'No se pudo entregar'}</button>
         <button type="button" class="btn" data-accion="final">Pasar para el final</button>
       </div>`;
+  }
+
+  // Comprobante: se pinta una sola vez por parada (para no recargar la foto con cada cambio)
+  if (comprobanteDe !== `${p.id}:${p.comprobante ? 1 : 0}:${p.estado}`) {
+    comprobanteDe = `${p.id}:${p.comprobante ? 1 : 0}:${p.estado}`;
+    pintarComprobante($('comprobante'), { ctx, fecha, parada: { ...p }, puedeCargar: puede && p.estado === 'entregado' });
   }
 }
 
@@ -148,35 +156,23 @@ $('botones-estado').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-accion]');
   if (!b || ocupado) return;
   const accion = b.dataset.accion;
+  const p = laParada();
+  if (!p) return;
+  if (accion === 'no') {
+    elegirNoEntregado(ctx, fecha, vuelta, p, () => setTimeout(irALaSiguiente, 500));
+    return;
+  }
   ocupado = true;
   try {
-    if (accion === 'entregado' || accion === 'noEstaba') {
-      const hora = horaAhora();
-      await cambiarParada(ctx.equipo.id, fecha, id, (paradas, i) => {
-        if (i >= 0) paradas[i] = { ...paradas[i], estado: accion, horaEstado: hora, marcadoPor: ctx.user.uid };
-        return paradas;
-      });
-      aviso(accion === 'entregado' ? 'Entregado' : 'Marcada como “no estaba”');
-      setTimeout(irALaSiguiente, 500);
+    if (accion === 'entregado') {
+      await marcarEstado(ctx, fecha, id, 'entregado', { motivo: '' });
+      aviso(p.tipo === 'retiro' ? 'Retirado' : 'Entregado');
     } else if (accion === 'final') {
-      await cambiarParada(ctx.equipo.id, fecha, id, (paradas, i) => {
-        if (i < 0) return paradas;
-        const uid = paradas[i].fleteroUid;
-        const suyas = paradas.filter((x) => x.fleteroUid === uid).sort((a, c) => (a.orden || 0) - (c.orden || 0));
-        const movida = suyas.splice(suyas.findIndex((x) => x.id === id), 1)[0];
-        suyas.push({ ...movida, llegada: null });
-        const nuevoOrden = new Map(suyas.map((x, n) => [x.id, n + 1]));
-        return paradas.map((x) =>
-          x.fleteroUid === uid ? { ...(x.id === id ? { ...x, llegada: null } : x), orden: nuevoOrden.get(x.id) } : x
-        );
-      });
+      await pasarAlFinal(ctx, fecha, id);
       aviso('La pasaste para el final');
       setTimeout(irALaSiguiente, 500);
     } else if (accion === 'deshacer') {
-      await cambiarParada(ctx.equipo.id, fecha, id, (paradas, i) => {
-        if (i >= 0) paradas[i] = { ...paradas[i], estado: 'pendiente', horaEstado: '' };
-        return paradas;
-      });
+      await marcarEstado(ctx, fecha, id, 'pendiente', { motivo: '' });
     }
   } catch (err) {
     aviso('No se pudo guardar. Se reintenta cuando vuelva la señal.');
@@ -221,6 +217,7 @@ $('btn-editar').addEventListener('click', () => {
     parada: p,
     equipo: ctx.equipo,
     ordenada: true,
+    otras: (vuelta && vuelta.paradas) || [],
     guardar: (cambios) =>
       cambiarParada(ctx.equipo.id, fecha, id, (paradas, i) => {
         if (i >= 0) paradas[i] = { ...paradas[i], ...cambios };

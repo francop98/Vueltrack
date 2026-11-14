@@ -45,6 +45,11 @@
         </div>
       </div>
 
+      <div class="chips">
+        <button type="button" class="chip" id="btn-pegar">Pegar varias direcciones</button>
+        <button type="button" class="chip" id="btn-repetir">Repetir una vuelta anterior</button>
+      </div>
+
       <section class="seccion">
         <div class="fila-titulo">
           <h2 class="subtitulo">Clientes habituales</h2>
@@ -78,6 +83,14 @@
             <span>Orden de las paradas</span>
             <strong id="txt-orden">Más conveniente</strong>
           </button>
+          <button type="button" class="fila" id="btn-pausa">
+            <span>Pausa (almuerzo)</span>
+            <strong id="txt-pausa">Sin pausa</strong>
+          </button>
+          <label class="fila interruptor" for="auto-clientes">
+            <span>Sumar solos los clientes que les toca ese día</span>
+            <input type="checkbox" id="auto-clientes">
+          </label>
           <label class="fila interruptor" for="volver">
             <span>Vuelvo al punto de salida</span>
             <input type="checkbox" id="volver">

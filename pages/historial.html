@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E1420">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Historial</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/icono-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/cotizar.css">
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <div class="barra-izq">
+          <button type="button" class="btn-icono" id="btn-menu" aria-label="Abrir menú" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+          <a class="marca" href="/" aria-label="Vueltrack, inicio">
+          <img src="/assets/icono.svg" alt="">
+          <span class="marca-texto">vuel<span>track</span></span>
+        </a>
+        </div>
+      </header>
+
+      <div class="titulo-bloque">
+        <span class="sobre-titulo" id="rango-texto"></span>
+        <h1 class="titulo">Historial</h1>
+      </div>
+
+      <div class="chips desplazable" role="group" aria-label="Período">
+        <button type="button" class="chip activo" data-rango="semana" aria-pressed="true">Esta semana</button>
+        <button type="button" class="chip" data-rango="mes" aria-pressed="false">Este mes</button>
+        <button type="button" class="chip" data-rango="anterior" aria-pressed="false">Mes anterior</button>
+        <button type="button" class="chip" data-rango="elegir" aria-pressed="false">Elegir fechas</button>
+      </div>
+
+      <div class="grilla-2 siempre oculto" id="fechas">
+        <div class="campo"><label for="desde">Desde</label><input type="date" id="desde" class="input"></div>
+        <div class="campo"><label for="hasta">Hasta</label><input type="date" id="hasta" class="input"></div>
+      </div>
+
+      <div class="chips desplazable oculto" id="filtro-fletero" role="group" aria-label="Fletero"></div>
+
+      <div class="cargando" id="cargando" aria-label="Cargando"></div>
+
+      <div class="grilla-stats" id="stats">
+        <div class="stat"><span class="stat-valor" id="st-dias">—</span><span class="stat-nombre">días</span></div>
+        <div class="stat"><span class="stat-valor" id="st-entregas">—</span><span class="stat-nombre">entregadas</span></div>
+        <div class="stat"><span class="stat-valor" id="st-km">—</span><span class="stat-nombre">recorrido</span></div>
+        <div class="stat"><span class="stat-valor" id="st-gasto">—</span><span class="stat-nombre">gasto</span></div>
+      </div>
+
+      <section class="tarjeta seccion" id="efectividad"></section>
+
+      <div class="grilla-2 siempre">
+        <button type="button" class="btn" id="btn-excel">Exportar a Excel</button>
+        <button type="button" class="btn" id="btn-pdf">Descargar PDF</button>
+      </div>
+
+      <section class="seccion">
+        <h2 class="subtitulo">Por día</h2>
+        <div class="lista" id="dias"></div>
+        <p class="texto-tenue oculto" id="sin-datos">No hay vueltas en este período.</p>
+      </section>
+    </main>
+  </div>
+
+  <article class="presupuesto" id="presupuesto" aria-hidden="true"></article>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+
+  <script src="/js/pwa.js"></script>
+  <script type="module" src="/js/historial.js"></script>
+</body>
+</html>

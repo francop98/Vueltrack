@@ -1,4 +1,4 @@
-# Vueltrack v3.0
+# Vueltrack v4.0
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,40 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v4.0
+**En la calle**
+- Resultado de cada parada: Entregado, No estaba, Rechazado u otro motivo. Opción de pasarla a otro día (se suma pendiente a esa vuelta).
+- “Avisar que voy”: WhatsApp al cliente con hora estimada y link de seguimiento (página pública /pages/seguimiento.html, sin cuenta).
+- Notas fijas y horario en que recibe (desde / hasta) por cliente y por parada.
+- Modo manejo (/pages/manejo.html): una parada por vez, botones grandes y pantalla siempre encendida.
+- Comprobante de entrega: foto comprimida y firma en pantalla (se guardan en Firestore, sin Storage).
+
+**Carga de la vuelta**
+- Los clientes que les toca ese día se suman solos al abrir un día vacío (se puede apagar).
+- Repetir una vuelta anterior.
+- Pegar varias direcciones de una (una por renglón).
+- Retiro y entrega: una parada de retiro se vincula a su entrega; el orden respeta que primero se retira.
+- Pausa de la jornada (almuerzo) incluida en el cálculo de horarios.
+- Bultos por parada y capacidad del vehículo al ordenar.
+
+**Negocio**
+- Cotizador de fletes: km, tiempo, combustible, amortización, tu hora, peajes y ganancia. Presupuesto por WhatsApp o PDF.
+- Historial: días, entregas, km, tiempo y gasto por período y por fletero. Exporta a Excel (CSV) y PDF.
+
+**Equipo y vehículo**
+- Ubicación en vivo: cada fletero elige compartirla; el organizador la ve en el mapa de Hoy.
+- Vencimientos (VTV, seguro, patente, etc.) y service por km con avisos en Inicio.
+
+**Firestore**: hay reglas nuevas (seguimiento, ubicaciones, comprobantes y vueltas creadas por fleteros). Hay que volver a publicar firestore.rules.
+
+### v3.1
+- La parte superior respeta la zona de la hora y la batería del iPhone (también con la app instalada).
+- Mapa con OpenStreetMap en versión oscura: sin clave y gratis (CARTO pasó a pedir clave).
+- Mi vehículo: rinde aproximado según el modelo, tipo y combustible, con botón Usar.
+- Calculadora de amortización: valor del vehículo, años de uso, reventa, km por año y mantenimiento anual.
+- Se guarda la fecha del último precio cargado.
+- Onboarding: el rinde se completa solo al escribir el modelo.
 
 ### v3.0
 - Ingreso: “Recordar mis datos en este celular” (guarda el correo y mantiene la sesión) y botón para ver u ocultar la contraseña.

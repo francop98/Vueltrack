@@ -52,10 +52,10 @@ export async function buscarDirecciones(texto, foco, zona = zonaBusqueda) {
  * modo "grupos": cada parada trae su fletero (vehiculo) y se ordena cada grupo.
  * modo "parejo": el servidor reparte para que todos tengan una cantidad pareja.
  */
-export async function optimizar({ base, desde, volver, demora, salida, vehiculos, paradas, modo, orden }) {
+export async function optimizar({ base, desde, volver, demora, salida, vehiculos, paradas, modo, orden, capacidades, pausa }) {
   return pedir('/api/optimizar', {
     method: 'POST',
-    body: JSON.stringify({ base, desde, volver, demora, salida, vehiculos, paradas, modo, orden })
+    body: JSON.stringify({ base, desde, volver, demora, salida, vehiculos, paradas, modo, orden, capacidades, pausa })
   });
 }
 

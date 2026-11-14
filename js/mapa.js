@@ -8,14 +8,16 @@ import { esc } from './ui.js';
 /* Centro por defecto si el equipo todavía no cargó su punto de salida */
 export const CENTRO_DEFECTO = { lat: -38.7183, lng: -62.2663 };
 
-const CAPA = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-const ATRIBUCION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+/* Mapa de OpenStreetMap: gratis y sin clave. Se oscurece con CSS (.capa-oscura) */
+const CAPA = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const ATRIBUCION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
 export function crearMapa(elemento, { centro = CENTRO_DEFECTO, zoom = 13 } = {}) {
   const mapa = L.map(elemento, { zoomControl: false, attributionControl: true }).setView([centro.lat, centro.lng], zoom);
-  L.tileLayer(CAPA, { maxZoom: 19, subdomains: 'abcd', attribution: ATRIBUCION }).addTo(mapa);
+  L.tileLayer(CAPA, { maxZoom: 19, className: 'capa-oscura', attribution: ATRIBUCION }).addTo(mapa);
 
   mapa.capaVuelta = L.layerGroup().addTo(mapa);
+  mapa.capaFleteros = L.layerGroup().addTo(mapa);
   setTimeout(() => mapa.invalidateSize(), 150);
   return mapa;
 }
@@ -53,7 +55,7 @@ export function pintarVuelta(mapa, { base, grupos, alTocarParada, ajustar = true
     }
     g.paradas.forEach((p) => {
       if (p.lat == null) return;
-      const clase = p.actual ? 'actual' : p.hecha ? 'hecho' : '';
+      const clase = [p.actual ? 'actual' : p.hecha ? 'hecho' : '', p.tipo === 'retiro' ? 'retiro' : ''].join(' ');
       const marcador = L.marker([p.lat, p.lng], {
         icon: iconoParada(p.numero ?? '•', g.color, clase),
         title: p.nombre || '',
@@ -68,6 +70,24 @@ export function pintarVuelta(mapa, { base, grupos, alTocarParada, ajustar = true
     if (puntos.length === 1) mapa.setView(puntos[0], 15);
     else mapa.fitBounds(puntos, { padding: [30, 30] });
   }
+}
+
+/* Fleteros en vivo: [{lat, lng, color, nombre, detalle}] */
+export function pintarFleteros(mapa, lista) {
+  const capa = mapa.capaFleteros;
+  if (!capa) return;
+  capa.clearLayers();
+  lista.forEach((f) => {
+    const icono = L.divIcon({
+      className: '',
+      html: `<div class="pin-fletero" style="background:${esc(f.color)}">${esc(String(f.nombre || '?').charAt(0).toUpperCase())}</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    });
+    L.marker([f.lat, f.lng], { icon: icono, zIndexOffset: 2000, title: `${f.nombre} · ${f.detalle || ''}` })
+      .bindTooltip(`${esc(f.nombre)} · ${esc(f.detalle || '')}`)
+      .addTo(capa);
+  });
 }
 
 /* Mapa chico con un pin que se puede arrastrar para corregir una ubicación */

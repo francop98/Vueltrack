@@ -7,7 +7,10 @@
      demora     minutos por parada
      salida     segundos desde las 00:00
      vehiculos  [uid]            fleteros que salen
-     paradas    [{id, lat, lng, urgente, hasta (segundos|null), vehiculo}]
+     paradas    [{id, lat, lng, urgente, desde, hasta (segundos|null), vehiculo,
+                  tipo ("entrega"|"retiro"), entregaId (si es retiro), bultos}]
+     capacidades {uid: bultos} opcional
+     pausa      {desde, hasta (segundos), minutos} opcional
      modo       "grupos" (cada parada ya tiene fletero) | "parejo"
      orden      "optimo" (recorrido más conveniente) | "cerca" (de la más cercana
                 a la más lejana) | "lejos" (al revés) | "cierre" (por horario de cierre)
@@ -35,26 +38,66 @@ function validar(cuerpo) {
   return null;
 }
 
+const SIN_LIMITE = 100000;
+
+function ventana(p) {
+  const desde = Number.isFinite(p.desde) ? Math.max(0, p.desde) : 0;
+  const hasta = Number.isFinite(p.hasta) ? p.hasta : FIN_DEL_DIA;
+  return { desde, hasta };
+}
+
+/* Retiros con su entrega en la misma vuelta: van como "envío" (primero se retira, después se entrega) */
+function armarPares(paradas) {
+  const indice = new Map(paradas.map((p, i) => [p.id, i]));
+  const pares = [];
+  const enPar = new Set();
+  paradas.forEach((p, i) => {
+    if (p.tipo !== 'retiro' || !p.entregaId || !indice.has(p.entregaId)) return;
+    const j = indice.get(p.entregaId);
+    if (enPar.has(i) || enPar.has(j) || i === j) return;
+    pares.push([i, j]);
+    enPar.add(i);
+    enPar.add(j);
+  });
+  return { pares, enPar };
+}
+
+function pasoDe(p, i, demora, salida, conUrgentes) {
+  const paso = { id: i + 1, location: [p.lng, p.lat], service: Math.round(Math.max(0, demora) * 60) };
+  let { desde, hasta } = ventana(p);
+  if (conUrgentes && p.urgente) hasta = Math.min(hasta, salida + VENTANA_URGENTE);
+  if (desde > 0 || hasta < FIN_DEL_DIA) paso.time_windows = [[Math.min(desde, Math.max(0, hasta)), Math.max(0, hasta)]];
+  return paso;
+}
+
 /* Un pedido a VROOM con uno o más vehículos */
-async function resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, conUrgentes = true }) {
+async function resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, capacidades = {}, pausa = null, conUrgentes = true }) {
   const inicio = desde ? [desde.lng, desde.lat] : [base.lng, base.lat];
   const fin = [base.lng, base.lat];
-  const capacidad = Math.ceil(paradas.length / vehiculos.length);
+  const cupo = Math.ceil(paradas.length / vehiculos.length);
+  const { pares, enPar } = armarPares(paradas);
+  const bultos = (p) => Math.max(0, Math.round(Number(p.bultos) || 0));
 
-  const jobs = paradas.map((p, i) => {
-    const job = {
-      id: i + 1,
-      location: [p.lng, p.lat],
-      service: Math.round(Math.max(0, demora) * 60)
+  // Dos medidas: [cantidad de paradas (para repartir parejo), bultos (capacidad del vehículo)]
+  const jobs = [];
+  paradas.forEach((p, i) => {
+    if (enPar.has(i)) return;
+    const job = pasoDe(p, i, demora, salida, conUrgentes);
+    if (conUrgentes && p.urgente) job.priority = 100;
+    const carga = [parejo ? 1 : 0, bultos(p)];
+    if (p.tipo === 'retiro') job.pickup = carga;
+    else job.delivery = carga;
+    jobs.push(job);
+  });
+
+  const shipments = pares.map(([i, j]) => {
+    const envio = {
+      amount: [parejo ? 1 : 0, bultos(paradas[i]) || bultos(paradas[j])],
+      pickup: pasoDe(paradas[i], i, demora, salida, conUrgentes),
+      delivery: pasoDe(paradas[j], j, demora, salida, conUrgentes)
     };
-    let hasta = Number.isFinite(p.hasta) ? p.hasta : FIN_DEL_DIA;
-    if (conUrgentes && p.urgente) {
-      job.priority = 100;
-      hasta = Math.min(hasta, salida + VENTANA_URGENTE);
-    }
-    if (hasta < FIN_DEL_DIA) job.time_windows = [[0, Math.max(0, hasta)]];
-    if (parejo) job.amount = [1];
-    return job;
+    if (conUrgentes && (paradas[i].urgente || paradas[j].urgente)) envio.priority = 100;
+    return envio;
   });
 
   const vehicles = vehiculos.map((uid, i) => {
@@ -62,36 +105,41 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
       id: i + 1,
       profile: 'driving-car',
       start: inicio,
-      time_window: [salida, FIN_DEL_DIA]
+      time_window: [salida, FIN_DEL_DIA],
+      capacity: [parejo ? cupo : SIN_LIMITE, Number(capacidades[uid]) > 0 ? Math.round(capacidades[uid]) : SIN_LIMITE]
     };
     if (volver) v.end = fin;
-    if (parejo) v.capacity = [capacidad];
+    if (pausa && pausa.hasta > salida && pausa.minutos > 0) {
+      v.breaks = [{ id: 1, time_windows: [[Math.max(pausa.desde, salida), pausa.hasta]], service: Math.round(pausa.minutos * 60) }];
+    }
     return v;
   });
 
-  const datos = await pedirORS('/vroom/v0', {
-    method: 'POST',
-    body: { jobs, vehicles, options: { g: true } }
-  });
+  const cuerpo = { jobs, vehicles, options: { g: true } };
+  if (shipments.length) cuerpo.shipments = shipments;
+  const datos = await pedirORS('/vroom/v0', { method: 'POST', body: cuerpo });
+
+  const idDePaso = (s) => s.id ?? s.job;
 
   // Si las urgentes no entraron en la primera hora y media, se reintenta sin esa exigencia
   if (conUrgentes && paradas.some((p) => p.urgente) && (datos.unassigned || []).length) {
-    const urgenteSinLugar = (datos.unassigned || []).some((u) => paradas[u.id - 1] && paradas[u.id - 1].urgente);
+    const urgenteSinLugar = (datos.unassigned || []).some((u) => paradas[idDePaso(u) - 1] && paradas[idDePaso(u) - 1].urgente);
     if (urgenteSinLugar) {
-      return resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, conUrgentes: false });
+      return resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, capacidades, pausa, conUrgentes: false });
     }
   }
 
+  const TIPOS_PARADA = ['job', 'pickup', 'delivery'];
   const rutas = (datos.routes || []).map((r) => {
     const pasos = r.steps || [];
-    const deParadas = pasos.filter((s) => s.type === 'job');
+    const deParadas = pasos.filter((s) => TIPOS_PARADA.includes(s.type));
     const ultimo = pasos[pasos.length - 1];
     let fin = ultimo ? ultimo.arrival : salida;
-    if (ultimo && ultimo.type === 'job') fin += ultimo.service || 0;
+    if (ultimo && TIPOS_PARADA.includes(ultimo.type)) fin += (ultimo.waiting_time || 0) + (ultimo.service || 0);
     const arranque = pasos[0] ? pasos[0].arrival : salida;
     return {
       vehiculo: vehiculos[r.vehicle - 1],
-      paradas: deParadas.map((s) => ({ id: paradas[s.job - 1].id, llegada: s.arrival })),
+      paradas: deParadas.map((s) => ({ id: paradas[idDePaso(s) - 1].id, llegada: s.arrival + (s.waiting_time || 0) })),
       distancia: r.distance ?? null,
       duracion: fin - arranque,
       fin,
@@ -99,7 +147,7 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
     };
   });
 
-  const sinAsignar = (datos.unassigned || []).map((u) => paradas[u.id - 1] && paradas[u.id - 1].id).filter(Boolean);
+  const sinAsignar = [...new Set((datos.unassigned || []).map((u) => paradas[idDePaso(u) - 1] && paradas[idDePaso(u) - 1].id).filter(Boolean))];
   return { rutas, sinAsignar };
 }
 
@@ -144,11 +192,27 @@ function ordenarFijo(paradas, orden, base, inicio) {
     lista = [...conHorario, ...porCercania(sinHorario, ultima)];
   }
   // Las urgentes siempre van primero
-  return [...porCercania(urgentes, inicio), ...lista];
+  return retiroAntesQueEntrega([...porCercania(urgentes, inicio), ...lista]);
+}
+
+/* Si una entrega quedó antes que su retiro, pasa a ir justo después del retiro */
+function retiroAntesQueEntrega(lista) {
+  const resultado = [...lista];
+  resultado
+    .filter((p) => p.tipo === 'retiro' && p.entregaId)
+    .forEach((retiro) => {
+      const iR = resultado.indexOf(retiro);
+      const iE = resultado.findIndex((p) => p.id === retiro.entregaId);
+      if (iE >= 0 && iE < iR) {
+        const [entrega] = resultado.splice(iE, 1);
+        resultado.splice(resultado.indexOf(retiro) + 1, 0, entrega);
+      }
+    });
+  return resultado;
 }
 
 /* Ruta en un orden fijo: pide a OpenRouteService el trazado y los tiempos de cada tramo */
-async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo, orden }) {
+async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo, orden, pausa = null }) {
   const inicio = desde || base;
   const ordenadas = ordenarFijo(paradas, orden, base, inicio);
   const puntos = [inicio, ...ordenadas];
@@ -164,12 +228,23 @@ async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo
   const tramos = ruta.segments || [];
 
   let t = salida;
+  let pausaHecha = !pausa || !(pausa.minutos > 0) || pausa.hasta <= salida;
+  const tomarPausa = () => {
+    if (!pausaHecha && t >= pausa.desde) {
+      t += pausa.minutos * 60;
+      pausaHecha = true;
+    }
+  };
   const lista = ordenadas.map((p, i) => {
+    tomarPausa();
     t += tramos[i] ? tramos[i].duration : 0;
+    // Si llega antes de que abra, espera
+    if (Number.isFinite(p.desde) && t < p.desde) t = p.desde;
     const llegada = Math.round(t);
     t += Math.max(0, demora) * 60;
     return { id: p.id, llegada };
   });
+  tomarPausa();
   if (volver && tramos[ordenadas.length]) t += tramos[ordenadas.length].duration;
 
   const sinAsignar = ordenadas.filter((p, i) => Number.isFinite(p.hasta) && lista[i].llegada > p.hasta).map((p) => p.id);
@@ -206,6 +281,17 @@ export default async function handler(req, res) {
     cuerpo.desde && Number.isFinite(cuerpo.desde.lat) && Number.isFinite(cuerpo.desde.lng)
       ? { lat: cuerpo.desde.lat, lng: cuerpo.desde.lng }
       : null;
+  const capacidades = cuerpo.capacidades && typeof cuerpo.capacidades === 'object' ? cuerpo.capacidades : {};
+  const pausa =
+    cuerpo.pausa && Number.isFinite(cuerpo.pausa.desde) && Number.isFinite(cuerpo.pausa.hasta) && Number(cuerpo.pausa.minutos) > 0
+      ? { desde: cuerpo.pausa.desde, hasta: Math.max(cuerpo.pausa.desde, cuerpo.pausa.hasta), minutos: Number(cuerpo.pausa.minutos) }
+      : null;
+
+  // La entrega de un retiro la hace el mismo fletero que retira
+  const porIdParada = new Map(paradas.map((p) => [p.id, p]));
+  paradas.forEach((p) => {
+    if (p.tipo === 'retiro' && p.entregaId && porIdParada.has(p.entregaId)) porIdParada.get(p.entregaId).vehiculo = p.vehiculo;
+  });
 
   try {
     const parejo =
@@ -215,7 +301,7 @@ export default async function handler(req, res) {
       paradas.length <= MAX_PARADAS_POR_PEDIDO;
 
     if (parejo) {
-      const r = await resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo: true });
+      const r = await resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo: true, capacidades, pausa });
       if (orden === 'optimo') return responder(res, 200, r);
       // Reparto parejo, pero cada fletero recorre sus paradas en el orden elegido
       const porId = new Map(paradas.map((p) => [p.id, p]));
@@ -224,7 +310,7 @@ export default async function handler(req, res) {
       for (const ruta of r.rutas) {
         const suyas = ruta.paradas.map((x) => porId.get(x.id)).filter(Boolean);
         if (!suyas.length) continue;
-        const fija = await rutaFija({ base, desde, volver, demora, salida, paradas: suyas, vehiculo: ruta.vehiculo, orden });
+        const fija = await rutaFija({ base, desde, volver, demora, salida, paradas: suyas, vehiculo: ruta.vehiculo, orden, pausa });
         rutas.push(fija.ruta);
         llegaTarde.push(...fija.llegaTarde);
       }
@@ -247,11 +333,11 @@ export default async function handler(req, res) {
         return responder(res, 400, { error: 'demasiadas-paradas', maximo: MAX_PARADAS_POR_PEDIDO });
       }
       if (orden === 'optimo') {
-        const r = await resolver({ base, desde, volver, demora, salida, paradas: suyas, vehiculos: [vehiculo], parejo: false });
+        const r = await resolver({ base, desde, volver, demora, salida, paradas: suyas, vehiculos: [vehiculo], parejo: false, capacidades, pausa });
         rutas.push(...r.rutas);
         sinAsignar.push(...r.sinAsignar);
       } else {
-        const fija = await rutaFija({ base, desde, volver, demora, salida, paradas: suyas, vehiculo, orden });
+        const fija = await rutaFija({ base, desde, volver, demora, salida, paradas: suyas, vehiculo, orden, pausa });
         rutas.push(fija.ruta);
         llegaTarde.push(...fija.llegaTarde);
       }

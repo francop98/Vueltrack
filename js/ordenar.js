@@ -33,14 +33,47 @@ export function horaDeSalida(vuelta, equipo, fecha) {
 }
 
 function pendientesParaEnviar(pendientes, modo) {
+  const ids = new Set(pendientes.map((p) => p.id));
   return pendientes.map((p) => ({
     id: p.id,
     lat: p.lat,
     lng: p.lng,
     urgente: !!p.urgente,
+    desde: p.desde ? segundosDeHora(p.desde) : null,
     hasta: p.hasta ? segundosDeHora(p.hasta) : null,
+    tipo: p.tipo === 'retiro' ? 'retiro' : 'entrega',
+    entregaId: p.tipo === 'retiro' && ids.has(p.entregaId) ? p.entregaId : null,
+    bultos: Number(p.bultos) >= 0 ? Number(p.bultos) : 1,
     vehiculo: modo === 'grupos' ? p.fleteroUid : null
   }));
+}
+
+/* Capacidad (bultos) de cada fletero, si la cargó en Mi vehículo */
+function capacidadesDe(equipo, vehiculos) {
+  const caps = {};
+  vehiculos.forEach((uid) => {
+    const g = equipo.miembros && equipo.miembros[uid] && equipo.miembros[uid].gasto;
+    if (g && Number(g.capacidad) > 0) caps[uid] = Number(g.capacidad);
+  });
+  return caps;
+}
+
+/* Pausa de la jornada (almuerzo): {desde, hasta, minutos} en segundos */
+function pausaDe(ajustes) {
+  const p = ajustes.pausa;
+  if (!p || !p.desde || !(Number(p.minutos) > 0)) return null;
+  return { desde: segundosDeHora(p.desde), hasta: segundosDeHora(p.hasta || p.desde), minutos: Number(p.minutos) };
+}
+
+/* La entrega de un retiro queda con el mismo fletero que retira */
+export function unirRetiros(paradas) {
+  const porId = new Map(paradas.map((p) => [p.id, p]));
+  paradas.forEach((p) => {
+    if (p.tipo === 'retiro' && p.entregaId && porId.has(p.entregaId) && p.fleteroUid) {
+      porId.get(p.entregaId).fleteroUid = p.fleteroUid;
+    }
+  });
+  return paradas;
 }
 
 /**
@@ -76,6 +109,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
     });
     modo = 'grupos';
   }
+  if (modo === 'grupos') unirRetiros(pendientes);
 
   if (pendientes.length) {
     const resultado = await optimizar({
@@ -87,7 +121,9 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
       vehiculos,
       modo,
       orden,
-      paradas: pendientesParaEnviar(pendientes, modo)
+      paradas: pendientesParaEnviar(pendientes, modo),
+      capacidades: capacidadesDe(equipo, vehiculos),
+      pausa: pausaDe(ajustes)
     });
     const aplicado = aplicarResultado(pendientes, resultado, { salida: segundosDeHora(horaSalida) });
     rutas = aplicado.rutas;
@@ -160,6 +196,7 @@ export async function reordenarFletero({ equipo, fecha, vuelta, uid, orden, desd
 export function mensajeError(e) {
   const textos = {
     'sin-base': 'Primero elegí desde dónde salís.',
+    'sin-lugar': 'Algunas paradas no entran en el horario o en la capacidad del vehículo.',
     'demasiadas-paradas': 'Un fletero no puede tener más de 48 paradas en una vuelta. Repartilas entre más fleteros o en dos días.',
     'limite-diario': 'Se alcanzó el límite gratuito de cálculos de hoy. Mañana vuelve a funcionar.',
     'sin-sesion': 'Se cerró tu sesión. Volvé a ingresar.'

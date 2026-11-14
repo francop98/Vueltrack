@@ -77,16 +77,42 @@
             <input id="precio" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
           </div>
         </div>
-        <p class="texto-tenue">¿No sabés cuánto rinde? Llená el tanque, anotá los km del tablero y en la próxima carga dividí los km recorridos por los litros que entraron.</p>
+        <div class="sugerencia oculto" id="sug-rinde">
+          <span id="sug-rinde-texto"></span>
+          <button type="button" class="btn btn-primario" id="usar-rinde">Usar</button>
+        </div>
+        <p class="texto-tenue" id="precio-fecha">Cargá el precio que pagaste en tu última carga. Actualizalo cuando cambie.</p>
 
         <div class="campo">
-          <label for="extra">Otros gastos por km, opcional (service, cubiertas, desgaste)</label>
-          <input id="extra" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
+          <label for="extra">Amortización y mantenimiento por km (opcional)</label>
+          <input id="extra" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0">
+        </div>
+        <button type="button" class="btn btn-contorno" id="btn-amortizacion">Calcular amortización</button>
+
+        <div class="campo">
+          <label for="capacidad">Capacidad en bultos (opcional)</label>
+          <input id="capacidad" type="number" inputmode="numeric" min="0" step="1" placeholder="Sin límite">
+          <span class="texto-tenue">Si la cargás, al ordenar no te asigna más bultos de los que entran.</span>
         </div>
 
         <p class="error-texto oculto" id="error" role="alert"></p>
         <button type="submit" class="btn btn-primario btn-grande">Guardar vehículo</button>
       </form>
+
+      <section class="seccion">
+        <div class="fila-titulo">
+          <h2 class="subtitulo">Vencimientos</h2>
+          <button type="button" class="chip" id="btn-vencimiento"><span class="mas" aria-hidden="true">+</span>Agregar</button>
+        </div>
+        <div class="lista" id="lista-vencimientos"></div>
+        <p class="texto-tenue" id="sin-vencimientos">Cargá la VTV, el seguro o la patente y te avisamos 15 días antes.</p>
+      </section>
+
+      <section class="seccion">
+        <h2 class="subtitulo">Service</h2>
+        <div class="tarjeta seccion" id="estado-service"></div>
+        <button type="button" class="btn btn-contorno" id="btn-service">Cargar datos del service</button>
+      </section>
     </main>
   </div>
 

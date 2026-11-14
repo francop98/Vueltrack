@@ -4,7 +4,10 @@
    equipos/{equipoId}                 (nombre, código, modo, ajustes, miembros)
    equipos/{equipoId}/clientes/{id}   (clientes habituales)
    equipos/{equipoId}/vueltas/{fecha} (paradas del día y rutas por fletero)
+   equipos/{equipoId}/ubicaciones/{uid}        (seguimiento en vivo)
+   equipos/{equipoId}/comprobantes/{fecha_id}  (foto y firma de la entrega)
    codigos/{codigo}                   (para sumarse a un equipo)
+   seguimiento/{token}                (lo que ve el cliente con su link)
    ========================================================= */
 import { db } from './firebase.js';
 import {
@@ -15,6 +18,9 @@ import {
   deleteDoc,
   collection,
   onSnapshot,
+  query,
+  where,
+  getDocs,
   runTransaction,
   writeBatch,
   serverTimestamp,
@@ -205,11 +211,80 @@ export async function reemplazarVuelta(equipoId, fecha, datos) {
 /* Cambia una parada sin pisar lo que otro fletero marcó al mismo tiempo */
 export async function cambiarParada(equipoId, fecha, paradaId, cambiar) {
   const ref = doc(db, 'equipos', equipoId, 'vueltas', fecha);
-  await runTransaction(db, async (tx) => {
+  return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) throw new Error('sin-vuelta');
     const paradas = (snap.data().paradas || []).map((p) => ({ ...p }));
-    const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId));
-    tx.update(ref, { paradas: resultado || paradas, actualizado: serverTimestamp() });
+    const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId)) || paradas;
+    tx.update(ref, { paradas: resultado, actualizado: serverTimestamp() });
+    return resultado;
   });
+}
+
+export async function obtenerVuelta(equipoId, fecha) {
+  const snap = await getDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+/* Suma paradas a la vuelta de otro día (la crea si no existe). Se usa al reprogramar. */
+export async function agregarParadasADia(equipoId, fecha, nuevas) {
+  const ref = doc(db, 'equipos', equipoId, 'vueltas', fecha);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists()) {
+      tx.update(ref, { paradas: [...(snap.data().paradas || []), ...nuevas], ordenada: false, actualizado: serverTimestamp() });
+    } else {
+      tx.set(ref, { fecha, paradas: nuevas, ordenada: false, actualizado: serverTimestamp() });
+    }
+  });
+}
+
+/* Vueltas entre dos fechas (YYYY-MM-DD), para el historial */
+export async function vueltasEntre(equipoId, desde, hasta) {
+  const q = query(collection(db, 'equipos', equipoId, 'vueltas'), where('fecha', '>=', desde), where('fecha', '<=', hasta));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+/* ---------- Seguimiento para el cliente (link público) ---------- */
+
+export async function guardarSeguimiento(token, datos) {
+  await setDoc(doc(db, 'seguimiento', token), { ...datos, actualizado: serverTimestamp() }, { merge: true });
+}
+
+export function escucharSeguimiento(token, alCambiar, alFallar) {
+  return onSnapshot(
+    doc(db, 'seguimiento', token),
+    (snap) => alCambiar(snap.exists() ? snap.data() : null),
+    alFallar
+  );
+}
+
+/* ---------- Comprobantes de entrega ---------- */
+
+export async function guardarComprobante(equipoId, fecha, paradaId, datos) {
+  await setDoc(doc(db, 'equipos', equipoId, 'comprobantes', `${fecha}_${paradaId}`), { ...datos, fecha, paradaId, actualizado: serverTimestamp() }, { merge: true });
+}
+
+export async function obtenerComprobante(equipoId, fecha, paradaId) {
+  const snap = await getDoc(doc(db, 'equipos', equipoId, 'comprobantes', `${fecha}_${paradaId}`));
+  return snap.exists() ? snap.data() : null;
+}
+
+/* ---------- Ubicación en vivo de los fleteros ---------- */
+
+export async function publicarUbicacion(equipoId, uid, datos) {
+  await setDoc(doc(db, 'equipos', equipoId, 'ubicaciones', uid), { ...datos, actualizado: serverTimestamp() });
+}
+
+export async function dejarDeCompartir(equipoId, uid) {
+  await deleteDoc(doc(db, 'equipos', equipoId, 'ubicaciones', uid));
+}
+
+export function escucharUbicaciones(equipoId, alCambiar) {
+  return onSnapshot(
+    collection(db, 'equipos', equipoId, 'ubicaciones'),
+    (snap) => alCambiar(snap.docs.map((d) => ({ uid: d.id, ...d.data() }))),
+    () => alCambiar([])
+  );
 }
