@@ -1,14 +1,13 @@
 /* =========================================================
    Vueltrack — Inicio: la vuelta de hoy
-   Saludo y avisos arriba; después el mapa, la próxima parada
+   Saludo y avisos arriba; después la próxima parada
    y la lista de paradas (lo que antes era la pantalla Hoy).
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
-import { escucharVuelta, fleterosDelEquipo, escucharUbicaciones } from './datos.js';
-import { crearMapa, pintarVuelta, pintarFleteros } from './mapa.js';
+import { escucharVuelta, fleterosDelEquipo } from './datos.js';
 import { gruposDeVuelta, resumen, paradasSinOrdenar, textoHorario, paradaHecha } from './vuelta.js';
 import { conectarAviso, textoResultado, marcarHecho, marcarEstado, htmlBotonesHecho } from './estados.js';
-import { compartirSiCorresponde, puedeCompartir, estaCompartiendo, cambiarCompartir, haceCuanto, ubicacionesRecientes } from './enVivo.js';
+import { compartirSiCorresponde, puedeCompartir, estaCompartiendo, cambiarCompartir } from './enVivo.js';
 import { reordenarFletero, mensajeError, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirOrden } from './salida.js';
 import { abrirAgregarDestino } from './agregarDestino.js';
@@ -39,11 +38,9 @@ const $ = (id) => document.getElementById(id);
 const fecha = fechaISO();
 // Quién puede marcar: quien organiza o el fletero de esa parada
 const puedoMarcar = (p) => ctx.organizador || p.fleteroUid === ctx.user.uid;
-const abiertasHechas = new Set();
 let ctx;
 let vuelta = null;
 let filtro = null;
-let mapa = null;
 
 $('fecha').textContent = fechaLarga(fecha);
 
@@ -58,8 +55,7 @@ ctx = await iniciarPantalla({
 filtro = ctx.organizador ? 'todos' : ctx.user.uid;
 compartirSiCorresponde(ctx);
 
-/* ---------- Ubicación en vivo ---------- */
-let ubicaciones = [];
+/* ---------- Compartir ubicación (el mapa con los fleteros en vivo está en Armar) ---------- */
 function pintarCompartir() {
   const caja = $('compartir');
   const ver = puedeCompartir(ctx);
@@ -71,29 +67,6 @@ $('compartir-check').addEventListener('change', async (e) => {
   aviso(e.target.checked ? 'El equipo ve dónde estás mientras tengas la app abierta' : 'Dejaste de compartir tu ubicación');
 });
 pintarCompartir();
-
-if (ctx.organizador && ctx.equipo.modo === 'equipo') {
-  escucharUbicaciones(ctx.equipo.id, (lista) => {
-    ubicaciones = ubicacionesRecientes(lista).filter((u) => u.uid !== ctx.user.uid);
-    pintarEnVivo();
-  });
-}
-
-function pintarEnVivo() {
-  if (!mapa) return;
-  const fleteros = fleterosDelEquipo(ctx.equipo);
-  const visibles = ubicaciones
-    .filter((u) => filtro === 'todos' || u.uid === filtro)
-    .map((u) => {
-      const f = fleteros.find((x) => x.uid === u.uid);
-      return { ...u, color: f ? f.color : '#475569', nombre: f ? f.nombre : u.nombre, detalle: haceCuanto(u.ts) };
-    });
-  pintarFleteros(mapa, visibles);
-  $('en-vivo').classList.toggle('oculto', !visibles.length);
-  $('en-vivo').innerHTML = visibles
-    .map((u) => `<span><i class="punto" style="background:${esc(u.color)}"></i>${esc(u.nombre)} · ${esc(u.detalle)}</span>`)
-    .join('');
-}
 
 escucharVuelta(ctx.equipo.id, fecha, (v) => {
   vuelta = v;
@@ -122,7 +95,6 @@ function pintar() {
 
   mostrar('vacio', false);
   mostrar('stats', true);
-  mostrar('mapa-caja', true);
   mostrar('bloque-lista', true);
   mostrar('link-editar', ctx.organizador);
   // Sumar destinos a la vuelta ya armada: quien organiza o el fletero independiente
@@ -134,24 +106,9 @@ function pintar() {
   $('st-tiempo').textContent = formatoDuracion(r.duracion);
   $('st-fin').textContent = r.fin != null ? horaDeSegundos(r.fin) : '—';
 
-  if (!mapa) mapa = crearMapa($('mapa'), { centro: ctx.equipo.base || undefined });
-  pintarVuelta(mapa, {
-    base: ctx.equipo.base,
-    grupos,
-    alTocarParada: (p) => {
-      location.href = `/pages/parada.html?id=${encodeURIComponent(p.id)}`;
-    }
-  });
-  $('leyenda').innerHTML =
-    grupos.length > 1
-      ? grupos
-          .map((g) => `<span><i class="punto" style="background:${esc(g.color)}"></i>${esc(g.nombre)} · ${g.paradas.length}</span>`)
-          .join('')
-      : '';
-
-  pintarEnVivo();
   pintarProxima(grupos);
   pintarListas(grupos);
+  pintarHechas(grupos);
 }
 
 function pintarFiltro(grupos) {
@@ -180,7 +137,7 @@ function pintarFiltro(grupos) {
 }
 
 function pintarVacio() {
-  ['stats', 'mapa-caja', 'proxima', 'bloque-lista'].forEach((id) => mostrar(id, false));
+  ['stats', 'proxima', 'bloque-lista', 'bloque-hechas'].forEach((id) => mostrar(id, false));
   mostrar('vacio', true);
   const sinOrdenar = paradasSinOrdenar(vuelta).length;
   if (ctx.organizador) {
@@ -479,33 +436,36 @@ function pintarListas(grupos) {
     .join('');
 }
 
-/* Las pendientes arriba; las ya hechas salen de la ruta y quedan plegadas abajo */
+/* Solo las pendientes: al marcarlas hechas pasan a "Hechas hoy", más abajo */
 function listaDelGrupo(g) {
   const pendientes = g.paradas.filter((p) => !p.hecha);
-  const hechas = g.paradas.filter((p) => p.hecha);
-  return `
-    ${pendientes.length ? `<div class="lista">${pendientes.map(filaParada).join('')}</div>` : '<p class="texto-tenue">No quedan paradas pendientes.</p>'}
-    ${
-      hechas.length
-        ? `<details class="hechas-plegable"${abiertasHechas.has(g.uid) ? ' open' : ''} data-grupo="${esc(g.uid)}">
-        <summary>Hechas · ${hechas.length}</summary>
-        <div class="lista">${hechas.map(filaParada).join('')}</div>
-      </details>`
-        : ''
-    }`;
+  return pendientes.length
+    ? `<div class="lista">${pendientes.map(filaParada).join('')}</div>`
+    : '<p class="texto-tenue">No quedan paradas pendientes.</p>';
 }
 
-
-$('listas').addEventListener(
-  'toggle',
-  (e) => {
-    const d = e.target.closest && e.target.closest('details[data-grupo]');
-    if (!d) return;
-    if (d.open) abiertasHechas.add(d.dataset.grupo);
-    else abiertasHechas.delete(d.dataset.grupo);
-  },
-  true
-);
+/* Hechas hoy: lo que ya salió de la ruta, lo último arriba, en verde */
+function pintarHechas(grupos) {
+  const varios = grupos.length > 1;
+  const hechas = grupos
+    .flatMap((g) => g.paradas.filter((p) => p.hecha).map((p) => ({ ...p, quien: g.nombre })))
+    .sort((a, b) => String(b.horaEstado || '').localeCompare(String(a.horaEstado || '')));
+  mostrar('bloque-hechas', hechas.length > 0);
+  $('hechas-titulo').textContent = `Hechas hoy · ${hechas.length}`;
+  $('lista-hechas').innerHTML = hechas
+    .map((p) => {
+      const bien = p.estado === 'entregado';
+      return `
+      <a class="fila fila-hecha ${bien ? '' : 'fila-no-hecha'} enlace-plano" href="/pages/parada.html?id=${encodeURIComponent(p.id)}">
+        <span class="numero">${bien ? ICONOS.check : '!'}</span>
+        <span class="fila-cuerpo">
+          <span class="fila-titulo-texto">${esc(p.nombre)}</span>
+          <span class="fila-detalle">${esc([textoResultado(p), varios ? p.quien : '', p.direccion].filter(Boolean).join(' · '))}</span>
+        </span>
+      </a>`;
+    })
+    .join('');
+}
 
 /* Marcar hecha con un toque (con "Deshacer" por si fue sin querer) */
 async function marcarRapido(id, realizado) {

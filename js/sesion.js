@@ -277,7 +277,6 @@ export function abrirMenu(ctx) {
       ${ctx.fletero ? item('', ICONOS.auto, 'Mi vehículo', '/pages/vehiculo.html') : ''}
       ${item('seguridad', ICONO_CANDADO, 'Seguridad')}
       <span class="menu-grupo">Tu trabajo</span>
-      ${item('', ICONOS.ruta, 'Hoja de ruta', '/pages/hoja-ruta.html')}
       ${item('', ICONOS.equipo, ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', '/pages/equipo.html')}
       <span class="menu-grupo">Ayuda</span>
       ${item('guia', ICONOS.ayuda, 'Guía de uso')}

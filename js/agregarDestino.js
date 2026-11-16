@@ -55,8 +55,8 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
         <div class="campo"><label for="ad-nombre">Nombre</label><input id="ad-nombre" placeholder="Nombre del destino" autocomplete="off"></div>
         <div class="campo"><span class="etiqueta-campo">Tipo</span>
           <div class="chips" id="ad-tipo">
-            <button type="button" class="chip activo" data-tipo="entrega" aria-pressed="true">Entrega</button>
-            <button type="button" class="chip" data-tipo="retiro" aria-pressed="false">Retiro</button>
+            <button type="button" class="chip activo" data-tipo="retiro" aria-pressed="true">Retiro</button>
+            <button type="button" class="chip" data-tipo="entrega" aria-pressed="false">Entrega</button>
           </div>
         </div>
         <div id="ad-cargas" class="seccion"></div>
@@ -72,7 +72,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   cortar = escucharClientes(equipo.id, (lista) => {
     clientes = lista;
   });
-  let tipo = 'entrega';
+  let tipo = 'retiro';
 
   const pintarFleteros = () => {
     if (!varios || !elegido) return;

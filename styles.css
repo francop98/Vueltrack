@@ -2126,25 +2126,50 @@ body:has(.velo) .ingreso {
   border-radius: 50%;
 }
 
-.hechas-plegable {
-  margin-top: 6px;
+.barra-agregar {
+  width: 100%;
+  justify-content: center;
+  font-size: 17px;
 }
 
-.hechas-plegable > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 10px 2px;
-  color: var(--tenue);
-  font-weight: 600;
-  font-size: 14px;
+.barra-agregar .mas {
+  font-size: 22px;
+  line-height: 1;
+  margin-right: 4px;
 }
 
-.hechas-plegable > summary::-webkit-details-marker {
-  display: none;
+/* Hechas hoy: filas rellenas en verde (las que no se pudieron, en rojo suave) */
+.lista-hechas .fila-hecha {
+  background: var(--ok-suave);
+  color: var(--ok-suave-texto);
 }
 
-.hechas-plegable[open] > summary {
-  color: var(--tinta);
+.lista-hechas .fila-hecha .fila-titulo-texto {
+  color: var(--ok-suave-texto);
+}
+
+.lista-hechas .fila-hecha .fila-detalle {
+  color: var(--ok-suave-texto);
+  opacity: 0.85;
+}
+
+.lista-hechas .fila-hecha .numero {
+  background: var(--ok);
+  color: var(--sobre-ok);
+}
+
+.lista-hechas .fila-no-hecha {
+  background: #3A1D1F;
+}
+
+.lista-hechas .fila-no-hecha .fila-titulo-texto,
+.lista-hechas .fila-no-hecha .fila-detalle {
+  color: #F8B4AE;
+}
+
+.lista-hechas .fila-no-hecha .numero {
+  background: var(--error);
+  color: #2A0B08;
 }
 
 .aviso .aviso-accion {

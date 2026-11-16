@@ -16,7 +16,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/css/mapa.css">
   <link rel="stylesheet" href="/css/inicio.css">
@@ -98,18 +97,16 @@
       </div>
 
 
-      <div class="mapa oculto" id="mapa-caja">
-        <div class="mapa-lienzo" id="mapa" aria-label="Mapa de la vuelta"></div>
-        <div class="mapa-leyenda" id="leyenda"></div>
-        <div class="mapa-leyenda arriba oculto" id="en-vivo"></div>
-      </div>
-
       <label class="interruptor tarjeta oculto" for="compartir-check" id="compartir">
         <span><strong>Compartir mi ubicación con el equipo</strong><br><span class="texto-tenue">Solo mientras tengas la app abierta</span></span>
         <input type="checkbox" id="compartir-check">
       </label>
 
       <section class="tarjeta-destacada oculto" id="proxima" aria-labelledby="proxima-nombre"></section>
+
+      <button type="button" class="btn btn-primario btn-grande barra-agregar oculto" id="btn-agregar-destino">
+        <span class="mas" aria-hidden="true">+</span>Agregar destino
+      </button>
 
       <section class="seccion oculto" id="bloque-lista">
         <div class="fila-titulo">
@@ -119,12 +116,16 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>
               Reordenar
             </button>
-            <button type="button" class="chip oculto" id="btn-agregar-destino"><span class="mas" aria-hidden="true">+</span>Destino</button>
             <a class="chip oculto" id="link-editar" href="/pages/armar.html">Editar</a>
           </span>
         </div>
         <div id="listas" class="seccion"></div>
-        <a class="btn btn-contorno" href="/pages/hoja-ruta.html">Ver la hoja de ruta del día</a>
+      </section>
+
+      <section class="seccion oculto" id="bloque-hechas">
+        <h2 class="subtitulo" id="hechas-titulo">Hechas hoy</h2>
+        <div class="lista lista-hechas" id="lista-hechas"></div>
+        <a class="btn btn-contorno" href="/pages/historial.html">Ver la hoja de ruta</a>
       </section>
     </main>
   </div>
@@ -132,7 +133,6 @@
   <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
   <script src="/js/nav.js"></script>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/js/pwa.js"></script>
   <script type="module" src="/js/inicio.js"></script>
 </body>

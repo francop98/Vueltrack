@@ -37,15 +37,28 @@
       </div>
 
       <div class="chips desplazable" role="group" aria-label="Período">
-        <button type="button" class="chip activo" data-rango="semana" aria-pressed="true">Esta semana</button>
+        <button type="button" class="chip activo" data-rango="hoy" aria-pressed="true">Hoy</button>
+        <button type="button" class="chip" data-rango="semana" aria-pressed="false">Esta semana</button>
         <button type="button" class="chip" data-rango="mes" aria-pressed="false">Este mes</button>
-        <button type="button" class="chip" data-rango="anterior" aria-pressed="false">Mes anterior</button>
-        <button type="button" class="chip" data-rango="elegir" aria-pressed="false">Elegir fechas</button>
+        <button type="button" class="chip" data-rango="elegir" aria-pressed="false">Elegir fecha</button>
+        <button type="button" class="chip" data-rango="todos" aria-pressed="false">Todos</button>
       </div>
 
-      <div class="grilla-2 siempre oculto" id="fechas">
-        <div class="campo"><label for="desde">Desde</label><input type="date" id="desde" class="input"></div>
-        <div class="campo"><label for="hasta">Hasta</label><input type="date" id="hasta" class="input"></div>
+      <div class="tarjeta seccion oculto" id="elegir">
+        <div class="chips" role="group" aria-label="Cómo elegir">
+          <button type="button" class="chip activo" data-modo="dia" aria-pressed="true">Un día</button>
+          <button type="button" class="chip" data-modo="rango" aria-pressed="false">Rango de fechas</button>
+          <button type="button" class="chip" data-modo="meses" aria-pressed="false">Meses</button>
+        </div>
+        <div class="campo" id="campo-dia"><label for="dia">Día</label><input type="date" id="dia" class="input"></div>
+        <div class="grilla-2 siempre oculto" id="campos-rango">
+          <div class="campo"><label for="desde">Desde</label><input type="date" id="desde" class="input"></div>
+          <div class="campo"><label for="hasta">Hasta</label><input type="date" id="hasta" class="input"></div>
+        </div>
+        <div class="grilla-2 siempre oculto" id="campos-meses">
+          <div class="campo"><label for="mes-desde">Desde el mes</label><input type="month" id="mes-desde" class="input"></div>
+          <div class="campo"><label for="mes-hasta">Hasta el mes</label><input type="month" id="mes-hasta" class="input"></div>
+        </div>
       </div>
 
       <div class="chips desplazable oculto" id="filtro-fletero" role="group" aria-label="Fletero"></div>
@@ -61,14 +74,15 @@
 
       <section class="tarjeta seccion" id="efectividad"></section>
 
+      <button type="button" class="btn btn-primario btn-grande" id="btn-pdf">Imprimir hoja de ruta</button>
       <div class="grilla-2 siempre">
+        <button type="button" class="btn" id="btn-whatsapp">Compartir</button>
         <button type="button" class="btn" id="btn-excel">Exportar a Excel</button>
-        <button type="button" class="btn" id="btn-pdf">Descargar PDF</button>
       </div>
 
       <section class="seccion">
-        <h2 class="subtitulo">Por día</h2>
-        <div class="lista" id="dias"></div>
+        <h2 class="subtitulo">Hoja de ruta</h2>
+        <div class="lista-dias" id="dias"></div>
         <p class="texto-tenue oculto" id="sin-datos">No hay vueltas en este período.</p>
       </section>
     </main>

@@ -45,11 +45,11 @@ export function editarParada({ parada: p, equipo, guardar, quitar, ordenada = fa
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Tipo de parada</legend>
         <div class="casillas">
-          <label class="casilla"><input type="radio" name="ep-tipo" value="entrega" ${p.tipo !== 'retiro' ? 'checked' : ''}><span>Entrega</span></label>
-          <label class="casilla"><input type="radio" name="ep-tipo" value="retiro" ${p.tipo === 'retiro' ? 'checked' : ''}><span>Retiro</span></label>
+          <label class="casilla"><input type="radio" name="ep-tipo" value="retiro" ${p.tipo !== 'entrega' ? 'checked' : ''}><span>Retiro</span></label>
+          <label class="casilla"><input type="radio" name="ep-tipo" value="entrega" ${p.tipo === 'entrega' ? 'checked' : ''}><span>Entrega</span></label>
         </div>
       </fieldset>
-      <div class="campo ${p.tipo === 'retiro' ? '' : 'oculto'}" id="ep-entrega-caja">
+      <div class="campo ${p.tipo !== 'entrega' ? '' : 'oculto'}" id="ep-entrega-caja">
         <label for="ep-entrega">Lo que retirás se entrega en</label>
         <select id="ep-entrega" class="input">
           <option value="">Sin entrega en esta vuelta</option>

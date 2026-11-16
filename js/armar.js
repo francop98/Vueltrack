@@ -11,13 +11,16 @@ import {
   limpiarFleterosTemporales,
   borrarVuelta,
   actualizarEquipo,
-  fleterosDelEquipo
+  fleterosDelEquipo,
+  escucharUbicaciones
 } from './datos.js';
+import { crearMapa, pintarVuelta, pintarFleteros } from './mapa.js';
+import { ubicacionesRecientes, haceCuanto } from './enVivo.js';
 import { crearBuscador } from './buscador.js';
 import { ordenarYGuardar, mensajeError, horaDeSalida, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirPuntoDeSalida, elegirOrden } from './salida.js';
 import { editarParada, confirmarQuitar } from './editarParada.js';
-import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario } from './vuelta.js';
+import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario, gruposDeVuelta } from './vuelta.js';
 import { buscarDirecciones } from './rutas.js';
 import { activosDelDia, asignarPendientes, redistribuirPorZona, incompatibles } from './asignar.js';
 import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorCargas } from './cargas.js';
@@ -511,6 +514,51 @@ $('btn-elegir-clientes').addEventListener('click', () => {
 
 /* ---------- Paradas cargadas ---------- */
 
+/* ---------- Mapa: las paradas de cada fletero y, hoy, dónde está cada uno ---------- */
+let mapa = null;
+let ubicaciones = [];
+
+function pintarMapa() {
+  const lista = paradas().filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  $('bloque-mapa').classList.toggle('oculto', !lista.length);
+  if (!lista.length || typeof L === 'undefined') return;
+  const fleteros = fleterosEquipo();
+  const grupos = vuelta ? gruposDeVuelta(vuelta, fleteros) : [];
+  const conFletero = new Set(fleteros.map((f) => f.uid));
+  const sueltas = lista.filter((p) => !p.fleteroUid || !conFletero.has(p.fleteroUid));
+  if (sueltas.length) {
+    grupos.push({ uid: '', nombre: 'Sin asignar', color: '#64748B', geometria: '', paradas: sueltas.map((p, i) => ({ ...p, numero: i + 1, hecha: paradaHecha(p) })) });
+  }
+  if (!mapa) mapa = crearMapa($('mapa'), { centro: ctx.equipo.base || undefined });
+  pintarVuelta(mapa, { base: ctx.equipo.base, grupos, alTocarParada: (p) => editar(p.id) });
+  $('leyenda').innerHTML =
+    grupos.length > 1
+      ? grupos.map((g) => `<span><i class="punto" style="background:${esc(g.color)}"></i>${esc(g.nombre)} · ${g.paradas.length}</span>`).join('')
+      : '';
+  pintarEnVivo();
+}
+
+function pintarEnVivo() {
+  if (!mapa) return;
+  const fleteros = fleterosEquipo();
+  const visibles = fecha === fechaISO()
+    ? ubicaciones.map((u) => {
+        const f = fleteros.find((x) => x.uid === u.uid);
+        return { ...u, color: f ? f.color : '#475569', nombre: f ? f.nombre : u.nombre, detalle: haceCuanto(u.ts) };
+      })
+    : [];
+  pintarFleteros(mapa, visibles);
+  $('en-vivo').classList.toggle('oculto', !visibles.length);
+  $('en-vivo').innerHTML = visibles.map((u) => `<span><i class="punto" style="background:${esc(u.color)}"></i>${esc(u.nombre)} · ${esc(u.detalle)}</span>`).join('');
+}
+
+if (ctx.equipo.modo === 'equipo') {
+  escucharUbicaciones(ctx.equipo.id, (lista) => {
+    ubicaciones = ubicacionesRecientes(lista).filter((u) => u.uid !== ctx.user.uid);
+    pintarEnVivo();
+  });
+}
+
 function pintarParadas() {
   const lista = paradas();
   $('titulo-paradas').textContent = `Paradas cargadas · ${lista.length}`;
@@ -552,6 +600,7 @@ function pintarParadas() {
     })
     .join('');
   pintarBotones();
+  pintarMapa();
 }
 
 function filaFletero(p) {

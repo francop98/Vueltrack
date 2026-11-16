@@ -1,4 +1,4 @@
-# Vueltrack v7.1
+# Vueltrack v7.3
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -91,10 +91,15 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 ## Versiones
 
-### v7.1
-- **Hoja de ruta del día** (menú, Inicio o tocando un día en Historial): todos los destinos por fletero, qué se hizo, a qué hora, motivos y quién lo marcó. Se comparte por WhatsApp o se baja en PDF, y se actualiza sola.
-- **Inicio**: cada parada pendiente tiene un ✓ para marcarla hecha con un toque (con "Deshacer"). Las hechas salen de la ruta y quedan plegadas en "Hechas". La próxima parada tiene los botones Entregado / Retirado.
-- **Entregado y Retirado**: dos botones uno al lado del otro en la parada, en Modo manejo y en Inicio. Se guarda qué se hizo (campo `realizado`).
+### v7.3
+- Cada destino nuevo arranca como **Retiro** (en Armar, "+ Agregar destino", clientes, listas pegadas y editar destino). Se cambia a Entrega con un toque.
+
+### v7.2
+- **Historial con hoja de ruta**: períodos Hoy (predeterminado), Esta semana, Este mes, Elegir fecha (un día, rango de fechas o meses) y Todos, más filtro por fletero. Cada día muestra todos los destinos por fletero: qué se hizo, a qué hora, motivo y quién lo marcó. "Imprimir hoja de ruta" baja en PDF exactamente lo elegido; también se comparte por WhatsApp o se exporta a Excel. Hoy se actualiza solo.
+- **Inicio**: cada parada pendiente tiene un ✓ para marcarla con un toque (con "Deshacer"). Al marcarla sale de la ruta y pasa a "Hechas hoy", más abajo, en verde (las que no se pudieron, en rojo). La próxima parada tiene Entregado / Retirado.
+- **Inicio**: "Agregar destino" es una barra naranja del ancho de la pantalla. El mapa ya no está en Inicio.
+- **Armar**: mapa con las paradas de cada fletero (tocar un pin abre el destino) y, el día de hoy, dónde está cada fletero.
+- **Entregado y Retirado**: dos botones uno al lado del otro en la parada, Modo manejo e Inicio (campo `realizado`).
 - Un cliente ya visitado se puede volver a sumar el mismo día (cuenta como otra visita); solo se evita duplicarlo mientras está pendiente.
 
 ### v7.0
