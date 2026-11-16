@@ -241,7 +241,8 @@ export function linkWhatsApp(tel, texto) {
 /* ---------- Avisos, confirmaciones y hojas ---------- */
 
 let avisoTimer;
-export function aviso(texto) {
+/* Aviso corto abajo. Opcional: un botón (ej.: "Deshacer") con { accion, alTocar } */
+export function aviso(texto, { accion = '', alTocar = null } = {}) {
   let el = document.getElementById('aviso-global');
   if (!el) {
     el = document.createElement('div');
@@ -251,9 +252,20 @@ export function aviso(texto) {
     document.body.appendChild(el);
   }
   el.textContent = texto;
+  if (accion && alTocar) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'aviso-accion';
+    b.textContent = accion;
+    b.addEventListener('click', () => {
+      el.classList.add('oculto');
+      alTocar();
+    });
+    el.appendChild(b);
+  }
   el.classList.remove('oculto');
   clearTimeout(avisoTimer);
-  avisoTimer = setTimeout(() => el.classList.add('oculto'), 2800);
+  avisoTimer = setTimeout(() => el.classList.add('oculto'), accion ? 5000 : 2800);
 }
 
 export function confirmar({ titulo, texto = '', aceptar = 'Aceptar', cancelar = 'Cancelar', peligro = false }) {

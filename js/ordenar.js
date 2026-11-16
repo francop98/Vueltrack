@@ -45,6 +45,7 @@ function pendientesParaEnviar(pendientes, modo) {
     tipo: p.tipo === 'retiro' ? 'retiro' : 'entrega',
     entregaId: p.tipo === 'retiro' && ids.has(p.entregaId) ? p.entregaId : null,
     bultos: Number(p.bultos) >= 0 ? Number(p.bultos) : 1,
+    cargas: Array.isArray(p.cargas) ? p.cargas.slice(0, 10).map(String) : [],
     vehiculo: modo === 'grupos' ? p.fleteroUid : null
   }));
 }
@@ -88,7 +89,7 @@ export function unirRetiros(paradas) {
  * @param {string} op.orden      optimo | cerca | lejos | cierre
  * @param {object} op.desde      {lat, lng} opcional: arrancar desde acá
  */
-export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: modoPedido, salida, orden = 'optimo', desde = null }) {
+export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: modoPedido, salida, orden = 'optimo', desde = null, noLleva = {} }) {
   let modo = modoPedido;
   if (!equipo.base || equipo.base.lat == null) throw new Error('sin-base');
 
@@ -124,6 +125,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
       orden,
       paradas: pendientesParaEnviar(pendientes, modo),
       capacidades: capacidadesDe(equipo, vehiculos),
+      noLleva,
       pausa: pausaDe(ajustes)
     });
     const aplicado = aplicarResultado(pendientes, resultado, { salida: segundosDeHora(horaSalida) });

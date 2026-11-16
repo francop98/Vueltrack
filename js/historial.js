@@ -176,13 +176,14 @@ function pintar() {
     .reverse()
     .map(
       (d) => `
-      <div class="fila dia-historial">
+      <a class="fila dia-historial enlace-plano" href="/pages/hoja-ruta.html?fecha=${esc(d.fecha)}" aria-label="Hoja de ruta del ${esc(fechaLarga(d.fecha))}">
         <span class="numero ${d.paradas && d.entregadas === d.paradas ? 'ok' : ''}">${fechaDesdeISO(d.fecha).getDate()}</span>
         <span class="fila-cuerpo">
           <span class="fila-titulo-texto">${esc(fechaCorta(d.fecha))}</span>
-          <span class="fila-detalle">${d.entregadas} de ${d.paradas} entregadas · ${esc(formatoKm(d.km))} · ${esc(formatoDuracion(d.tiempo))}</span>
+          <span class="fila-detalle">${d.entregadas} de ${d.paradas} hechas · ${esc(formatoKm(d.km))} · ${esc(formatoDuracion(d.tiempo))}</span>
         </span>
-      </div>`
+        <span class="texto-tenue texto-chico">Hoja de ruta ›</span>
+      </a>`
     )
     .join('');
   $('btn-excel').disabled = !datos.detalle.length;

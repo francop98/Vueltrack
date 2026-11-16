@@ -3,9 +3,10 @@
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
 import { escucharClientes, escucharVuelta, guardarVuelta, guardarCliente, borrarCliente } from './datos.js';
+import { selectorCargas } from './cargas.js';
 import { crearBuscador, htmlBuscador } from './buscador.js';
 import { mapaConPin } from './mapa.js';
-import { paradaDesdeCliente, textoHorario } from './vuelta.js';
+import { paradaDesdeCliente, textoHorario, paradaHecha } from './vuelta.js';
 import {
   ICONOS,
   esc,
@@ -30,7 +31,7 @@ let vueltaHoy = null;
 let filtro = 'todos';
 let texto = '';
 
-ctx = await iniciarPantalla({ pagina: 'clientes', soloOrganizador: true });
+ctx = await iniciarPantalla({ pagina: 'clientes', soloOrganizador: true, alCambiarEquipo: () => pintar() });
 
 escucharClientes(ctx.equipo.id, (lista) => {
   clientes = ordenarAlfa(lista);
@@ -44,6 +45,9 @@ escucharVuelta(ctx.equipo.id, hoy, (v) => {
 });
 
 const enVueltaHoy = () => new Set(((vueltaHoy && vueltaHoy.paradas) || []).map((p) => p.clienteId).filter(Boolean));
+// Pendiente hoy: un cliente ya visitado se puede volver a sumar (otra visita)
+const pendientesHoy = () =>
+  new Set(((vueltaHoy && vueltaHoy.paradas) || []).filter((p) => !paradaHecha(p)).map((p) => p.clienteId).filter(Boolean));
 const lesTocaHoy = (c) => (c.dias || []).includes(diaHoy);
 
 function textoDias(dias) {
@@ -61,6 +65,7 @@ function pintar() {
   $('chip-hoy').textContent = `Les toca hoy · ${tocaHoy.length}`;
 
   const yaEstan = enVueltaHoy();
+  const pendientesYa = pendientesHoy();
   const faltan = tocaHoy.filter((c) => !yaEstan.has(c.id));
   $('btn-sumar-hoy').classList.toggle('oculto', !faltan.length);
   $('btn-sumar-hoy').textContent =
@@ -100,7 +105,7 @@ function pintar() {
         ${grupos[letra]
           .map((c) => {
             const detalle = [c.direccion, textoDias(c.dias), textoHorario(c), c.nota ? 'con nota' : ''].filter(Boolean).join(' · ');
-            const esta = yaEstan.has(c.id);
+            const esta = pendientesYa.has(c.id);
             return `
             <div class="fila">
               <button type="button" class="fila enlace-plano sin-padding" data-editar="${esc(c.id)}">
@@ -112,7 +117,7 @@ function pintar() {
               </button>
               ${
                 esta
-                  ? `<span class="btn-icono activo-oscuro" role="img" aria-label="Ya está en la vuelta de hoy">${ICONOS.check}</span>`
+                  ? `<span class="btn-icono activo-oscuro" role="img" aria-label="Pendiente en la vuelta de hoy">${ICONOS.check}</span>`
                   : `<button type="button" class="btn-icono mas-acento" data-sumar="${esc(c.id)}" aria-label="Sumar ${esc(c.nombre)} a la vuelta de hoy">${ICONOS.mas}</button>`
               }
             </div>`;
@@ -165,6 +170,11 @@ function abrirEditor(cliente) {
   let ubicacion = cliente ? { direccion: c.direccion, lat: c.lat, lng: c.lng } : null;
   let pin = null;
   const orden = [1, 2, 3, 4, 5, 6, 0];
+  // Carga habitual: se copia a la parada al sumarlo (y se puede cambiar ese día)
+  const cargasSel =
+    ctx.equipo.modo === 'equipo'
+      ? selectorCargas(ctx.equipo, c.cargas || [], { id: 'c-cargas', titulo: 'Carga habitual', ayuda: 'Se puede cambiar en cada vuelta.' })
+      : null;
 
   const hoja = abrirHoja({
     titulo: cliente ? 'Editar cliente' : 'Nuevo cliente',
@@ -189,12 +199,14 @@ function abrirEditor(cliente) {
             .join('')}
         </div>
       </fieldset>
+      ${cargasSel ? cargasSel.html : ''}
       <div class="campo"><label for="c-nota">Nota fija para el fletero</label><textarea id="c-nota" placeholder="Ej.: timbre 2B, dejar en portería, entrar por el portón lateral">${esc(c.nota)}</textarea></div>
       <p class="error-texto oculto" id="c-error" role="alert"></p>
       <button type="button" class="btn btn-primario btn-grande" id="c-guardar">Guardar cliente</button>
       ${cliente ? `<button type="button" class="btn btn-peligro" id="c-borrar">${ICONOS.basura}Eliminar cliente</button>` : ''}`
   });
   const el = hoja.el;
+  const cargasElegidas = cargasSel ? cargasSel.conectar(el) : () => c.cargas || [];
 
   // El nombre se escribe siempre en mayúsculas
   const campoNombre = el.querySelector('#c-nombre');
@@ -253,6 +265,7 @@ function abrirEditor(cliente) {
       return;
     }
     const dias = [...el.querySelectorAll('.casillas input:checked')].map((i) => Number(i.value));
+    const cargas = cargasElegidas();
     guardando = true;
     boton.disabled = true;
     error.classList.add('oculto');
@@ -268,6 +281,7 @@ function abrirEditor(cliente) {
       desde: el.querySelector('#c-desde').value,
       hasta: el.querySelector('#c-hasta').value,
       nota: el.querySelector('#c-nota').value.trim(),
+      cargas,
       dias
     }).then(
       () => aviso(cliente ? 'Cliente actualizado' : 'Cliente guardado'),
@@ -285,8 +299,8 @@ function abrirEditor(cliente) {
         peligro: true
       });
       if (!ok) return;
-      await borrarCliente(ctx.equipo.id, cliente.id);
       hoja.cerrar();
+      await borrarCliente(ctx.equipo.id, cliente.id);
       aviso('Cliente eliminado');
     });
   }

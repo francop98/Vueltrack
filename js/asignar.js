@@ -8,6 +8,7 @@
    ========================================================= */
 import { dividirPorZona } from './rutas.js';
 import { paradaHecha } from './vuelta.js';
+import { puedeLlevar } from './cargas.js';
 
 /* Distancia libre (km) a partir de la cual conviene abrir una zona nueva */
 const RADIO_ZONA_KM = 2.5;
@@ -32,8 +33,11 @@ export function activosDelDia(vuelta, fleteros) {
 }
 
 /* Sugiere el fletero para una parada según las que ya tiene cada uno */
-export function sugerirFletero(parada, paradas, activos) {
-  if (!activos.length) return null;
+export function sugerirFletero(parada, paradas, todos, vuelta = null) {
+  if (!todos.length) return null;
+  // Solo los que pueden llevar lo que pide la parada (si nadie puede, se avisa en pantalla)
+  const aptos = todos.filter((f) => puedeLlevar(parada, f, vuelta));
+  const activos = aptos.length ? aptos : todos;
   if (activos.length === 1 || !conUbicacion(parada)) return activos[0].uid;
   const zonas = activos.map((f) => {
     const suyas = paradas.filter((p) => p.id !== parada.id && p.fleteroUid === f.uid && !paradaHecha(p) && conUbicacion(p));
@@ -55,14 +59,17 @@ export function sugerirFletero(parada, paradas, activos) {
  * Asigna fletero a las paradas pendientes que no tienen uno de los que salen.
  * Devuelve la lista nueva y cuántas se asignaron.
  */
-export function asignarPendientes(paradas, activos) {
+export function asignarPendientes(paradas, activos, vuelta = null) {
   if (!activos.length) return { paradas, asignadas: 0 };
-  const uids = new Set(activos.map((f) => f.uid));
+  const porUid = new Map(activos.map((f) => [f.uid, f]));
   const lista = paradas.map((p) => ({ ...p }));
   let asignadas = 0;
   lista.forEach((p) => {
-    if (paradaHecha(p) || (p.fleteroUid && uids.has(p.fleteroUid))) return;
-    p.fleteroUid = sugerirFletero(p, lista, activos);
+    if (paradaHecha(p)) return;
+    const actual = p.fleteroUid && porUid.get(p.fleteroUid);
+    // Se queda con quien la tiene, salvo que ese fletero no pueda llevarla
+    if (actual && (puedeLlevar(p, actual, vuelta) || p.fleteroFijo)) return;
+    p.fleteroUid = sugerirFletero(p, lista, activos, vuelta);
     asignadas++;
   });
   // La entrega de un retiro va con el mismo fletero que retira
@@ -76,12 +83,21 @@ export function asignarPendientes(paradas, activos) {
 }
 
 /* Vuelve a dividir todas las pendientes por zonas, una por fletero */
-export function redistribuirPorZona(paradas, activos) {
+export function redistribuirPorZona(paradas, activos, vuelta = null) {
   const lista = paradas.map((p) => ({ ...p }));
   const pendientes = lista.filter((p) => !paradaHecha(p) && conUbicacion(p));
   const zonas = dividirPorZona(pendientes, activos.length);
   pendientes.forEach((p, i) => {
     p.fleteroUid = (activos[zonas[i]] || activos[0]).uid;
   });
-  return asignarPendientes(lista, activos).paradas;
+  lista.forEach((p) => {
+    delete p.fleteroFijo;
+  });
+  return asignarPendientes(lista, activos, vuelta).paradas;
+}
+
+/* Paradas pendientes que quedaron con alguien que no las puede llevar */
+export function incompatibles(paradas, activos, vuelta) {
+  const porUid = new Map(activos.map((f) => [f.uid, f]));
+  return paradas.filter((p) => !paradaHecha(p) && p.fleteroUid && porUid.has(p.fleteroUid) && !puedeLlevar(p, porUid.get(p.fleteroUid), vuelta));
 }

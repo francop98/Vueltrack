@@ -137,10 +137,13 @@
   border-radius: 16px;
 }
 
-.manejo-final .btn-entregado {
+.manejo-final .botones-hecho {
   grid-column: 1 / -1;
+}
+
+.manejo-final .btn-entregado {
   min-height: 76px;
-  font-size: 22px;
+  font-size: 19px;
 }
 
 .manejo-final .btn-entregado svg {

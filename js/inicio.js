@@ -6,11 +6,12 @@
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, fleterosDelEquipo, escucharUbicaciones } from './datos.js';
 import { crearMapa, pintarVuelta, pintarFleteros } from './mapa.js';
-import { gruposDeVuelta, resumen, paradasSinOrdenar, textoHorario } from './vuelta.js';
-import { conectarAviso, textoResultado } from './estados.js';
+import { gruposDeVuelta, resumen, paradasSinOrdenar, textoHorario, paradaHecha } from './vuelta.js';
+import { conectarAviso, textoResultado, marcarHecho, marcarEstado, htmlBotonesHecho } from './estados.js';
 import { compartirSiCorresponde, puedeCompartir, estaCompartiendo, cambiarCompartir, haceCuanto, ubicacionesRecientes } from './enVivo.js';
 import { reordenarFletero, mensajeError, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirOrden } from './salida.js';
+import { abrirAgregarDestino } from './agregarDestino.js';
 import { miUbicacion } from './rutas.js';
 import { abrirGuia, guiaVista } from './guia.js';
 import { instalarApp, sePuedeInstalar } from './instalar.js';
@@ -36,6 +37,9 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const fecha = fechaISO();
+// Quién puede marcar: quien organiza o el fletero de esa parada
+const puedoMarcar = (p) => ctx.organizador || p.fleteroUid === ctx.user.uid;
+const abiertasHechas = new Set();
 let ctx;
 let vuelta = null;
 let filtro = null;
@@ -121,6 +125,8 @@ function pintar() {
   mostrar('mapa-caja', true);
   mostrar('bloque-lista', true);
   mostrar('link-editar', ctx.organizador);
+  // Sumar destinos a la vuelta ya armada: quien organiza o el fletero independiente
+  mostrar('btn-agregar-destino', !ctx.fleteroDeEquipo && (ctx.organizador || ctx.equipo.modo === 'solo'));
 
   const r = resumen(grupos);
   $('st-paradas').textContent = r.hechas ? `${r.hechas}/${r.paradas}` : r.paradas;
@@ -241,6 +247,7 @@ function pintarProxima(grupos) {
       ${p.telefono ? `<a class="btn-icono btn-oscuro" href="${linkTel(p.telefono)}" aria-label="Llamar a ${esc(p.nombre)}">${ICONOS.telefono}</a>` : ''}
       <a class="btn-icono btn-oscuro" id="btn-avisar" href="#" target="_blank" rel="noopener" aria-label="Avisar por WhatsApp que vas">${ICONOS.mensaje}</a>
     </div>
+    ${puedoMarcar(p) ? htmlBotonesHecho(p, '').replace(/data-accion=/g, `data-parada="${esc(p.id)}" data-accion=`) : ''}
     ${esMia ? `<a class="btn btn-oscuro" href="/pages/manejo.html">${ICONOS.auto}Modo manejo</a>` : ''}
     ${
       pendientes.length > PARADAS_POR_TRAMO
@@ -283,6 +290,11 @@ function filaParada(p) {
           ? ''
           : `<a class="btn-icono sin-borde mas-acento" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener" aria-label="Navegar solo a ${esc(p.nombre)}">${ICONOS.navegar}</a>`
       }
+      ${
+        !p.hecha && puedoMarcar(p)
+          ? `<button type="button" class="btn-icono sin-borde btn-hecho-rapido" data-hecho="${esc(p.id)}" aria-label="Marcar ${esc(p.nombre)} como ${p.tipo === 'retiro' ? 'retirado' : 'entregado'}">${ICONOS.check}</button>`
+          : ''
+      }
     </div>`;
 }
 
@@ -291,6 +303,10 @@ function uidDeLaLista(grupos) {
   const uid = grupos[0].uid;
   return ctx.organizador || uid === ctx.user.uid ? uid : null;
 }
+
+$('btn-agregar-destino').addEventListener('click', () => {
+  abrirAgregarDestino({ ctx, fecha, vuelta });
+});
 
 $('btn-reordenar').addEventListener('click', () => {
   const fleteros = fleterosDelEquipo(ctx.equipo);
@@ -437,6 +453,7 @@ function pintarListas(grupos) {
     if (grupo) {
       $('btn-reordenar').classList.add('oculto');
       $('link-editar').classList.add('oculto');
+      $('btn-agregar-destino').classList.add('oculto');
       $('lista-titulo').textContent = 'Ordenar a mano';
       $('listas').innerHTML = htmlArrastre(grupo);
       conectarArrastre();
@@ -457,10 +474,70 @@ function pintarListas(grupos) {
           ? `<a class="btn btn-contorno" href="${esc(linkRecorridoWhatsApp(g))}" target="_blank" rel="noopener">${ICONOS.mensaje}Mandarle el recorrido a ${esc(g.nombre.split(' ')[0])} por WhatsApp</a>`
           : ''
       }
-      <div class="lista">${g.paradas.map(filaParada).join('')}</div>`
+      ${listaDelGrupo(g)}`
     )
     .join('');
 }
+
+/* Las pendientes arriba; las ya hechas salen de la ruta y quedan plegadas abajo */
+function listaDelGrupo(g) {
+  const pendientes = g.paradas.filter((p) => !p.hecha);
+  const hechas = g.paradas.filter((p) => p.hecha);
+  return `
+    ${pendientes.length ? `<div class="lista">${pendientes.map(filaParada).join('')}</div>` : '<p class="texto-tenue">No quedan paradas pendientes.</p>'}
+    ${
+      hechas.length
+        ? `<details class="hechas-plegable"${abiertasHechas.has(g.uid) ? ' open' : ''} data-grupo="${esc(g.uid)}">
+        <summary>Hechas · ${hechas.length}</summary>
+        <div class="lista">${hechas.map(filaParada).join('')}</div>
+      </details>`
+        : ''
+    }`;
+}
+
+
+$('listas').addEventListener(
+  'toggle',
+  (e) => {
+    const d = e.target.closest && e.target.closest('details[data-grupo]');
+    if (!d) return;
+    if (d.open) abiertasHechas.add(d.dataset.grupo);
+    else abiertasHechas.delete(d.dataset.grupo);
+  },
+  true
+);
+
+/* Marcar hecha con un toque (con "Deshacer" por si fue sin querer) */
+async function marcarRapido(id, realizado) {
+  const p = ((vuelta && vuelta.paradas) || []).find((x) => x.id === id);
+  if (!p || paradaHecha(p)) return;
+  const que = realizado || (p.tipo === 'retiro' ? 'retirado' : 'entregado');
+  try {
+    await marcarHecho(ctx, fecha, id, que);
+    if (navigator.vibrate) navigator.vibrate(40);
+    aviso(`${p.nombre}: ${que}`, {
+      accion: 'Deshacer',
+      alTocar: () => marcarEstado(ctx, fecha, id, 'pendiente', { motivo: '', realizado: '', horaEstado: '' }).catch(() => {})
+    });
+  } catch (err) {
+    aviso('No se pudo guardar. Se reintenta cuando vuelva la señal.');
+  }
+}
+
+$('listas').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-hecho]');
+  if (!b) return;
+  e.preventDefault();
+  b.disabled = true;
+  marcarRapido(b.dataset.hecho);
+});
+
+$('proxima').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-accion="entregado"], [data-accion="retirado"]');
+  if (!b || !b.dataset.parada) return;
+  b.disabled = true;
+  marcarRapido(b.dataset.parada, b.dataset.accion);
+});
 
 /* Fletero sin la app: el recorrido ordenado, con horarios y links de Google Maps, por WhatsApp */
 function linkRecorridoWhatsApp(g) {

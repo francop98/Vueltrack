@@ -118,8 +118,34 @@ export async function obtenerEquipo(equipoId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
+/* ---------- Respuesta al instante ----------
+   Firebase aplica cada cambio en el celular enseguida (la pantalla se actualiza
+   al momento), pero la promesa recién se cumple cuando el servidor confirma, y
+   con señal floja eso tarda. Para que los botones respondan ya, se sigue a los
+   350 ms; si después el servidor rechaza el cambio, se avisa igual. */
+export function alInstante(promesa) {
+  return new Promise((ok, mal) => {
+    let siguio = false;
+    const reloj = setTimeout(() => {
+      siguio = true;
+      ok();
+    }, 350);
+    promesa.then(
+      (valor) => {
+        clearTimeout(reloj);
+        if (!siguio) ok(valor);
+      },
+      (error) => {
+        clearTimeout(reloj);
+        if (!siguio) mal(error);
+        else window.dispatchEvent(new CustomEvent('vueltrack:error-guardado', { detail: error }));
+      }
+    );
+  });
+}
+
 export async function actualizarEquipo(equipoId, cambios) {
-  await updateDoc(doc(db, 'equipos', equipoId), cambios);
+  await alInstante(updateDoc(doc(db, 'equipos', equipoId), cambios));
 }
 
 export async function actualizarMiembro(equipoId, uid, cambios) {
@@ -127,14 +153,16 @@ export async function actualizarMiembro(equipoId, uid, cambios) {
   Object.entries(cambios).forEach(([k, v]) => {
     datos[`miembros.${uid}.${k}`] = v;
   });
-  await updateDoc(doc(db, 'equipos', equipoId), datos);
+  await alInstante(updateDoc(doc(db, 'equipos', equipoId), datos));
 }
 
 export async function quitarMiembro(equipoId, uid) {
-  await updateDoc(doc(db, 'equipos', equipoId), {
-    [`miembros.${uid}`]: deleteField(),
-    miembrosIds: arrayRemove(uid)
-  });
+  await alInstante(
+    updateDoc(doc(db, 'equipos', equipoId), {
+      [`miembros.${uid}`]: deleteField(),
+      miembrosIds: arrayRemove(uid)
+    })
+  );
 }
 
 export async function salirDelEquipo(equipoId, uid) {
@@ -177,20 +205,22 @@ export function escucharClientes(equipoId, alCambiar) {
 export async function guardarCliente(equipoId, cliente) {
   const { id, ...datos } = cliente;
   const ref = id ? doc(db, 'equipos', equipoId, 'clientes', id) : doc(collection(db, 'equipos', equipoId, 'clientes'));
-  await setDoc(ref, { ...datos, actualizado: serverTimestamp() }, { merge: true });
+  await alInstante(setDoc(ref, { ...datos, actualizado: serverTimestamp() }, { merge: true }));
   return ref.id;
 }
 
 export async function borrarCliente(equipoId, clienteId) {
-  await deleteDoc(doc(db, 'equipos', equipoId, 'clientes', clienteId));
+  await alInstante(deleteDoc(doc(db, 'equipos', equipoId, 'clientes', clienteId)));
 }
 
 export async function corregirUbicacionCliente(equipoId, clienteId, lat, lng) {
-  await updateDoc(doc(db, 'equipos', equipoId, 'clientes', clienteId), {
-    lat,
-    lng,
-    ubicacionVerificada: true
-  });
+  await alInstante(
+    updateDoc(doc(db, 'equipos', equipoId, 'clientes', clienteId), {
+      lat,
+      lng,
+      ubicacionVerificada: true
+    })
+  );
 }
 
 /* ---------- Vueltas ---------- */
@@ -202,16 +232,14 @@ export function escucharVuelta(equipoId, fecha, alCambiar) {
 }
 
 export async function guardarVuelta(equipoId, fecha, datos) {
-  await setDoc(
-    doc(db, 'equipos', equipoId, 'vueltas', fecha),
-    { fecha, ...datos, actualizado: serverTimestamp() },
-    { merge: true }
+  await alInstante(
+    setDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha), { fecha, ...datos, actualizado: serverTimestamp() }, { merge: true })
   );
 }
 
 /* Reemplaza la vuelta completa (al ordenar, para no dejar rutas viejas) */
 export async function reemplazarVuelta(equipoId, fecha, datos) {
-  await setDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha), { fecha, ...datos, actualizado: serverTimestamp() });
+  await alInstante(setDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha), { fecha, ...datos, actualizado: serverTimestamp() }));
 }
 
 /* ---------- Sin señal ----------
@@ -261,7 +289,7 @@ export async function cambiarParada(equipoId, fecha, paradaId, cambiar) {
         tx.update(ref, { paradas: resultado, actualizado: serverTimestamp() });
         return resultado;
       }),
-      8000
+      4000
     );
   } catch (e) {
     // Señal muy débil o cortada a mitad de camino: se guarda igual en el celular
@@ -384,18 +412,18 @@ export function escucharLugares(equipoId, alCambiar) {
 
 /* Borra la vuelta entera de un día (paradas y recorridos) */
 export async function borrarVuelta(equipoId, fecha) {
-  await deleteDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha));
+  await alInstante(deleteDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha)));
 }
 
 /* Fletero que no usa la app: el organizador le asigna paradas y le manda el recorrido por WhatsApp.
    frecuente = queda guardado para los próximos días; si no, es solo para ese día (temporal: fecha). */
-export async function agregarFleteroSinApp(equipo, { nombre, telefono = '', vehiculo = '', frecuente = true, fecha = '' }) {
+export async function agregarFleteroSinApp(equipo, { nombre, telefono = '', vehiculo = '', noLleva = [], frecuente = true, fecha = '' }) {
   const uid = `ext_${idNuevo()}`;
   const usados = new Set(Object.values(equipo.miembros || {}).map((m) => m.color).filter(Boolean));
   const color = COLORES_FLETERO.find((c) => !usados.has(c)) || COLORES_FLETERO[Object.keys(equipo.miembros || {}).length % COLORES_FLETERO.length];
-  const datos = { nombre, telefono, roles: ['fletero'], externo: true, vehiculo, gasto: null, color };
+  const datos = { nombre, telefono, roles: ['fletero'], externo: true, vehiculo, gasto: null, color, noLleva };
   if (!frecuente && fecha) datos.temporal = fecha;
-  await updateDoc(doc(db, 'equipos', equipo.id), { [`miembros.${uid}`]: datos });
+  await alInstante(updateDoc(doc(db, 'equipos', equipo.id), { [`miembros.${uid}`]: datos }));
   return uid;
 }
 

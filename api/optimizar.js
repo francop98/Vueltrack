@@ -71,7 +71,12 @@ function pasoDe(p, i, demora, salida, conUrgentes) {
 }
 
 /* Un pedido a VROOM con uno o más vehículos */
-async function resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, capacidades = {}, pausa = null, conUrgentes = true }) {
+async function resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, capacidades = {}, pausa = null, conUrgentes = true, noLleva = {} }) {
+  // Tipos de carga (solo al repartir entre varios): cada parada pide sus cargas
+  // y cada vehículo tiene todas menos las que ese fletero no lleva
+  const tipos = parejo ? [...new Set(paradas.flatMap((p) => (Array.isArray(p.cargas) ? p.cargas : [])))] : [];
+  const idTipo = new Map(tipos.map((t, i) => [t, i + 1]));
+  const pide = (p) => (Array.isArray(p.cargas) ? p.cargas.map((t) => idTipo.get(t)).filter(Boolean) : []);
   const inicio = desde ? [desde.lng, desde.lat] : [base.lng, base.lat];
   const fin = [base.lng, base.lat];
   const cupo = Math.ceil(paradas.length / vehiculos.length);
@@ -84,6 +89,7 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
     if (enPar.has(i)) return;
     const job = pasoDe(p, i, demora, salida, conUrgentes);
     if (conUrgentes && p.urgente) job.priority = 100;
+    if (tipos.length && pide(p).length) job.skills = pide(p);
     const carga = [parejo ? 1 : 0, bultos(p)];
     if (p.tipo === 'retiro') job.pickup = carga;
     else job.delivery = carga;
@@ -97,6 +103,8 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
       delivery: pasoDe(paradas[j], j, demora, salida, conUrgentes)
     };
     if (conUrgentes && (paradas[i].urgente || paradas[j].urgente)) envio.priority = 100;
+    const habilidad = [...new Set([...pide(paradas[i]), ...pide(paradas[j])])];
+    if (tipos.length && habilidad.length) envio.skills = habilidad;
     return envio;
   });
 
@@ -109,6 +117,10 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
       capacity: [parejo ? cupo : SIN_LIMITE, Number(capacidades[uid]) > 0 ? Math.round(capacidades[uid]) : SIN_LIMITE]
     };
     if (volver) v.end = fin;
+    if (tipos.length) {
+      const no = Array.isArray(noLleva[uid]) ? noLleva[uid] : [];
+      v.skills = tipos.filter((t) => !no.includes(t)).map((t) => idTipo.get(t));
+    }
     if (pausa && pausa.hasta > salida && pausa.minutos > 0) {
       v.breaks = [{ id: 1, time_windows: [[Math.max(pausa.desde, salida), pausa.hasta]], service: Math.round(pausa.minutos * 60) }];
     }
@@ -125,7 +137,7 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
   if (conUrgentes && paradas.some((p) => p.urgente) && (datos.unassigned || []).length) {
     const urgenteSinLugar = (datos.unassigned || []).some((u) => paradas[idDePaso(u) - 1] && paradas[idDePaso(u) - 1].urgente);
     if (urgenteSinLugar) {
-      return resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, capacidades, pausa, conUrgentes: false });
+      return resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo, capacidades, pausa, conUrgentes: false, noLleva });
     }
   }
 
@@ -284,6 +296,7 @@ export default async function handler(req, res) {
       ? { lat: cuerpo.desde.lat, lng: cuerpo.desde.lng }
       : null;
   const capacidades = cuerpo.capacidades && typeof cuerpo.capacidades === 'object' ? cuerpo.capacidades : {};
+  const noLleva = cuerpo.noLleva && typeof cuerpo.noLleva === 'object' ? cuerpo.noLleva : {};
   const pausa =
     cuerpo.pausa && Number.isFinite(cuerpo.pausa.desde) && Number.isFinite(cuerpo.pausa.hasta) && Number(cuerpo.pausa.minutos) > 0
       ? { desde: cuerpo.pausa.desde, hasta: Math.max(cuerpo.pausa.desde, cuerpo.pausa.hasta), minutos: Number(cuerpo.pausa.minutos) }
@@ -303,7 +316,7 @@ export default async function handler(req, res) {
       paradas.length <= MAX_PARADAS_POR_PEDIDO;
 
     if (parejo) {
-      const r = await resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo: true, capacidades, pausa });
+      const r = await resolver({ base, desde, volver, demora, salida, paradas, vehiculos, parejo: true, capacidades, pausa, noLleva });
       if (orden === 'optimo') return responder(res, 200, r);
       // Reparto parejo, pero cada fletero recorre sus paradas en el orden elegido
       const porId = new Map(paradas.map((p) => [p.id, p]));

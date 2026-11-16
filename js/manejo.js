@@ -6,7 +6,7 @@
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta } from './datos.js';
 import { paradasDe, paradaHecha, textoHorario } from './vuelta.js';
-import { marcarEstado, elegirNoEntregado, conectarAviso } from './estados.js';
+import { marcarHecho, htmlBotonesHecho, elegirNoEntregado, conectarAviso } from './estados.js';
 import { compartirSiCorresponde } from './enVivo.js';
 import {
   ICONOS,
@@ -28,7 +28,7 @@ let ctx;
 let vuelta = null;
 let ocupado = false;
 
-ctx = await iniciarPantalla({ pagina: 'manejo' });
+ctx = await iniciarPantalla({ pagina: 'manejo', alCambiarEquipo: () => pintar() });
 compartirSiCorresponde(ctx);
 
 /* Mantener la pantalla encendida mientras se usa el modo manejo */
@@ -94,7 +94,6 @@ function pintar() {
     Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
     p.urgente ? 'Urgente' : ''
   ].filter(Boolean);
-  const palabra = p.tipo === 'retiro' ? 'Retirado' : 'Entregado';
 
   $('cuerpo').innerHTML = `
     <section class="manejo-parada">
@@ -116,7 +115,7 @@ function pintar() {
       <a class="btn ${p.telefono ? '' : 'ancho'}" id="btn-avisar" href="#" target="_blank" rel="noopener">${ICONOS.mensaje}Avisar</a>
     </div>
     <div class="manejo-final">
-      <button type="button" class="btn btn-ok btn-entregado" data-accion="entregado">${ICONOS.check}${palabra}</button>
+      ${htmlBotonesHecho(p, 'btn-entregado')}
       <button type="button" class="btn" data-accion="no">No se pudo</button>
       <a class="btn" href="/pages/parada.html?id=${encodeURIComponent(p.id)}">Foto o firma</a>
     </div>`;
@@ -134,8 +133,9 @@ $('cuerpo').addEventListener('click', async (e) => {
   ocupado = true;
   b.disabled = true;
   try {
-    await marcarEstado(ctx, fecha, p.id, 'entregado', { motivo: '' });
-    aviso(`${p.tipo === 'retiro' ? 'Retirado' : 'Entregado'}: ${p.nombre}`);
+    const realizado = b.dataset.accion === 'retirado' ? 'retirado' : 'entregado';
+    await marcarHecho(ctx, fecha, p.id, realizado);
+    aviso(`${realizado === 'retirado' ? 'Retirado' : 'Entregado'}: ${p.nombre}`);
     if (navigator.vibrate) navigator.vibrate(60);
   } catch (err) {
     aviso('No se pudo guardar. Se reintenta cuando vuelva la señal.');

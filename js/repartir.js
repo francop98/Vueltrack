@@ -7,11 +7,11 @@
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, fleterosDelEquipo, actualizarEquipo, guardarVuelta } from './datos.js';
 import { crearMapa, pintarVuelta } from './mapa.js';
-import { dividirPorZona } from './rutas.js';
 import { calcularVuelta, guardarCalculo, mensajeError, horaDeSalida, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirOrden } from './salida.js';
 import { gruposDeVuelta, paradaHecha } from './vuelta.js';
-import { activosDelDia } from './asignar.js';
+import { activosDelDia, redistribuirPorZona } from './asignar.js';
+import { noLlevaDelDia } from './cargas.js';
 import {
   esc,
   fechaISO,
@@ -46,7 +46,7 @@ let primeraVez = true;
 const pendientes = () => ((vuelta && vuelta.paradas) || []).filter((p) => !paradaHecha(p));
 const fleterosActivos = () => fleteros.filter((f) => seleccionados.includes(f.uid));
 
-ctx = await iniciarPantalla({ pagina: 'armar', soloOrganizador: true });
+ctx = await iniciarPantalla({ pagina: 'armar', soloOrganizador: true, alCambiarEquipo: () => pintarTodo() });
 fleteros = fleterosDelEquipo(ctx.equipo);
 seleccionados = fleteros.map((f) => f.uid);
 $('btn-atras').href = `/pages/armar.html?fecha=${fecha}`;
@@ -78,9 +78,10 @@ function asignacionInicial() {
 function asignarPorZona() {
   const lista = pendientes();
   const activos = fleterosActivos();
-  const zonas = dividirPorZona(lista, activos.length);
+  // Divide por zona y corrige las que le tocaron a alguien que no lleva esa carga
+  const conZona = redistribuirPorZona(lista, activos, vuelta);
   asignacion = new Map();
-  lista.forEach((p, i) => asignacion.set(p.id, activos[zonas[i]] ? activos[zonas[i]].uid : activos[0]?.uid));
+  conZona.forEach((p) => asignacion.set(p.id, p.fleteroUid || activos[0]?.uid));
 }
 
 function invalidar() {
@@ -301,7 +302,8 @@ async function calcular() {
       vehiculos: seleccionados,
       modo: modo === 'parejo' ? 'parejo' : 'grupos',
       salida: horaDeSalida(vuelta, ctx.equipo, fecha),
-      orden: (ctx.equipo.ajustes || {}).orden || 'optimo'
+      orden: (ctx.equipo.ajustes || {}).orden || 'optimo',
+      noLleva: Object.fromEntries(fleterosDelEquipo(ctx.equipo).map((f) => [f.uid, noLlevaDelDia(vuelta, f)]))
     });
     calculo.paradas.forEach((p) => {
       if (!paradaHecha(p) && p.fleteroUid) asignacion.set(p.id, p.fleteroUid);

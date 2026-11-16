@@ -14,6 +14,7 @@ ctx = await iniciarPantalla({
   pagina: 'vehiculo',
   alCambiarEquipo: (nuevo) => {
     ctx = nuevo;
+    pintarVencimientos();
   }
 });
 

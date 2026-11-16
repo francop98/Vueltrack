@@ -6,6 +6,7 @@ import { actualizarEquipo, actualizarMiembro, quitarMiembro, salirDelEquipo, fle
 import { ICONOS, COLORES_FLETERO, esc, iniciales, ordenarAlfa, aviso, confirmar, abrirHoja } from './ui.js';
 import { elegirZona, textoZona } from './zona.js';
 import { elegirPuntoDeSalida } from './salida.js';
+import { selectorCargas } from './cargas.js';
 
 const $ = (id) => document.getElementById(id);
 let ctx;
@@ -141,6 +142,11 @@ function editarMiembro(uid) {
   if (!m) return;
   const roles = m.roles || [];
   const yo = uid === ctx.user.uid;
+  const noLlevaSel = selectorCargas(ctx.equipo, m.noLleva || [], {
+    id: 'r-nolleva',
+    titulo: 'No lleva habitualmente',
+    ayuda: 'Se puede cambiar por día en Armar → Qué lleva cada uno.'
+  });
   const hoja = abrirHoja({
     titulo: m.nombre + (yo ? ' (vos)' : ''),
     html: `
@@ -150,6 +156,7 @@ function editarMiembro(uid) {
         <label class="interruptor tarjeta" for="r-flet"><span><strong>Fletero</strong><br><span class="texto-tenue">Sale a repartir. Si no lo marcás, es solo organizador, sin vehículo.</span></span><input type="checkbox" id="r-flet" ${roles.includes('fletero') ? 'checked' : ''}></label>
       </fieldset>
       <div class="campo ${roles.includes('fletero') ? '' : 'oculto'}" id="r-vehiculo-caja"><label for="r-vehiculo">Vehículo</label><input id="r-vehiculo" value="${esc(m.vehiculo || '')}" placeholder="Marca y modelo"></div>
+      <div class="${roles.includes('fletero') && ctx.equipo.modo === 'equipo' ? '' : 'oculto'}" id="r-nolleva-caja">${noLlevaSel.html}</div>
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Color en el mapa</legend>
         <div class="casillas">
@@ -164,7 +171,11 @@ function editarMiembro(uid) {
       ${yo ? '' : `<button type="button" class="btn btn-peligro" id="r-quitar">${ICONOS.basura}Quitar del equipo</button>`}`
   });
   const el = hoja.el;
-  el.querySelector('#r-flet').addEventListener('change', (e) => el.querySelector('#r-vehiculo-caja').classList.toggle('oculto', !e.target.checked));
+  const noLlevaElegidas = noLlevaSel.conectar(el);
+  el.querySelector('#r-flet').addEventListener('change', (e) => {
+    el.querySelector('#r-vehiculo-caja').classList.toggle('oculto', !e.target.checked);
+    el.querySelector('#r-nolleva-caja').classList.toggle('oculto', !e.target.checked || ctx.equipo.modo !== 'equipo');
+  });
 
   el.querySelector('#r-guardar').addEventListener('click', async () => {
     const nuevos = [];
@@ -183,13 +194,16 @@ function editarMiembro(uid) {
       return;
     }
     const color = (el.querySelector('input[name="r-color"]:checked') || {}).value || m.color || '';
+    hoja.cerrar();
     await actualizarMiembro(ctx.equipo.id, uid, {
       roles: nuevos,
       vehiculo: el.querySelector('#r-vehiculo').value.trim(),
+      noLleva: noLlevaElegidas(),
       color
-    });
-    hoja.cerrar();
-    aviso('Guardado');
+    }).then(
+      () => aviso('Guardado'),
+      () => aviso('No se pudo guardar. Revisá la conexión.')
+    );
   });
 
   const quitar = el.querySelector('#r-quitar');
@@ -202,8 +216,8 @@ function editarMiembro(uid) {
         peligro: true
       });
       if (!ok) return;
-      await quitarMiembro(ctx.equipo.id, uid);
       hoja.cerrar();
+      await quitarMiembro(ctx.equipo.id, uid);
       aviso(`${m.nombre} ya no está en el equipo`);
     });
   }

@@ -1,4 +1,4 @@
-# Vueltrack v6.2
+# Vueltrack v7.1
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,20 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v7.1
+- **Hoja de ruta del día** (menú, Inicio o tocando un día en Historial): todos los destinos por fletero, qué se hizo, a qué hora, motivos y quién lo marcó. Se comparte por WhatsApp o se baja en PDF, y se actualiza sola.
+- **Inicio**: cada parada pendiente tiene un ✓ para marcarla hecha con un toque (con "Deshacer"). Las hechas salen de la ruta y quedan plegadas en "Hechas". La próxima parada tiene los botones Entregado / Retirado.
+- **Entregado y Retirado**: dos botones uno al lado del otro en la parada, en Modo manejo y en Inicio. Se guarda qué se hizo (campo `realizado`).
+- Un cliente ya visitado se puede volver a sumar el mismo día (cuenta como otra visita); solo se evita duplicarlo mientras está pendiente.
+
+### v7.0
+- **Tipos de carga**: catálogo del equipo (ej.: "Tubos de GNC"). Cada parada indica lo que lleva (los clientes pueden tener una carga habitual).
+- Cada fletero tiene lo que no lleva habitualmente (desde Equipo o al agregarlo). En Armar, "Qué lleva cada uno" permite cambiarlo solo para ese día.
+- La sugerencia y el reparto por zona asignan cada parada a alguien que la pueda llevar. Si se asigna a mano a quien no la lleva, se pide confirmación y la parada queda fija con él.
+- Al repartir parejo, el optimizador también respeta los tipos de carga.
+- **Inicio → "+ Destino"**: suma destinos a una vuelta ya armada. Sugiere el fletero, lo ubica donde menos desvío agrega y recalcula los horarios.
+- Los botones responden al instante: el cambio se ve enseguida y, si después falla al guardarse, aparece un aviso. Armar, Clientes, Manejo, Parada, Repartir y Mi vehículo se actualizan solos cuando cambia el equipo (por ejemplo, al agregar un fletero).
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.

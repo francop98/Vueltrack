@@ -19,7 +19,8 @@ import { elegirPuntoDeSalida, elegirOrden } from './salida.js';
 import { editarParada, confirmarQuitar } from './editarParada.js';
 import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario } from './vuelta.js';
 import { buscarDirecciones } from './rutas.js';
-import { activosDelDia, asignarPendientes, redistribuirPorZona } from './asignar.js';
+import { activosDelDia, asignarPendientes, redistribuirPorZona, incompatibles } from './asignar.js';
+import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorCargas } from './cargas.js';
 import { direccionesFrecuentes, agregarFrecuente, descartarFrecuente } from './frecuentes.js';
 import {
   ICONOS,
@@ -51,7 +52,10 @@ ctx = await iniciarPantalla({
   pagina: 'armar',
   soloOrganizador: true,
   alCambiarEquipo: (nuevo) => {
+    // Cambió el equipo (fletero nuevo, rol, ajustes): se repinta todo lo que depende de él
     ctx = nuevo;
+    pintarSalen();
+    pintarParadas();
     pintarAjustes();
   }
 });
@@ -139,8 +143,16 @@ const hayVarios = () => fleterosEquipo().length > 1;
 const activos = () => activosDelDia(vuelta, fleterosEquipo());
 
 async function guardarParadas(nuevas) {
-  const lista = hayVarios() ? asignarPendientes(nuevas, activos()).paradas : nuevas;
+  const lista = hayVarios() ? asignarPendientes(nuevas, activos(), vuelta).paradas : nuevas;
   await guardarVuelta(ctx.equipo.id, fecha, { paradas: lista, ordenada: false });
+  avisarIncompatibles(lista);
+}
+
+/* Si una parada pide algo que ninguno de los que salen lleva, se avisa */
+function avisarIncompatibles(lista) {
+  if (!hayVarios()) return;
+  const malas = incompatibles(lista, activos(), vuelta);
+  if (malas.length) aviso(`${malas.length === 1 ? `${malas[0].nombre} pide` : `${malas.length} paradas piden`} una carga que no lleva ninguno de los que salen`);
 }
 
 function pintarSalen() {
@@ -156,10 +168,37 @@ function pintarSalen() {
       .map((f) => {
         const sale = uids.includes(f.uid);
         const cant = paradas().filter((p) => p.fleteroUid === f.uid && !paradaHecha(p)).length;
-        return `<button type="button" class="chip ${sale ? 'activo' : ''}" data-sale="${esc(f.uid)}" aria-pressed="${sale}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre)}${f.externo ? ' (sin app)' : ''}${sale && cant ? ` · ${cant}` : ''}</button>`;
+        const no = noLlevaDelDia(vuelta, f);
+        return `<button type="button" class="chip ${sale ? 'activo' : ''}" data-sale="${esc(f.uid)}" aria-pressed="${sale}" title="${no.length ? `No lleva: ${esc(no.join(', '))}` : ''}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre)}${f.externo ? ' (sin app)' : ''}${sale && cant ? ` · ${cant}` : ''}${sale && no.length ? ' · <span class="aviso-carga">no lleva ' + esc(no.join(', ')) + '</span>' : ''}</button>`;
       })
-      .join('') + '<button type="button" class="chip punteado" id="btn-agregar-fletero"><span class="mas" aria-hidden="true">+</span>Agregar fletero</button>';
+      .join('') +
+    '<button type="button" class="chip punteado" id="btn-agregar-fletero"><span class="mas" aria-hidden="true">+</span>Agregar fletero</button>' +
+    (hayVarios() ? '<button type="button" class="chip punteado" id="btn-que-lleva">Qué lleva cada uno</button>' : '');
 }
+
+/* ---------- Qué lleva cada uno ese día ---------- */
+$('chips-salen').addEventListener('click', (e) => {
+  if (!e.target.closest('#btn-que-lleva')) return;
+  editarQueLleva({
+    equipo: ctx.equipo,
+    fleteros: activos(),
+    vuelta,
+    guardar: async (noLleva, habitual) => {
+      const delDia = { ...((vuelta && vuelta.noLleva) || {}), ...noLleva };
+      const vueltaNueva = { ...(vuelta || {}), noLleva: delDia };
+      const lista = asignarPendientes(paradas(), activos(), vueltaNueva).paradas;
+      await guardarVuelta(ctx.equipo.id, fecha, { noLleva: delDia, paradas: lista, ordenada: false });
+      if (habitual) {
+        const cambios = {};
+        Object.entries(noLleva).forEach(([uid, lista2]) => {
+          cambios[`miembros.${uid}.noLleva`] = lista2;
+        });
+        await actualizarEquipo(ctx.equipo.id, cambios);
+      }
+      avisarIncompatibles(lista);
+    }
+  });
+});
 
 /* ---------- Agregar fletero ----------
    Con el nombre alcanza. Celular y vehículo son opcionales.
@@ -168,6 +207,11 @@ function pintarSalen() {
 $('chips-salen').addEventListener('click', (e) => {
   if (!e.target.closest('#btn-agregar-fletero')) return;
   const solo = ctx.equipo.modo === 'solo';
+  const noLlevaSel = selectorCargas(ctx.equipo, [], {
+    id: 'af-nolleva',
+    titulo: 'No lleva (opcional)',
+    ayuda: 'Marcá lo que no carga. Esas paradas se le asignan a otro.'
+  });
   const hoja = abrirHoja({
     titulo: 'Agregar fletero',
     html: `
@@ -185,6 +229,7 @@ $('chips-salen').addEventListener('click', (e) => {
         <div class="campo"><label for="af-tel">Celular (opcional)</label><input id="af-tel" type="tel" inputmode="tel" placeholder="Celular"></div>
         <div class="campo"><label for="af-vehiculo">Vehículo (opcional)</label><input id="af-vehiculo" placeholder="Ej.: Fiorino"></div>
       </div>
+      ${noLlevaSel.html}
       <label class="interruptor tarjeta" for="af-frecuente">
         <span><strong>Fletero frecuente</strong><br><span class="texto-tenue">Queda guardado para los próximos días. Si no, es solo para este día.</span></span>
         <input type="checkbox" id="af-frecuente" checked>
@@ -193,6 +238,7 @@ $('chips-salen').addEventListener('click', (e) => {
       <button type="button" class="link centrado-texto" id="af-invitar">¿Va a usar la app? Invitalo por WhatsApp</button>`
   });
   const el = hoja.el;
+  const elegidasNoLleva = noLlevaSel.conectar(el);
   el.querySelector('#af-nombre').focus();
   const pasarAEquipo = async () => {
     if (ctx.equipo.modo !== 'solo') return true;
@@ -228,6 +274,7 @@ $('chips-salen').addEventListener('click', (e) => {
         nombre,
         telefono: el.querySelector('#af-tel').value.trim(),
         vehiculo: el.querySelector('#af-vehiculo').value.trim(),
+        noLleva: elegidasNoLleva(),
         frecuente,
         fecha
       });
@@ -275,7 +322,7 @@ $('chips-salen').addEventListener('click', async (e) => {
   }
   const nuevosActivos = fleterosEquipo().filter((f) => uids.includes(f.uid));
   // Las paradas de quien no sale pasan a la zona que corresponda
-  const { paradas: lista, asignadas } = asignarPendientes(paradas(), nuevosActivos);
+  const { paradas: lista, asignadas } = asignarPendientes(paradas(), nuevosActivos, vuelta);
   await guardarVuelta(ctx.equipo.id, fecha, { activos: uids, paradas: lista, ordenada: false });
   if (asignadas) aviso(`Reasignamos ${asignadas} ${asignadas === 1 ? 'parada' : 'paradas'}`);
 });
@@ -285,7 +332,7 @@ $('btn-redistribuir').addEventListener('click', async () => {
     aviso('Todavía no hay paradas para dividir');
     return;
   }
-  await guardarVuelta(ctx.equipo.id, fecha, { paradas: redistribuirPorZona(paradas(), activos()), ordenada: false });
+  await guardarVuelta(ctx.equipo.id, fecha, { paradas: redistribuirPorZona(paradas(), activos(), vuelta), ordenada: false });
   aviso(`Dividimos las paradas en ${activos().length} zonas`);
 });
 
@@ -299,7 +346,9 @@ function elegirFletero(paradaId) {
         (f) => `
         <button type="button" class="fila" data-uid="${esc(f.uid)}">
           <span class="fila-cuerpo"><span class="fila-titulo-texto"><i class="punto" style="background:${esc(f.color)}"></i> ${esc(f.nombre)}</span>
-          <span class="fila-detalle">${paradas().filter((x) => x.fleteroUid === f.uid && !paradaHecha(x)).length} paradas</span></span>
+          <span class="fila-detalle">${paradas().filter((x) => x.fleteroUid === f.uid && !paradaHecha(x)).length} paradas${
+            puedeLlevar(p, f, vuelta) ? '' : ` · <span class="aviso-carga">no lleva ${esc((p.cargas || []).join(', '))}</span>`
+          }</span></span>
           ${p.fleteroUid === f.uid ? ICONOS.check : ''}
         </button>`
       )
@@ -308,9 +357,25 @@ function elegirFletero(paradaId) {
   hoja.el.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-uid]');
     if (!b) return;
+    const f = activos().find((x) => x.uid === b.dataset.uid);
+    const apto = puedeLlevar(p, f, vuelta);
+    if (!apto) {
+      const ok = await confirmar({
+        titulo: `${f.nombre} no lleva ${(p.cargas || []).join(', ')}`,
+        texto: '¿Se la asignás igual? Queda fija con él aunque la app reparta de nuevo.',
+        aceptar: 'Asignar igual'
+      });
+      if (!ok) return;
+    }
     hoja.cerrar();
-    const lista = paradas().map((x) => (x.id === paradaId ? { ...x, fleteroUid: b.dataset.uid } : x));
-    await guardarVuelta(ctx.equipo.id, fecha, { paradas: asignarPendientes(lista, activos()).paradas, ordenada: false });
+    const lista = paradas().map((x) => {
+      if (x.id !== paradaId) return x;
+      const nueva = { ...x, fleteroUid: b.dataset.uid };
+      if (apto) delete nueva.fleteroFijo;
+      else nueva.fleteroFijo = true;
+      return nueva;
+    });
+    await guardarVuelta(ctx.equipo.id, fecha, { paradas: asignarPendientes(lista, activos(), vuelta).paradas, ordenada: false });
   });
 }
 
@@ -324,8 +389,8 @@ const buscador = crearBuscador($('dir'), {
       const cliente = clientes.find((c) => c.id === r.clienteId);
       buscador.limpiar();
       if (!cliente) return;
-      if (idsClientesEnVuelta().has(cliente.id)) {
-        aviso('Ya está en la vuelta');
+      if (idsClientesPendientes().has(cliente.id)) {
+        aviso('Ya está pendiente en la vuelta');
         return;
       }
       await guardarParadas([...paradas(), paradaDesdeCliente(cliente)]);
@@ -356,6 +421,17 @@ function idsClientesEnVuelta() {
   return new Set(paradas().map((p) => p.clienteId).filter(Boolean));
 }
 
+/* Un cliente ya visitado se puede volver a sumar (es otra visita);
+   solo se evita duplicarlo mientras tiene una parada pendiente */
+function idsClientesPendientes() {
+  return new Set(
+    paradas()
+      .filter((p) => !paradaHecha(p))
+      .map((p) => p.clienteId)
+      .filter(Boolean)
+  );
+}
+
 function pintarClientes() {
   const enVuelta = idsClientesEnVuelta();
   const dia = diaSemana(fecha);
@@ -376,7 +452,7 @@ $('btn-elegir-clientes').addEventListener('click', () => {
     location.href = '/pages/clientes.html';
     return;
   }
-  const enVuelta = idsClientesEnVuelta();
+  const enVuelta = idsClientesPendientes();
   const elegidos = new Set();
   const hoja = abrirHoja({
     titulo: 'Elegir clientes',
@@ -402,7 +478,7 @@ $('btn-elegir-clientes').addEventListener('click', () => {
             <input type="checkbox" id="ec-${esc(c.id)}" data-id="${esc(c.id)}" ${ya || elegidos.has(c.id) ? 'checked' : ''} ${ya ? 'disabled' : ''}>
             <span class="fila-cuerpo">
               <span class="fila-titulo-texto">${esc(String(c.nombre).toUpperCase())}</span>
-              <span class="fila-detalle">${ya ? 'Ya está en la vuelta' : esc(c.direccion)}</span>
+              <span class="fila-detalle">${ya ? 'Ya está pendiente en la vuelta' : esc(c.direccion)}</span>
             </span>
           </label>`;
         })
@@ -425,7 +501,7 @@ $('btn-elegir-clientes').addEventListener('click', () => {
   el.querySelector('#ec-agregar').addEventListener('click', async () => {
     if (agregando || !elegidos.size) return;
     agregando = true;
-    const nuevos = clientes.filter((c) => elegidos.has(c.id) && !idsClientesEnVuelta().has(c.id));
+    const nuevos = clientes.filter((c) => elegidos.has(c.id) && !idsClientesPendientes().has(c.id));
     await guardarParadas([...paradas(), ...nuevos.map(paradaDesdeCliente)]);
     hoja.cerrar();
     aviso(nuevos.length === 1 ? `Sumaste a ${nuevos[0].nombre}` : `Sumaste ${nuevos.length} clientes`);
@@ -456,6 +532,7 @@ function pintarParadas() {
         p.direccion,
         textoHorario(p),
         Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
+        (p.cargas || []).length ? p.cargas.join(', ') : '',
         entrega ? `se entrega en ${entrega.nombre}` : ''
       ]
         .filter(Boolean)
@@ -481,7 +558,8 @@ function filaFletero(p) {
   if (!hayVarios() || paradaHecha(p)) return '';
   const f = fleterosEquipo().find((x) => x.uid === p.fleteroUid);
   if (!f) return '';
-  return `<button type="button" class="chip-fletero" data-fletero="${esc(p.id)}" aria-label="Cambiar fletero de ${esc(p.nombre)}, ahora ${esc(f.nombre)}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre.split(' ')[0])}</button>`;
+  const mal = !puedeLlevar(p, f, vuelta);
+  return `<button type="button" class="chip-fletero ${mal ? 'chip-fletero-mal' : ''}" data-fletero="${esc(p.id)}" aria-label="Cambiar fletero de ${esc(p.nombre)}, ahora ${esc(f.nombre)}${mal ? ', no lleva esta carga' : ''}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre.split(' ')[0])}${mal ? ' ⚠' : ''}</button>`;
 }
 
 $('lista-paradas').addEventListener('click', (e) => {

@@ -2077,3 +2077,82 @@ body:has(.velo) .ingreso {
 .link.link-peligro {
   color: var(--error);
 }
+
+/* ---------- Tipos de carga ---------- */
+.fila-nueva-carga {
+  display: flex;
+  gap: 8px;
+}
+
+.fila-nueva-carga input {
+  flex: 1;
+  min-width: 0;
+}
+
+.chip.tachado {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.chip svg {
+  width: 14px;
+  height: 14px;
+}
+
+.fila-que-lleva .fila-cuerpo {
+  gap: 8px;
+}
+
+.aviso-carga {
+  color: var(--error);
+  font-weight: 700;
+}
+
+/* ---------- Entregado / Retirado, uno al lado del otro ---------- */
+.botones-hecho {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.botones-hecho .btn {
+  padding-inline: 8px;
+}
+
+/* Marcar hecha desde la lista de Inicio */
+.btn-icono.btn-hecho-rapido {
+  color: var(--ok-suave-texto);
+  background: var(--ok-suave);
+  border-radius: 50%;
+}
+
+.hechas-plegable {
+  margin-top: 6px;
+}
+
+.hechas-plegable > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 2px;
+  color: var(--tenue);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.hechas-plegable > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hechas-plegable[open] > summary {
+  color: var(--tinta);
+}
+
+.aviso .aviso-accion {
+  margin-left: 12px;
+  background: none;
+  border: 0;
+  color: #B8480C;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}

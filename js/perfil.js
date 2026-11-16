@@ -4,7 +4,7 @@
    equipo), rol, vehículo y cuenta, todo en un solo lugar.
    ========================================================= */
 import { iniciarPantalla, PERFILES, abrirSeguridad } from './sesion.js';
-import { guardarUsuario, actualizarMiembro, salirDelEquipo } from './datos.js';
+import { guardarUsuario, actualizarMiembro, salirDelEquipo, alInstante } from './datos.js';
 import { auth } from './firebase.js';
 import { signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { aviso, confirmar, esc } from './ui.js';
@@ -90,7 +90,7 @@ $('form-datos').addEventListener('submit', async (e) => {
   guardando = true;
   $('btn-datos').disabled = true;
   try {
-    await guardarUsuario(ctx.user.uid, { nombre });
+    await alInstante(guardarUsuario(ctx.user.uid, { nombre }));
     await actualizarMiembro(ctx.equipo.id, ctx.user.uid, { nombre, telefono });
     aviso('Datos guardados');
   } catch (err) {

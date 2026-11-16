@@ -21,6 +21,7 @@ export function paradaDesdeCliente(c) {
     bultos: 1,
     tipo: 'entrega',
     urgente: false,
+    cargas: [...(c.cargas || [])],
     estado: 'pendiente',
     fleteroUid: null
   };
@@ -36,6 +37,13 @@ export const ESTADOS = {
 
 export function paradaHecha(p) {
   return ['entregado', 'noEstaba', 'rechazado', 'reprogramado'].includes(p.estado);
+}
+
+/* Qué se hizo en una parada exitosa: "entregado" o "retirado".
+   Se elige al marcarla (no depende del tipo: en una entrega también se puede retirar). */
+export function queSeHizo(p) {
+  if (p.realizado === 'retirado' || p.realizado === 'entregado') return p.realizado;
+  return p.tipo === 'retiro' ? 'retirado' : 'entregado';
 }
 
 /* Entregada con éxito (para retiros también cuenta "entregado") */

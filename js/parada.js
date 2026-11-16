@@ -5,7 +5,7 @@ import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, cambiarParada, corregirUbicacionCliente, fleterosDelEquipo } from './datos.js';
 import { paradasDe, paradaHecha, textoHorario } from './vuelta.js';
 import { editarParada, confirmarQuitar } from './editarParada.js';
-import { marcarEstado, elegirNoEntregado, pasarAlFinal, conectarAviso, textoResultado } from './estados.js';
+import { marcarEstado, marcarHecho, htmlBotonesHecho, elegirNoEntregado, pasarAlFinal, conectarAviso, textoResultado } from './estados.js';
 import { pintarComprobante } from './comprobante.js';
 import { recordarLugar } from './lugares.js';
 import { compartirSiCorresponde } from './enVivo.js';
@@ -30,7 +30,7 @@ let ctx;
 let vuelta = null;
 let ocupado = false;
 
-ctx = await iniciarPantalla({ pagina: 'parada' });
+ctx = await iniciarPantalla({ pagina: 'parada', alCambiarEquipo: () => pintar() });
 compartirSiCorresponde(ctx);
 let comprobanteDe = null;
 
@@ -124,7 +124,6 @@ function pintar() {
   const puede = puedoMarcar(p);
   // El fletero de equipo no cambia la parada (ni su ubicación): solo marca cómo le fue
   $('btn-ubicacion').classList.toggle('oculto', !puede || ctx.fleteroDeEquipo);
-  const palabra = p.tipo === 'retiro' ? 'Retirado' : 'Entregado';
   if (!puede) {
     $('botones-estado').innerHTML = '';
   } else if (paradaHecha(p)) {
@@ -134,7 +133,7 @@ function pintar() {
         : `<button type="button" class="btn" data-accion="deshacer">Volver a dejarla pendiente</button>`;
   } else {
     $('botones-estado').innerHTML = `
-      <button type="button" class="btn btn-ok btn-grande" data-accion="entregado">${ICONOS.check}${palabra}</button>
+      ${htmlBotonesHecho(p)}
       ${
         ctx.fleteroDeEquipo
           ? `<button type="button" class="btn" data-accion="no">${p.tipo === 'retiro' ? 'No se pudo retirar' : 'No se pudo entregar'}</button>`
@@ -170,15 +169,15 @@ $('botones-estado').addEventListener('click', async (e) => {
   }
   ocupado = true;
   try {
-    if (accion === 'entregado') {
-      await marcarEstado(ctx, fecha, id, 'entregado', { motivo: '' });
-      aviso(p.tipo === 'retiro' ? 'Retirado' : 'Entregado');
+    if (accion === 'entregado' || accion === 'retirado') {
+      await marcarHecho(ctx, fecha, id, accion);
+      aviso(accion === 'retirado' ? 'Retirado' : 'Entregado');
     } else if (accion === 'final') {
       await pasarAlFinal(ctx, fecha, id);
       aviso('La pasaste para el final');
       setTimeout(irALaSiguiente, 500);
     } else if (accion === 'deshacer') {
-      await marcarEstado(ctx, fecha, id, 'pendiente', { motivo: '' });
+      await marcarEstado(ctx, fecha, id, 'pendiente', { motivo: '', realizado: '' });
     }
   } catch (err) {
     aviso('No se pudo guardar. Se reintenta cuando vuelva la señal.');

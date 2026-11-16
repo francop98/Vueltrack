@@ -1,0 +1,135 @@
+/* =========================================================
+   Vueltrack — Hoja de ruta
+   El bloque .presupuesto solo se ve al imprimir o guardar PDF.
+   ========================================================= */
+
+.presupuesto {
+  display: none;
+}
+
+.hoja-fletero {
+  margin-top: 18px;
+}
+
+.hoja-fletero-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.hoja-fletero-cabecera .texto-tenue {
+  font-size: 13px;
+}
+
+.fila-hoja .fila-detalle {
+  white-space: normal;
+}
+
+.fila-hoja .resultado {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fila-hoja .centrado-derecha {
+  align-items: flex-end;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.resultado.ok {
+  color: var(--ok);
+}
+
+.resultado.no {
+  color: var(--error);
+}
+
+.resultado.pendiente {
+  color: var(--tenue);
+}
+
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  html,
+  body {
+    background: #FFFFFF !important;
+    color: #111827 !important;
+  }
+
+  body::before,
+  .app,
+  .nav-inferior,
+  .velo,
+  .aviso {
+    display: none !important;
+  }
+
+  .presupuesto {
+    display: block !important;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: #111827;
+    font-size: 10pt;
+    line-height: 1.4;
+  }
+
+  .presupuesto h1 {
+    font-size: 20pt;
+    margin: 0 0 4pt;
+  }
+
+  .presupuesto h2 {
+    font-size: 13pt;
+    margin: 14pt 0 6pt;
+  }
+
+  .presupuesto .marca-pdf {
+    color: #E8681F;
+    font-weight: 800;
+    font-size: 11pt;
+  }
+
+  .presupuesto .tenue-pdf {
+    color: #4B5563;
+  }
+
+  .presupuesto table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6pt;
+  }
+
+  .presupuesto th,
+  .presupuesto td {
+    text-align: left;
+    padding: 5pt 6pt;
+    border-bottom: 1px solid #E5E7EB;
+    vertical-align: top;
+  }
+
+  .presupuesto td.num,
+  .presupuesto th.num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .presupuesto .chico-pdf {
+    font-size: 9pt;
+    color: #4B5563;
+  }
+
+  .presupuesto tr {
+    break-inside: avoid;
+  }
+
+  .presupuesto .total-pdf {
+    font-size: 18pt;
+    font-weight: 800;
+    margin-top: 12pt;
+  }
+}

@@ -5,7 +5,7 @@
    Lo usan la pantalla de la parada y el modo manejo.
    ========================================================= */
 import { cambiarParada, agregarParadasADia, guardarSeguimiento, fleterosDelEquipo } from './datos.js';
-import { paradaHecha, copiaParaOtroDia } from './vuelta.js';
+import { paradaHecha, copiaParaOtroDia, queSeHizo } from './vuelta.js';
 import {
   fechaISO,
   fechaLarga,
@@ -15,7 +15,8 @@ import {
   tokenAlAzar,
   linkWhatsApp,
   abrirHoja,
-  aviso
+  aviso,
+  ICONOS
 } from './ui.js';
 
 const horaAhoraTexto = () => horaDeSegundos(segundosAhora());
@@ -227,10 +228,21 @@ export function elegirNoEntregado(ctx, fecha, vuelta, p, alTerminar) {
 
 /* Texto corto del resultado para listas */
 export function textoResultado(p) {
-  if (p.estado === 'entregado') return `${p.tipo === 'retiro' ? 'retirado' : 'entregado'}${p.horaEstado ? ` ${p.horaEstado}` : ''}`;
+  if (p.estado === 'entregado') return `${queSeHizo(p)}${p.horaEstado ? ` ${p.horaEstado}` : ''}`;
   if (p.estado === 'noEstaba') return 'no estaba';
   if (p.estado === 'rechazado') return 'rechazado';
   if (p.estado === 'reprogramado') return p.reprogramadaA ? `pasada al ${fechaLarga(p.reprogramadaA).toLowerCase()}` : 'reprogramada';
   return '';
 }
 
+/* Botones "Entregado" y "Retirado", uno al lado del otro (primero el que corresponde al tipo) */
+export function htmlBotonesHecho(p, clase = 'btn-grande') {
+  const entregado = `<button type="button" class="btn btn-ok ${clase}" data-accion="entregado">${ICONOS.check}Entregado</button>`;
+  const retirado = `<button type="button" class="btn btn-ok ${clase}" data-accion="retirado">${ICONOS.check}Retirado</button>`;
+  return `<div class="botones-hecho">${p.tipo === 'retiro' ? retirado + entregado : entregado + retirado}</div>`;
+}
+
+/* Marca la parada como hecha con éxito: entregado o retirado */
+export function marcarHecho(ctx, fecha, paradaId, realizado) {
+  return marcarEstado(ctx, fecha, paradaId, 'entregado', { motivo: '', realizado });
+}

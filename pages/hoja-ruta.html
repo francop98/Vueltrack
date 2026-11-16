@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E1420">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Hoja de ruta</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/icono-180.png">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/hoja-ruta.css">
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <div class="barra-izq">
+          <a class="marca" href="/" aria-label="Vueltrack, inicio">
+          <img src="/assets/icono.svg" alt="">
+          <span class="marca-texto">vuel<span>track</span></span>
+        </a>
+        </div>
+      </header>
+
+      <div class="titulo-bloque">
+        <span class="sobre-titulo" id="fecha-texto"></span>
+        <h1 class="titulo">Hoja de ruta</h1>
+      </div>
+
+      <div class="campo">
+        <label for="fecha">Día</label>
+        <input type="date" id="fecha" class="input">
+      </div>
+
+      <div class="chips desplazable oculto" id="filtro-fletero" role="group" aria-label="Fletero"></div>
+
+      <div class="cargando" id="cargando" aria-label="Cargando"></div>
+
+      <div class="grilla-stats" id="stats">
+        <div class="stat"><span class="stat-valor" id="st-destinos">—</span><span class="stat-nombre">destinos</span></div>
+        <div class="stat"><span class="stat-valor" id="st-hechos">—</span><span class="stat-nombre">hechos</span></div>
+        <div class="stat"><span class="stat-valor" id="st-no">—</span><span class="stat-nombre">no se pudo</span></div>
+        <div class="stat"><span class="stat-valor" id="st-pendientes">—</span><span class="stat-nombre">pendientes</span></div>
+      </div>
+
+      <div class="grilla-2 siempre">
+        <button type="button" class="btn" id="btn-whatsapp">Compartir</button>
+        <button type="button" class="btn" id="btn-pdf">Descargar PDF</button>
+      </div>
+
+      <div id="hoja"></div>
+      <p class="texto-tenue oculto" id="sin-datos">No hay vuelta cargada para este día.</p>
+    </main>
+  </div>
+
+  <article class="presupuesto" id="presupuesto" aria-hidden="true"></article>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+  <script src="/js/nav.js"></script>
+
+  <script src="/js/pwa.js"></script>
+  <script type="module" src="/js/hojaRuta.js"></script>
+</body>
+</html>
