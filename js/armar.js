@@ -8,6 +8,7 @@ import {
   guardarVuelta,
   obtenerVuelta,
   agregarFleteroSinApp,
+  limpiarFleterosTemporales,
   borrarVuelta,
   actualizarEquipo,
   fleterosDelEquipo
@@ -29,6 +30,7 @@ import {
   fechaLarga,
   ordenarAlfa,
   aviso,
+  linkWhatsApp,
   confirmar,
   abrirHoja,
   botonCargando,
@@ -62,6 +64,8 @@ $('fecha').addEventListener('change', () => {
   history.replaceState(null, '', `/pages/armar.html?fecha=${fecha}`);
   escucharDia();
 });
+
+if (ctx.organizador) limpiarFleterosTemporales(ctx.equipo, fechaISO()).catch(() => {});
 
 /* ---------- Direcciones frecuentes: sugerir agregarlas a clientes ---------- */
 let frecuentes = [];
@@ -129,7 +133,8 @@ pintarAjustes();
 
 /* ---------- Quiénes salen y a quién le toca cada parada ---------- */
 
-const fleterosEquipo = () => fleterosDelEquipo(ctx.equipo);
+// Los fleteros "solo por un día" aparecen únicamente en ese día
+const fleterosEquipo = () => fleterosDelEquipo(ctx.equipo).filter((f) => !f.temporal || f.temporal === fecha);
 const hayVarios = () => fleterosEquipo().length > 1;
 const activos = () => activosDelDia(vuelta, fleterosEquipo());
 
@@ -156,7 +161,10 @@ function pintarSalen() {
       .join('') + '<button type="button" class="chip punteado" id="btn-agregar-fletero"><span class="mas" aria-hidden="true">+</span>Agregar fletero</button>';
 }
 
-/* ---------- Agregar fletero: con la app (invitación) o sin la app ---------- */
+/* ---------- Agregar fletero ----------
+   Con el nombre alcanza. Celular y vehículo son opcionales.
+   "Frecuente" lo deja guardado para los próximos días; si no, es solo para este día.
+   Si además va a usar la app, se lo invita por WhatsApp. */
 $('chips-salen').addEventListener('click', (e) => {
   if (!e.target.closest('#btn-agregar-fletero')) return;
   const solo = ctx.equipo.modo === 'solo';
@@ -172,21 +180,20 @@ $('chips-salen').addEventListener('click', (e) => {
       </div>`
           : ''
       }
-      <div class="tarjeta seccion">
-        <strong>Usa la app</strong>
-        <span class="texto-tenue">Le mandás una invitación. Crea su cuenta y ve las paradas que le asignás, pero no las puede cambiar.</span>
-        <button type="button" class="btn btn-primario" id="af-invitar">Invitar por WhatsApp</button>
-        <span class="texto-tenue centrado-texto" id="af-codigo"></span>
+      <div class="campo"><label for="af-nombre">Nombre</label><input id="af-nombre" placeholder="Nombre del fletero" autocomplete="off"></div>
+      <div class="grilla-2 siempre">
+        <div class="campo"><label for="af-tel">Celular (opcional)</label><input id="af-tel" type="tel" inputmode="tel" placeholder="Celular"></div>
+        <div class="campo"><label for="af-vehiculo">Vehículo (opcional)</label><input id="af-vehiculo" placeholder="Ej.: Fiorino"></div>
       </div>
-      <div class="tarjeta seccion">
-        <strong>No usa la app</strong>
-        <span class="texto-tenue">Lo cargás vos. Le asignás paradas igual y le mandás el recorrido por WhatsApp.</span>
-        <div class="campo"><label for="af-nombre">Nombre</label><input id="af-nombre" placeholder="Nombre del fletero"></div>
-        <div class="campo"><label for="af-tel">Teléfono</label><input id="af-tel" type="tel" inputmode="tel" placeholder="Celular"></div>
-        <button type="button" class="btn btn-contorno" id="af-cargar">Agregar fletero</button>
-      </div>`
+      <label class="interruptor tarjeta" for="af-frecuente">
+        <span><strong>Fletero frecuente</strong><br><span class="texto-tenue">Queda guardado para los próximos días. Si no, es solo para este día.</span></span>
+        <input type="checkbox" id="af-frecuente" checked>
+      </label>
+      <button type="button" class="btn btn-primario btn-grande" id="af-agregar">Agregar fletero</button>
+      <button type="button" class="link centrado-texto" id="af-invitar">¿Va a usar la app? Invitalo por WhatsApp</button>`
   });
   const el = hoja.el;
+  el.querySelector('#af-nombre').focus();
   const pasarAEquipo = async () => {
     if (ctx.equipo.modo !== 'solo') return true;
     const nombre = el.querySelector('#af-equipo').value.trim();
@@ -200,43 +207,56 @@ $('chips-salen').addEventListener('click', (e) => {
     ctx.equipo.nombre = nombre;
     return true;
   };
-  if (!solo) el.querySelector('#af-codigo').textContent = `Código del equipo: ${ctx.equipo.codigo}`;
+
+  let agregando = false;
+  const agregar = async () => {
+    if (agregando) return;
+    const nombre = el.querySelector('#af-nombre').value.trim();
+    if (!nombre) {
+      aviso('Escribí el nombre del fletero');
+      el.querySelector('#af-nombre').focus();
+      return;
+    }
+    agregando = true;
+    try {
+      if (!(await pasarAEquipo())) {
+        agregando = false;
+        return;
+      }
+      const frecuente = el.querySelector('#af-frecuente').checked;
+      const uid = await agregarFleteroSinApp(ctx.equipo, {
+        nombre,
+        telefono: el.querySelector('#af-tel').value.trim(),
+        vehiculo: el.querySelector('#af-vehiculo').value.trim(),
+        frecuente,
+        fecha
+      });
+      // Sale este día junto con los que ya salían
+      const uids = [...new Set([...activos().map((f) => f.uid), uid])];
+      await guardarVuelta(ctx.equipo.id, fecha, { activos: uids });
+      hoja.cerrar();
+      aviso(frecuente ? `${nombre} quedó en tus fleteros y sale este día` : `${nombre} sale solo este día`);
+    } catch (err) {
+      agregando = false;
+      aviso('No se pudo agregar. Revisá la conexión.');
+    }
+  };
+  el.querySelector('#af-agregar').addEventListener('click', agregar);
+  el.querySelector('#af-nombre').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') agregar();
+  });
+
   el.querySelector('#af-invitar').addEventListener('click', async () => {
     const ventana = window.open('', '_blank');
     if (!(await pasarAEquipo())) {
       if (ventana) ventana.close();
       return;
     }
-    const texto = `Sumate a "${ctx.equipo.nombre}" en Vueltrack para recibir tus retiros y entregas. Entrá a ${location.origin}/?codigo=${encodeURIComponent(ctx.equipo.codigo)} , creá tu cuenta y elegí "Me sumo a un equipo" (código ${ctx.equipo.codigo}).`;
-    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    const nombre = el.querySelector('#af-nombre').value.trim();
+    const texto = `${nombre ? `Hola ${nombre.split(' ')[0]}! ` : ''}Sumate a "${ctx.equipo.nombre}" en Vueltrack para recibir tus retiros y entregas. Entrá a ${location.origin}/?codigo=${encodeURIComponent(ctx.equipo.codigo)} , creá tu cuenta y elegí "Me sumo a un equipo" (código ${ctx.equipo.codigo}).`;
+    const url = linkWhatsApp(el.querySelector('#af-tel').value.trim(), texto);
     if (ventana) ventana.location.href = url;
     else location.href = url;
-    el.querySelector('#af-codigo').textContent = `Código del equipo: ${ctx.equipo.codigo}`;
-  });
-  let cargando = false;
-  el.querySelector('#af-cargar').addEventListener('click', async () => {
-    if (cargando) return;
-    const nombre = el.querySelector('#af-nombre').value.trim();
-    if (!nombre) {
-      aviso('Falta el nombre del fletero');
-      return;
-    }
-    cargando = true;
-    try {
-      if (!(await pasarAEquipo())) {
-        cargando = false;
-        return;
-      }
-      const uid = await agregarFleteroSinApp(ctx.equipo, { nombre, telefono: el.querySelector('#af-tel').value.trim() });
-      // Sale este día junto con los que ya salían
-      const uids = [...new Set([...activos().map((f) => f.uid), uid])];
-      await guardarVuelta(ctx.equipo.id, fecha, { activos: uids });
-      hoja.cerrar();
-      aviso(`${nombre} quedó en tu equipo y sale este día`);
-    } catch (err) {
-      cargando = false;
-      aviso('No se pudo agregar. Revisá la conexión.');
-    }
   });
 });
 

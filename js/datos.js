@@ -387,13 +387,24 @@ export async function borrarVuelta(equipoId, fecha) {
   await deleteDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha));
 }
 
-/* Fletero que no usa la app: el organizador le asigna paradas y le manda el recorrido por WhatsApp */
-export async function agregarFleteroSinApp(equipo, { nombre, telefono = '' }) {
+/* Fletero que no usa la app: el organizador le asigna paradas y le manda el recorrido por WhatsApp.
+   frecuente = queda guardado para los próximos días; si no, es solo para ese día (temporal: fecha). */
+export async function agregarFleteroSinApp(equipo, { nombre, telefono = '', vehiculo = '', frecuente = true, fecha = '' }) {
   const uid = `ext_${idNuevo()}`;
   const usados = new Set(Object.values(equipo.miembros || {}).map((m) => m.color).filter(Boolean));
   const color = COLORES_FLETERO.find((c) => !usados.has(c)) || COLORES_FLETERO[Object.keys(equipo.miembros || {}).length % COLORES_FLETERO.length];
-  await updateDoc(doc(db, 'equipos', equipo.id), {
-    [`miembros.${uid}`]: { nombre, telefono, roles: ['fletero'], externo: true, vehiculo: '', gasto: null, color }
-  });
+  const datos = { nombre, telefono, roles: ['fletero'], externo: true, vehiculo, gasto: null, color };
+  if (!frecuente && fecha) datos.temporal = fecha;
+  await updateDoc(doc(db, 'equipos', equipo.id), { [`miembros.${uid}`]: datos });
   return uid;
+}
+
+/* Saca del equipo los fleteros "solo por un día" de hace más de una semana */
+export async function limpiarFleterosTemporales(equipo, hoy) {
+  const limite = new Date(hoy);
+  limite.setDate(limite.getDate() - 7);
+  const corte = limite.toISOString().slice(0, 10);
+  const viejos = Object.entries(equipo.miembros || {}).filter(([, m]) => m.temporal && m.temporal < corte);
+  if (!viejos.length) return;
+  await updateDoc(doc(db, 'equipos', equipo.id), Object.fromEntries(viejos.map(([uid]) => [`miembros.${uid}`, deleteField()])));
 }

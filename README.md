@@ -1,4 +1,4 @@
-# Vueltrack v6.1
+# Vueltrack v6.2
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,9 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v6.2
+- Agregar fletero: con el nombre alcanza; celular y vehículo opcionales. “Fletero frecuente” lo deja guardado para los próximos días; si no, es solo para ese día (se limpia solo a la semana). La invitación a usar la app queda como opción aparte, con su nombre y a su celular.
 
 ### v6.1
 - Vista de computadora (960 px o más): menú fijo a la izquierda, Inicio con el mapa al lado de la lista, Armar en dos columnas (cargar | paradas) y las hojas como ventanas centradas.
