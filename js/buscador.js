@@ -1,10 +1,15 @@
 /* =========================================================
    Vueltrack — buscador de direcciones y lugares con sugerencias
-   Primero muestra tus clientes habituales que coinciden; después
-   lo que encuentran los buscadores (direcciones y comercios).
+   Orden de las sugerencias:
+     1. Tus clientes habituales y los lugares que ya marcaron en el equipo
+     2. Coordenadas o links de Google Maps pegados
+     3. Lo que encuentran los buscadores (direcciones y comercios)
+     4. Siempre: "Marcar en el mapa" y "Estoy acá"
    ========================================================= */
-import { buscarDirecciones } from './rutas.js';
-import { esc, debounce, sinTildes } from './ui.js';
+import { buscarDirecciones, ubicarSugerencia } from './rutas.js';
+import { lugaresConocidos, coincidePorPalabras, coordenadasDe, esLinkDeMapas, recordarLugar } from './lugares.js';
+import { marcarEnMapa } from './marcarEnMapa.js';
+import { esc, debounce, aviso } from './ui.js';
 
 /**
  * @param {HTMLInputElement} input
@@ -24,17 +29,19 @@ export function crearBuscador(input, { foco = () => null, alElegir, clientes = (
 
   let ultimos = [];
   let pedido = 0;
+  // Sesión de búsqueda (Google cobra menos si el escribir y el elegir van juntos)
+  let sesion = '';
+  const nuevaSesion = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
 
   function cerrar() {
     lista.classList.add('oculto');
     lista.innerHTML = '';
   }
 
-  function deMisClientes(texto) {
-    const t = sinTildes(texto);
-    if (t.length < 2) return [];
-    return (clientes() || [])
-      .filter((c) => c.lat != null && sinTildes(`${c.nombre} ${c.direccion}`).includes(t))
+  function locales(texto) {
+    if (texto.trim().length < 2) return [];
+    const deClientes = (clientes() || [])
+      .filter((c) => c.lat != null && coincidePorPalabras(texto, `${c.nombre} ${c.direccion}`))
       .slice(0, 4)
       .map((c) => ({
         tipo: 'cliente',
@@ -45,7 +52,38 @@ export function crearBuscador(input, { foco = () => null, alElegir, clientes = (
         lat: c.lat,
         lng: c.lng
       }));
+    const deLugares = lugaresConocidos()
+      .filter((l) => Number.isFinite(l.lat) && coincidePorPalabras(texto, `${l.texto} ${l.nombre} ${l.direccion}`))
+      .filter((l) => !deClientes.some((c) => Math.abs(c.lat - l.lat) < 0.0003 && Math.abs(c.lng - l.lng) < 0.0003))
+      .slice(0, 3)
+      .map((l) => ({
+        tipo: 'guardado',
+        nombre: l.nombre && l.nombre !== l.direccion ? l.nombre : '',
+        direccion: l.direccion || l.texto,
+        detalle: 'Lugar guardado del equipo',
+        lat: l.lat,
+        lng: l.lng
+      }));
+    const pegado = coordenadasDe(texto);
+    const deCoordenadas = pegado
+      ? [
+          {
+            tipo: 'pegado',
+            nombre: pegado.nombre,
+            direccion: pegado.nombre ? 'Punto de Google Maps' : `${pegado.lat.toFixed(5)}, ${pegado.lng.toFixed(5)}`,
+            detalle: 'Ubicación exacta',
+            lat: pegado.lat,
+            lng: pegado.lng
+          }
+        ]
+      : [];
+    return [...deCoordenadas, ...deClientes, ...deLugares];
   }
+
+  const BUSCAR_MAS = '<button type="button" class="sug-accion" data-accion="buscar"><span class="sug-titulo">Buscar en el mapa</span><span class="sug-sec">Si no es ninguno de los tuyos</span></button>';
+  const ACCIONES =
+    '<button type="button" class="sug-accion" data-accion="mapa"><span class="sug-titulo">Marcar en el mapa</span><span class="sug-sec">Ubicá el pin a mano y queda guardado</span></button>' +
+    '<button type="button" class="sug-accion" data-accion="aca"><span class="sug-titulo">Estoy acá</span><span class="sug-sec">Usar la ubicación del celular</span></button>';
 
   function fila(r, i) {
     const titulo = r.nombre || r.direccion;
@@ -53,55 +91,105 @@ export function crearBuscador(input, { foco = () => null, alElegir, clientes = (
     const etiqueta =
       r.tipo === 'cliente'
         ? '<span class="etiqueta etiqueta-ok">Cliente</span>'
-        : r.tipo === 'lugar'
-          ? '<span class="etiqueta etiqueta-aviso">Lugar</span>'
-          : '';
+        : r.tipo === 'guardado'
+          ? '<span class="etiqueta etiqueta-ok">Guardado</span>'
+          : r.tipo === 'pegado' || r.tipo === 'link'
+            ? '<span class="etiqueta etiqueta-ok">Exacto</span>'
+            : r.tipo === 'lugar' || (r.tipo === 'google' && r.esLugar)
+              ? '<span class="etiqueta etiqueta-aviso">Lugar</span>'
+              : '';
     return `<button type="button" role="option" data-i="${i}"><span class="sug-titulo">${esc(titulo)}${etiqueta}</span><span class="sug-sec">${esc(secundaria)}</span></button>`;
   }
 
-  function mostrar(resultados, mensaje, locales = []) {
-    ultimos = [...locales, ...resultados];
-    if (mensaje) {
-      lista.innerHTML =
-        locales.map((r, i) => fila(r, i)).join('') + `<button type="button" disabled><span class="sug-sec">${esc(mensaje)}</span></button>`;
-      lista.classList.remove('oculto');
-      return;
-    }
-    if (!ultimos.length) {
-      mostrar([], 'No encontramos nada con ese nombre. Probá con calle y altura, o guardalo como cliente.');
-      return;
-    }
-    lista.innerHTML = ultimos.map(fila).join('');
+  function mostrar(resultados, mensaje, propios = [], conAcciones = true, ofrecerBuscar = false) {
+    ultimos = [...propios, ...resultados];
+    const filas = ultimos.map(fila).join('') + (ofrecerBuscar ? BUSCAR_MAS : '');
+    const nota = mensaje
+      ? `<button type="button" disabled><span class="sug-sec">${esc(mensaje)}</span></button>`
+      : !ultimos.length
+        ? '<button type="button" disabled><span class="sug-sec">No lo encontramos en los mapas. Marcalo vos y queda guardado para la próxima, o pegá un link de Google Maps.</span></button>'
+        : '';
+    lista.innerHTML = filas + nota + (conAcciones ? ACCIONES : '');
     lista.classList.remove('oculto');
+  }
+
+  async function buscarAfuera(texto, propios) {
+    if (!sesion) sesion = nuevaSesion();
+    const mio = ++pedido;
+    mostrar([], esLinkDeMapas(texto) ? 'Leyendo el link de Google Maps…' : 'Buscando…', propios);
+    try {
+      const resultados = await buscarDirecciones(texto, foco(), undefined, { sesion });
+      if (mio === pedido) mostrar(resultados, '', propios);
+    } catch (e) {
+      if (mio === pedido) mostrar([], 'No se pudo buscar. Revisá la conexión.', propios);
+    }
   }
 
   const buscar = debounce(async () => {
     const texto = input.value.trim();
-    const locales = deMisClientes(texto);
+    const propios = locales(texto);
     if (texto.length < 3) {
-      if (locales.length) mostrar([], '', locales);
+      if (propios.length) mostrar([], '', propios, false);
       else cerrar();
       return;
     }
-    const mio = ++pedido;
-    mostrar([], 'Buscando…', locales);
-    try {
-      const resultados = await buscarDirecciones(texto, foco());
-      if (mio === pedido) mostrar(resultados, '', locales);
-    } catch (e) {
-      if (mio === pedido) mostrar([], 'No se pudo buscar. Revisá la conexión.', locales);
+    // Coordenadas o link con coordenadas: no hace falta buscar afuera
+    if (propios.some((r) => r.tipo === 'pegado')) {
+      mostrar([], '', propios);
+      return;
     }
-  }, 350);
+    // Si ya está entre tus clientes o lugares guardados, no se gasta una búsqueda:
+    // se ofrece "Buscar en el mapa" por si es otro
+    if (propios.length && !esLinkDeMapas(texto)) {
+      pedido++;
+      mostrar([], '', propios, true, true);
+      return;
+    }
+    buscarAfuera(texto, propios);
+  }, 400);
 
   input.addEventListener('input', buscar);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') cerrar();
   });
-  lista.addEventListener('click', (e) => {
+  lista.addEventListener('click', async (e) => {
+    const accion = e.target.closest('[data-accion]');
+    if (accion && accion.dataset.accion === 'buscar') {
+      const texto = input.value.trim();
+      buscarAfuera(texto, locales(texto));
+      return;
+    }
+    if (accion) {
+      const texto = input.value.trim();
+      cerrar();
+      sesion = '';
+      const r = await marcarEnMapa({ texto, centro: foco(), desdeAca: accion.dataset.accion === 'aca' });
+      if (r) alElegir(r);
+      return;
+    }
     const b = e.target.closest('[data-i]');
     if (!b) return;
-    const r = ultimos[Number(b.dataset.i)];
+    let r = ultimos[Number(b.dataset.i)];
+    const escrito = input.value.trim();
     cerrar();
+    // Sugerencia de Google: se pide la ubicación recién ahora
+    if (r.tipo === 'google') {
+      try {
+        const u = await ubicarSugerencia(r.placeId, sesion);
+        r = { ...r, lat: u.lat, lng: u.lng, direccion: r.esLugar ? u.direccion || r.direccion : r.direccion || u.direccion };
+        // Queda guardado: la próxima vez sale de tus lugares, sin gastar otra búsqueda
+        recordarLugar({ texto: escrito || r.nombre || r.direccion, nombre: r.nombre, direccion: r.direccion, lat: r.lat, lng: r.lng });
+      } catch (err) {
+        aviso('No se pudo ubicar ese lugar. Probá de nuevo o marcalo en el mapa.');
+        return;
+      } finally {
+        sesion = '';
+      }
+    }
+    // Lo pegado desde Google Maps se recuerda con lo que se escribió
+    if (r.tipo === 'pegado' || r.tipo === 'link') {
+      recordarLugar({ texto: r.nombre || r.direccion, nombre: r.nombre, direccion: r.nombre || r.direccion, lat: r.lat, lng: r.lng });
+    }
     alElegir(r);
   });
   document.addEventListener('click', (e) => {

@@ -2,8 +2,12 @@
    GET /api/lugar?lat=...&lng=...
    Dirección aproximada de un punto (para "Usar mi ubicación actual").
    Prueba con Nominatim (OpenStreetMap) y, si no hay calle, con Georef.
+
+   GET /api/lugar?placeId=...&sesion=...
+   Ubicación exacta de una sugerencia de Google (solo ubicación y
+   dirección: los campos más baratos, 10.000 gratis por mes).
    ========================================================= */
-import { verificarUsuario, pedirGeoref, responder } from './_comun.js';
+import { verificarUsuario, pedirGeoref, hayGoogle, pedirGoogle, responder } from './_comun.js';
 
 function nombrePropio(texto) {
   return String(texto || '')
@@ -15,6 +19,26 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return responder(res, 405, { error: 'metodo' });
   const uid = await verificarUsuario(req);
   if (!uid) return responder(res, 401, { error: 'sin-sesion' });
+
+  const placeId = String(req.query.placeId || '').trim();
+  if (placeId) {
+    if (!hayGoogle() || !/^[A-Za-z0-9_-]{10,300}$/.test(placeId)) return responder(res, 400, { error: 'lugar' });
+    try {
+      const q = new URLSearchParams({ languageCode: 'es', regionCode: 'ar' });
+      const sesion = String(req.query.sesion || '').slice(0, 64);
+      if (sesion) q.set('sessionToken', sesion);
+      const d = await pedirGoogle(`places/${placeId}?${q.toString()}`, { campos: 'location,formattedAddress' });
+      if (!d.location) return responder(res, 404, { error: 'lugar' });
+      return responder(res, 200, {
+        lat: d.location.latitude,
+        lng: d.location.longitude,
+        direccion: String(d.formattedAddress || '').replace(/,\s*Argentina$/, '')
+      });
+    } catch (e) {
+      console.log('[lugar] google', e.estado || '', JSON.stringify(e.detalle || e.message).slice(0, 300));
+      return responder(res, 502, { error: 'lugar' });
+    }
+  }
 
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);

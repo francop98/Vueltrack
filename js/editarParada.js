@@ -4,6 +4,7 @@
    ========================================================= */
 import { crearBuscador, htmlBuscador } from './buscador.js';
 import { mapaConPin } from './mapa.js';
+import { recordarLugar } from './lugares.js';
 import { corregirUbicacionCliente } from './datos.js';
 import { ICONOS, esc, abrirHoja, aviso, confirmar } from './ui.js';
 
@@ -113,6 +114,8 @@ export function editarParada({ parada: p, equipo, guardar, quitar, ordenada = fa
     }
     await guardar(cambios);
     // Si es un cliente habitual y solo se corrigió el pin (misma dirección), se guarda para la próxima
+    // Pin corregido: la dirección queda guardada como lugar conocido del equipo
+    if (movida) recordarLugar({ texto: ubicacion.direccion, nombre: p.clienteId ? '' : el.querySelector('#ep-nombre').value.trim(), direccion: ubicacion.direccion, lat: ubicacion.lat, lng: ubicacion.lng });
     if (movida && p.clienteId && ubicacion.direccion === p.direccion) {
       await corregirUbicacionCliente(equipo.id, p.clienteId, ubicacion.lat, ubicacion.lng).catch(() => {});
     }

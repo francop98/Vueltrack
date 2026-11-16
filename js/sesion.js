@@ -2,6 +2,7 @@
    Vueltrack — sesión: usuario, equipo, roles y menú de cuenta
    Cada pantalla llama a iniciarPantalla() al cargar.
    ========================================================= */
+import { iniciarLugares } from './lugares.js';
 import { auth } from './firebase.js';
 import {
   onAuthStateChanged,
@@ -77,6 +78,7 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
       }
 
       definirZonaBusqueda(equipo.zona);
+      iniciarLugares(equipo.id);
       pintarNav(pagina, { organizador: ctx.organizador, fletero: ctx.fletero });
       ponerVolver(pagina);
       prepararMenu(ctx);
@@ -90,6 +92,29 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
     });
   });
 }
+
+/* ---------- Aviso de sin señal ----------
+   Sin conexión la app sigue funcionando: lo que marques se guarda en el
+   celular y se envía solo cuando vuelve la señal. */
+
+function vigilarSenal() {
+  if (document.getElementById('sin-senal')) return;
+  const cinta = document.createElement('div');
+  cinta.id = 'sin-senal';
+  cinta.className = 'sin-senal oculto';
+  cinta.setAttribute('role', 'status');
+  cinta.textContent = 'Sin señal · se guarda y se envía al volver';
+  document.body.appendChild(cinta);
+  const pintar = (avisarVuelta) => {
+    const sin = navigator.onLine === false;
+    cinta.classList.toggle('oculto', !sin);
+    if (!sin && avisarVuelta) aviso('Volvió la señal. Enviando los cambios…');
+  };
+  window.addEventListener('offline', () => pintar(false));
+  window.addEventListener('online', () => pintar(true));
+  pintar(false);
+}
+vigilarSenal();
 
 /* ---------- Botón para volver ---------- */
 

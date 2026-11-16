@@ -36,6 +36,10 @@ function pintar() {
   const enEquipo = eq.modo !== 'solo';
 
   $('modos').classList.toggle('oculto', !ctx.organizador);
+  // Cada uno puede cambiar su rol, salvo el fletero al que otro le organiza la vuelta
+  $('bloque-mi-rol').classList.toggle('oculto', !ctx.organizador);
+  $('rol-org').checked = ctx.organizador;
+  $('rol-flet').checked = ctx.fletero;
   $('bloque-ajustes').classList.toggle('oculto', !ctx.organizador);
   $('txt-zona').textContent = textoZona(eq.zona);
   $('txt-base').textContent = eq.base ? eq.base.direccion : 'Sin cargar';
@@ -79,6 +83,49 @@ function pintar() {
   const puedeSalir = enEquipo && lista.length > 1 && (!ctx.organizador || orgs > 1);
   $('btn-salir-equipo').classList.toggle('oculto', !puedeSalir);
 }
+
+/* ---------- Mi rol ---------- */
+
+async function cambiarMiRol() {
+  const organiza = $('rol-org').checked;
+  const reparte = $('rol-flet').checked;
+  const volver = () => {
+    $('rol-org').checked = ctx.organizador;
+    $('rol-flet').checked = ctx.fletero;
+  };
+  if (!organiza && !reparte) {
+    aviso('Tenés que tener al menos un rol');
+    volver();
+    return;
+  }
+  if (!organiza && organizadores().filter((m) => m.uid !== ctx.user.uid).length === 0) {
+    aviso('El equipo necesita al menos un organizador. Dale ese rol a otra persona primero.');
+    volver();
+    return;
+  }
+  if (!reparte && ctx.equipo.modo === 'solo') {
+    aviso('Trabajando solo, sos quien sale a repartir. Para organizar sin vehículo, pasá a “En equipo”.');
+    volver();
+    return;
+  }
+  if (!organiza) {
+    const ok = await confirmar({
+      titulo: '¿Dejar de organizar?',
+      texto: 'Vas a ver solo tu vuelta y no vas a poder volver a cambiar tu rol: lo hace otro organizador.',
+      aceptar: 'Dejar de organizar',
+      peligro: true
+    });
+    if (!ok) {
+      volver();
+      return;
+    }
+  }
+  const roles = [organiza ? 'organizador' : '', reparte ? 'fletero' : ''].filter(Boolean);
+  await actualizarMiembro(ctx.equipo.id, ctx.user.uid, { roles });
+  aviso(reparte ? 'Listo, también salís a repartir' : 'Listo, ahora solo organizás');
+}
+$('rol-org').addEventListener('change', cambiarMiRol);
+$('rol-flet').addEventListener('change', cambiarMiRol);
 
 /* ---------- Ajustes del equipo ---------- */
 

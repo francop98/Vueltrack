@@ -25,6 +25,13 @@ async function pedir(url, opciones = {}) {
   return datos;
 }
 
+/* Ubicación exacta de una sugerencia de Google (se pide recién al elegirla) */
+export async function ubicarSugerencia(placeId, sesion = '') {
+  const q = new URLSearchParams({ placeId });
+  if (sesion) q.set('sesion', sesion);
+  return pedir(`/api/lugar?${q.toString()}`);
+}
+
 /* Zona de trabajo del equipo: las búsquedas priorizan esa localidad y después la provincia */
 let zonaBusqueda = null;
 export function definirZonaBusqueda(zona) {
@@ -32,8 +39,9 @@ export function definirZonaBusqueda(zona) {
 }
 
 /* Sugerencias de direcciones y lugares */
-export async function buscarDirecciones(texto, foco, zona = zonaBusqueda) {
+export async function buscarDirecciones(texto, foco, zona = zonaBusqueda, { sesion = '' } = {}) {
   const q = new URLSearchParams({ texto });
+  if (sesion) q.set('sesion', sesion);
   const centro = foco && foco.lat != null ? foco : zona && zona.lat != null ? zona : null;
   if (centro) {
     q.set('lat', centro.lat);

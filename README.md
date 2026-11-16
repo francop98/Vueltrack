@@ -1,4 +1,4 @@
-# Vueltrack v5.0
+# Vueltrack v5.1
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,21 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v5.1
+- Inicio y Hoy en una sola pantalla: saludo y avisos arriba, después el mapa, la próxima parada y la lista. La barra queda: organizador Inicio, Armar, Clientes, Historial; fletero Inicio, Manejo, Historial.
+- Ordenar a mano arrastrando (Reordenar → “A mano, arrastrando”): se recalculan los horarios en ese orden.
+- Funciona sin señal: marcar paradas, reprogramar y comprobantes se guardan en el celular y se envían al volver la conexión. Aviso “Sin señal” abajo.
+- Buscador con Google Places (API nueva) si está la variable GOOGLE_MAPS_API_KEY en Vercel. Para gastar menos: primero tus clientes y lugares guardados (sin consultar a Google), la ubicación se pide recién al elegir, y lo elegido queda guardado para la próxima. Si Google falla o no está configurado, siguen los buscadores gratuitos.
+- Archivos eliminados: pages/hoy.html, js/hoy.js.
+- Barra de abajo más baja (menos espacio bajo los botones) y aparece al instante al cambiar de pantalla (js/nav.js).
+- Orden de la barra del organizador: Inicio, Hoy, Armar, Clientes, Historial.
+- Búsqueda que aprende: lo marcado en el mapa, con “Estoy acá”, pegado desde Google Maps o con el pin corregido queda guardado como lugar del equipo y aparece primero la próxima vez.
+- En toda búsqueda: “Marcar en el mapa” y “Estoy acá”. Se pueden pegar coordenadas o links de Google Maps (también los cortos de “Compartir”).
+- Los clientes y lugares guardados se encuentran por palabras (“RN 3 km 696” encuentra “Ruta Nacional 3 Km 696”).
+- Equipo: sección “Tu rol” para que el organizador cambie el suyo (el fletero organizado por otro no puede).
+- Armar: texto más claro para “Cargar solos los clientes de cada día”.
+- Firestore: reglas nuevas para equipos/{id}/lugares (volver a publicar firestore.rules).
 
 ### v5.0
 - Scroll: el fondo queda fijo; solo se desplaza el contenido. Con una hoja, el menú o un aviso abiertos, la pantalla de atrás no se mueve.

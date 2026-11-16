@@ -24,7 +24,7 @@
 import { verificarUsuario, pedirORS, responder } from './_comun.js';
 
 const MAX_PARADAS_POR_PEDIDO = 48;
-const ORDENES = ['optimo', 'cerca', 'lejos', 'cierre'];
+const ORDENES = ['optimo', 'cerca', 'lejos', 'cierre', 'manual'];
 const MAX_VEHICULOS_POR_PEDIDO = 3;
 const FIN_DEL_DIA = 86399;
 const VENTANA_URGENTE = 90 * 60;
@@ -178,6 +178,8 @@ function porCercania(paradas, desde) {
 }
 
 function ordenarFijo(paradas, orden, base, inicio) {
+  // A mano: se respeta el orden en que llegan (solo se cuida que el retiro vaya antes que su entrega)
+  if (orden === 'manual') return retiroAntesQueEntrega(paradas);
   const urgentes = paradas.filter((p) => p.urgente);
   const resto = paradas.filter((p) => !p.urgente);
   const deBase = (p) => distanciaKm(base, p);

@@ -21,6 +21,7 @@ export const ORDENES = [
 ];
 
 export function nombreOrden(id) {
+  if (id === 'manual') return 'A mano';
   const o = ORDENES.find((x) => x.id === id);
   return o ? o.titulo : ORDENES[0].titulo;
 }
@@ -167,8 +168,13 @@ export async function ordenarYGuardar(op) {
  * Reordena solo la vuelta de un fletero (desde la pantalla Hoy),
  * opcionalmente arrancando desde donde está ahora.
  */
-export async function reordenarFletero({ equipo, fecha, vuelta, uid, orden, desde }) {
-  const suyas = paradasDe(vuelta, uid);
+export async function reordenarFletero({ equipo, fecha, vuelta, uid, orden, desde, ordenManual = null }) {
+  let suyas = paradasDe(vuelta, uid);
+  // Orden a mano: las paradas van en la secuencia que se armó arrastrando
+  if (ordenManual) {
+    const posicion = new Map(ordenManual.map((id, i) => [id, i]));
+    suyas = [...suyas].sort((a, b) => (posicion.get(a.id) ?? 999) - (posicion.get(b.id) ?? 999));
+  }
   const pendientes = suyas.filter((p) => !paradaHecha(p));
   if (!pendientes.length) return { sinAsignar: 0, llegaTarde: 0 };
   const salida = fecha === fechaISO() ? horaAhora(1) : horaDeSalida(vuelta, equipo, fecha);

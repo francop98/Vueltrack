@@ -179,3 +179,28 @@ export function responder(res, estado, datos) {
   res.setHeader('Cache-Control', 'no-store');
   res.status(estado).json(datos);
 }
+
+/* ---------- Google Places (API nueva) ----------
+   Solo si está la variable GOOGLE_MAPS_API_KEY en Vercel.
+   Autocompletado: 10.000 pedidos gratis por mes. Detalle con ubicación y
+   dirección (campos "Essentials"): 10.000 gratis por mes. */
+export const hayGoogle = () => !!process.env.GOOGLE_MAPS_API_KEY;
+
+export async function pedirGoogle(ruta, { metodo = 'GET', cuerpo = null, campos = '' } = {}) {
+  const headers = { 'X-Goog-Api-Key': process.env.GOOGLE_MAPS_API_KEY };
+  if (cuerpo) headers['Content-Type'] = 'application/json';
+  if (campos) headers['X-Goog-FieldMask'] = campos;
+  const resp = await conTiempo(
+    `https://places.googleapis.com/v1/${ruta}`,
+    { method: metodo, headers, body: cuerpo ? JSON.stringify(cuerpo) : undefined },
+    6000
+  );
+  const datos = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const error = new Error('google');
+    error.estado = resp.status;
+    error.detalle = datos.error || datos;
+    throw error;
+  }
+  return datos;
+}

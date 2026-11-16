@@ -627,7 +627,7 @@ $('btn-ordenar').addEventListener('click', async () => {
     });
     if (sinAsignar) aviso(`${sinAsignar} paradas no entran en el horario o en la capacidad del vehículo. Revisá horarios y bultos.`);
     else if (llegaTarde) aviso(`Con este orden, ${llegaTarde} paradas llegan después de su horario de cierre.`);
-    location.href = fecha === fechaISO() ? '/pages/hoy.html' : `/pages/armar.html?fecha=${fecha}`;
+    location.href = fecha === fechaISO() ? '/' : `/pages/armar.html?fecha=${fecha}`;
   } catch (e) {
     aviso(mensajeError(e));
   } finally {

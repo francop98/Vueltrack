@@ -28,6 +28,7 @@ export const ICONOS = {
   ojoTachado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
   descargar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
   ayuda: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5M12 17h.01"/></svg>',
+  arrastrar: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
   plata: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg>',
   historial: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   estrella: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>'
@@ -325,30 +326,8 @@ export function botonCargando(boton, cargando, textoOriginal) {
 /* ---------- Navegación inferior ---------- */
 
 export function pintarNav(activa, { organizador, fletero }) {
-  const nav = document.getElementById('nav');
-  if (!nav) return;
-  // Organizador: arma, ve la vuelta, sus clientes y el historial.
-  // Fletero (sin organizar): su vuelta, el modo manejo y su historial.
-  const items = organizador
-    ? [
-        { id: 'inicio', href: '/', texto: 'Inicio', icono: ICONOS.inicio },
-        { id: 'armar', href: '/pages/armar.html', texto: 'Armar', icono: ICONOS.armar },
-        { id: 'hoy', href: '/pages/hoy.html', texto: 'Hoy', icono: ICONOS.ruta },
-        { id: 'clientes', href: '/pages/clientes.html', texto: 'Clientes', icono: ICONOS.clientes },
-        { id: 'historial', href: '/pages/historial.html', texto: 'Historial', icono: ICONOS.historial }
-      ]
-    : [
-        { id: 'inicio', href: '/', texto: 'Inicio', icono: ICONOS.inicio },
-        { id: 'hoy', href: '/pages/hoy.html', texto: 'Hoy', icono: ICONOS.ruta },
-        fletero && { id: 'manejo', href: '/pages/manejo.html', texto: 'Manejo', icono: ICONOS.navegar },
-        { id: 'historial', href: '/pages/historial.html', texto: 'Historial', icono: ICONOS.historial }
-      ].filter(Boolean);
-  nav.innerHTML = `<div class="nav-inferior-interno">${items
-    .map(
-      (i) =>
-        `<a href="${i.href}" class="${i.id === activa ? 'activo' : ''}" ${i.id === activa ? 'aria-current="page"' : ''}>${i.icono}${i.texto}</a>`
-    )
-    .join('')}</div>`;
+  // El dibujo de la barra vive en js/nav.js (script clásico, para que aparezca al instante)
+  if (window.vueltrackNav) window.vueltrackNav(activa, { organizador, fletero });
 }
 
 /* ---------- Mostrar / ocultar contraseñas ---------- */

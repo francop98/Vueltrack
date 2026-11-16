@@ -328,7 +328,7 @@ $('btn-confirmar').addEventListener('click', async () => {
   try {
     await guardarCalculo(ctx.equipo, fecha, calculo);
     aviso('Listo, cada fletero ya ve su vuelta');
-    location.href = fecha === fechaISO() ? '/pages/hoy.html' : `/pages/armar.html?fecha=${fecha}`;
+    location.href = fecha === fechaISO() ? '/' : `/pages/armar.html?fecha=${fecha}`;
   } catch (e) {
     aviso('No se pudo guardar. Probá de nuevo.');
     $('btn-confirmar').disabled = false;

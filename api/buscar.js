@@ -31,6 +31,8 @@ import {
   pedirOverpass,
   consultarOverpass,
   patronOverpass,
+  hayGoogle,
+  pedirGoogle,
   responder
 } from './_comun.js';
 
@@ -113,6 +115,78 @@ async function deGeoref(texto, foco) {
         lng: d.ubicacion.lon
       };
     });
+}
+
+/* ---------- Google Places: autocompletado ----------
+   Devuelve sugerencias sin coordenadas; la ubicación se pide recién
+   al elegir una (GET /api/lugar?placeId=...), así se gasta menos. */
+
+const TIPOS_DE_LUGAR = ['establishment', 'point_of_interest', 'store', 'food', 'health', 'finance', 'lodging'];
+
+async function deGoogle(texto, foco, sesion) {
+  const cuerpo = { input: texto, languageCode: 'es', regionCode: 'ar', includedRegionCodes: ['ar'] };
+  if (sesion) cuerpo.sessionToken = sesion;
+  if (foco) cuerpo.locationBias = { circle: { center: { latitude: foco.lat, longitude: foco.lng }, radius: 50000 } };
+  const datos = await pedirGoogle('places:autocomplete', { metodo: 'POST', cuerpo });
+  return (datos.suggestions || [])
+    .map((s) => s.placePrediction)
+    .filter(Boolean)
+    .slice(0, 6)
+    .map((p) => {
+      const principal = (p.structuredFormat && p.structuredFormat.mainText && p.structuredFormat.mainText.text) || (p.text && p.text.text) || '';
+      const secundario = ((p.structuredFormat && p.structuredFormat.secondaryText && p.structuredFormat.secondaryText.text) || '').replace(/,\s*Argentina$/, '');
+      const esLugar = (p.types || []).some((t) => TIPOS_DE_LUGAR.includes(t));
+      return {
+        tipo: 'google',
+        placeId: p.placeId,
+        nombre: esLugar ? principal : '',
+        direccion: esLugar ? secundario.split(',')[0] : principal,
+        detalle: esLugar ? secundario.split(',').slice(1).join(',').trim() : secundario,
+        esLugar
+      };
+    });
+}
+
+/* ---------- Links de Google Maps ----------
+   Los links cortos (maps.app.goo.gl) redirigen a la dirección completa,
+   que trae las coordenadas exactas del lugar. */
+
+const PATRONES_COORDENADAS = [
+  /!3d(-?\d{1,2}\.\d{3,})!4d(-?\d{1,3}\.\d{3,})/,
+  /@(-?\d{1,2}\.\d{3,}),(-?\d{1,3}\.\d{3,})/,
+  /[?&](?:q|query|ll|destination|daddr)=(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})/
+];
+
+function coordenadasDeUrl(url) {
+  const t = decodeURIComponent(url);
+  for (const p of PATRONES_COORDENADAS) {
+    const m = t.match(p);
+    if (m) {
+      const lugar = t.match(/\/place\/([^/@]+)/);
+      return { lat: Number(m[1]), lng: Number(m[2]), nombre: lugar ? lugar[1].replace(/\+/g, ' ').trim() : '' };
+    }
+  }
+  return null;
+}
+
+async function desdeLinkDeMapas(url) {
+  let actual = url;
+  for (let salto = 0; salto < 5; salto++) {
+    const encontrado = coordenadasDeUrl(actual);
+    if (encontrado) return encontrado;
+    const resp = await fetch(actual, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0 (Vueltrack)' } });
+    const siguiente = resp.headers.get('location');
+    if (!siguiente) {
+      // Algunas páginas traen las coordenadas en el contenido
+      const html = resp.status === 200 ? (await resp.text()).slice(0, 200000) : '';
+      return coordenadasDeUrl(html.match(/https:\/\/www\.google\.[^"']*\/maps\/[^"']+/)?.[0] || '') || null;
+    }
+    const proximo = new URL(siguiente, actual);
+    // Solo se siguen redirecciones dentro de Google
+    if (!/(^|\.)(google\.[a-z.]+|goo\.gl|app\.goo\.gl)$/i.test(proximo.hostname)) return null;
+    actual = proximo.toString();
+  }
+  return coordenadasDeUrl(actual);
 }
 
 /* ---------- Esquinas: "Calle A y Calle B" ---------- */
@@ -365,8 +439,37 @@ export default async function handler(req, res) {
   const uid = await verificarUsuario(req);
   if (!uid) return responder(res, 401, { error: 'sin-sesion' });
 
-  const texto = String(req.query.texto || '').trim().slice(0, 120);
+  const crudo = String(req.query.texto || '').trim();
+  // Link de Google Maps pegado: se leen las coordenadas exactas
+  if (/^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps|maps\.google\.)/i.test(crudo)) {
+    try {
+      const punto = await desdeLinkDeMapas(crudo.slice(0, 2000));
+      const resultados = punto
+        ? [{ tipo: 'link', nombre: punto.nombre, direccion: punto.nombre ? 'Punto de Google Maps' : `${punto.lat.toFixed(5)}, ${punto.lng.toFixed(5)}`, detalle: 'Ubicación exacta de Google Maps', lat: punto.lat, lng: punto.lng, aproximada: false }]
+        : [];
+      console.log('[buscar] link de Google Maps', resultados.length ? 'leído' : 'sin coordenadas');
+      return responder(res, 200, { resultados });
+    } catch (e) {
+      console.log('[buscar] link de Google Maps falló', e.message);
+      return responder(res, 200, { resultados: [] });
+    }
+  }
+  const texto = crudo.slice(0, 120);
   if (texto.length < 3) return responder(res, 200, { resultados: [] });
+
+  // Con Google configurado, se prueba primero ahí (si falla o no encuentra, siguen los gratuitos)
+  if (hayGoogle() && req.query.gratis !== '1') {
+    const centro = Number.isFinite(Number(req.query.lat)) && Number.isFinite(Number(req.query.lng)) ? { lat: Number(req.query.lat), lng: Number(req.query.lng) } : null;
+    try {
+      const deG = await deGoogle(texto, centro, String(req.query.sesion || '').slice(0, 64));
+      if (deG.length) {
+        console.log('[buscar] google', JSON.stringify({ texto, resultados: deG.length }));
+        return responder(res, 200, { resultados: deG, fuente: 'google' });
+      }
+    } catch (e) {
+      console.log('[buscar] google falló', e.estado || '', JSON.stringify(e.detalle || e.message).slice(0, 300));
+    }
+  }
 
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);

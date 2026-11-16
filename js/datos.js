@@ -13,6 +13,7 @@ import { db } from './firebase.js';
 import {
   doc,
   getDoc,
+  getDocFromCache,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -208,17 +209,60 @@ export async function reemplazarVuelta(equipoId, fecha, datos) {
   await setDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha), { fecha, ...datos, actualizado: serverTimestamp() });
 }
 
+/* ---------- Sin señal ----------
+   Con señal, los cambios de una parada van en una transacción (no se pisan
+   con lo que otro marcó al mismo tiempo). Sin señal, se aplican sobre la copia
+   guardada en el celular y Firebase los manda solo cuando vuelve la conexión. */
+
+export const haySenal = () => navigator.onLine !== false;
+
+/* Escritura que no deja esperando a la pantalla si no hay señal */
+function sinEsperar(promesa) {
+  if (haySenal()) return promesa;
+  promesa.catch(() => {});
+  return Promise.resolve();
+}
+
+function conTope(promesa, ms) {
+  return Promise.race([promesa, new Promise((_, mal) => setTimeout(() => mal(Object.assign(new Error('sin-senal'), { code: 'unavailable' })), ms))]);
+}
+
+async function cambiarSinSenal(ref, paradaId, cambiar) {
+  let snap;
+  try {
+    snap = await getDocFromCache(ref);
+  } catch (e) {
+    throw new Error('sin-vuelta');
+  }
+  if (!snap.exists()) throw new Error('sin-vuelta');
+  const paradas = (snap.data().paradas || []).map((p) => ({ ...p }));
+  const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId)) || paradas;
+  // Queda en la cola de Firebase: se ve al instante y se envía al volver la señal
+  updateDoc(ref, { paradas: resultado, actualizado: serverTimestamp() }).catch(() => {});
+  return resultado;
+}
+
 /* Cambia una parada sin pisar lo que otro fletero marcó al mismo tiempo */
 export async function cambiarParada(equipoId, fecha, paradaId, cambiar) {
   const ref = doc(db, 'equipos', equipoId, 'vueltas', fecha);
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists()) throw new Error('sin-vuelta');
-    const paradas = (snap.data().paradas || []).map((p) => ({ ...p }));
-    const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId)) || paradas;
-    tx.update(ref, { paradas: resultado, actualizado: serverTimestamp() });
-    return resultado;
-  });
+  if (!haySenal()) return cambiarSinSenal(ref, paradaId, cambiar);
+  try {
+    return await conTope(
+      runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error('sin-vuelta');
+        const paradas = (snap.data().paradas || []).map((p) => ({ ...p }));
+        const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId)) || paradas;
+        tx.update(ref, { paradas: resultado, actualizado: serverTimestamp() });
+        return resultado;
+      }),
+      8000
+    );
+  } catch (e) {
+    // Señal muy débil o cortada a mitad de camino: se guarda igual en el celular
+    if (e.code === 'unavailable' || e.code === 'deadline-exceeded' || !haySenal()) return cambiarSinSenal(ref, paradaId, cambiar);
+    throw e;
+  }
 }
 
 export async function obtenerVuelta(equipoId, fecha) {
@@ -229,6 +273,21 @@ export async function obtenerVuelta(equipoId, fecha) {
 /* Suma paradas a la vuelta de otro día (la crea si no existe). Se usa al reprogramar. */
 export async function agregarParadasADia(equipoId, fecha, nuevas) {
   const ref = doc(db, 'equipos', equipoId, 'vueltas', fecha);
+  if (!haySenal()) {
+    // Sin señal: se suma sobre lo que haya en el celular de ese día (o se crea)
+    let previas = [];
+    try {
+      const snap = await getDocFromCache(ref);
+      if (snap.exists()) previas = snap.data().paradas || [];
+    } catch (e) {
+      previas = null;
+    }
+    const escritura = previas
+      ? setDoc(ref, { fecha, paradas: [...previas, ...nuevas], ordenada: false, actualizado: serverTimestamp() }, { merge: true })
+      : setDoc(ref, { fecha, paradas: nuevas, ordenada: false, actualizado: serverTimestamp() }, { merge: true });
+    escritura.catch(() => {});
+    return;
+  }
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (snap.exists()) {
@@ -249,7 +308,7 @@ export async function vueltasEntre(equipoId, desde, hasta) {
 /* ---------- Seguimiento para el cliente (link público) ---------- */
 
 export async function guardarSeguimiento(token, datos) {
-  await setDoc(doc(db, 'seguimiento', token), { ...datos, actualizado: serverTimestamp() }, { merge: true });
+  await sinEsperar(setDoc(doc(db, 'seguimiento', token), { ...datos, actualizado: serverTimestamp() }, { merge: true }));
 }
 
 export function escucharSeguimiento(token, alCambiar, alFallar) {
@@ -263,7 +322,9 @@ export function escucharSeguimiento(token, alCambiar, alFallar) {
 /* ---------- Comprobantes de entrega ---------- */
 
 export async function guardarComprobante(equipoId, fecha, paradaId, datos) {
-  await setDoc(doc(db, 'equipos', equipoId, 'comprobantes', `${fecha}_${paradaId}`), { ...datos, fecha, paradaId, actualizado: serverTimestamp() }, { merge: true });
+  await sinEsperar(
+    setDoc(doc(db, 'equipos', equipoId, 'comprobantes', `${fecha}_${paradaId}`), { ...datos, fecha, paradaId, actualizado: serverTimestamp() }, { merge: true })
+  );
 }
 
 export async function obtenerComprobante(equipoId, fecha, paradaId) {
@@ -274,7 +335,7 @@ export async function obtenerComprobante(equipoId, fecha, paradaId) {
 /* ---------- Ubicación en vivo de los fleteros ---------- */
 
 export async function publicarUbicacion(equipoId, uid, datos) {
-  await setDoc(doc(db, 'equipos', equipoId, 'ubicaciones', uid), { ...datos, actualizado: serverTimestamp() });
+  await sinEsperar(setDoc(doc(db, 'equipos', equipoId, 'ubicaciones', uid), { ...datos, actualizado: serverTimestamp() }));
 }
 
 export async function dejarDeCompartir(equipoId, uid) {
@@ -285,6 +346,33 @@ export function escucharUbicaciones(equipoId, alCambiar) {
   return onSnapshot(
     collection(db, 'equipos', equipoId, 'ubicaciones'),
     (snap) => alCambiar(snap.docs.map((d) => ({ uid: d.id, ...d.data() }))),
+    () => alCambiar([])
+  );
+}
+
+/* ---------- Lugares conocidos del equipo ----------
+   Cada vez que alguien marca un lugar en el mapa o corrige un pin,
+   queda guardado: la próxima búsqueda lo encuentra al instante. */
+
+function idDeLugar(texto) {
+  return String(texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 90) || 'lugar';
+}
+
+export async function guardarLugar(equipoId, lugar) {
+  const id = idDeLugar(lugar.texto || lugar.nombre || lugar.direccion);
+  await setDoc(doc(db, 'equipos', equipoId, 'lugares', id), { ...lugar, actualizado: serverTimestamp() }, { merge: true });
+}
+
+export function escucharLugares(equipoId, alCambiar) {
+  return onSnapshot(
+    collection(db, 'equipos', equipoId, 'lugares'),
+    (snap) => alCambiar(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     () => alCambiar([])
   );
 }

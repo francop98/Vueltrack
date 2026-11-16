@@ -67,7 +67,7 @@ function pintar() {
     $('cuerpo').innerHTML = `
       <div class="vacio manejo-fin">
         <strong>No tenés paradas para hoy</strong>
-        <a class="btn btn-primario" href="/pages/hoy.html">Volver</a>
+        <a class="btn btn-primario" href="/">Volver</a>
       </div>`;
     return;
   }
@@ -79,7 +79,7 @@ function pintar() {
         ${ICONOS.check}
         <strong>¡Vuelta terminada!</strong>
         <p>Hiciste las ${suyas.length} paradas de hoy.</p>
-        <a class="btn btn-primario" href="/pages/hoy.html">Ver el resumen</a>
+        <a class="btn btn-primario" href="/">Ver el resumen</a>
       </div>`;
     return;
   }

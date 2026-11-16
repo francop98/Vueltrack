@@ -36,7 +36,7 @@ function pasos(ctx) {
       icono: ICONOS.navegar,
       titulo: `${lista.length + 1}. Salí a la calle`,
       texto:
-        'En Hoy tocá “Toda la vuelta” para navegar con Google Maps, o “Solo esta” para ir a un destino. El Modo manejo te muestra una parada por vez con botones grandes. Con “Avisar” le mandás al cliente un WhatsApp con un link para seguir su entrega.'
+        'En Inicio tocá “Toda la vuelta” para navegar con Google Maps, o “Solo esta” para ir a un destino. El Modo manejo te muestra una parada por vez con botones grandes. Con “Avisar” le mandás al cliente un WhatsApp con un link para seguir su entrega.'
     },
     {
       icono: ICONOS.check,

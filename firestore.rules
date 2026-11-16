@@ -143,6 +143,11 @@ service cloud.firestore {
         allow write: if esMiembro(equipoId) && request.auth.uid == uid;
       }
 
+      // ---------- Lugares conocidos (marcados en el mapa o con el pin corregido) ----------
+      match /lugares/{lugarId} {
+        allow read, write: if esMiembro(equipoId);
+      }
+
       // ---------- Comprobantes de entrega (foto y firma) ----------
       match /comprobantes/{comprobanteId} {
         allow read, write: if esMiembro(equipoId);

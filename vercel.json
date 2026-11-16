@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/hoy.html",
-      "destination": "/pages/hoy.html",
+      "destination": "/",
       "permanent": true
     },
     {
@@ -47,6 +47,11 @@
     },
     {
       "source": "/pages/cotizar.html",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/pages/hoy.html",
       "destination": "/",
       "permanent": false
     }

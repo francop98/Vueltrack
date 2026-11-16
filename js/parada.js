@@ -7,6 +7,7 @@ import { paradasDe, paradaHecha, textoHorario } from './vuelta.js';
 import { editarParada, confirmarQuitar } from './editarParada.js';
 import { marcarEstado, elegirNoEntregado, pasarAlFinal, conectarAviso, textoResultado } from './estados.js';
 import { pintarComprobante } from './comprobante.js';
+import { recordarLugar } from './lugares.js';
 import { compartirSiCorresponde } from './enVivo.js';
 import {
   ICONOS,
@@ -50,7 +51,7 @@ function pintar() {
   const p = laParada();
   if (!p) {
     $('nombre').textContent = 'Esta parada ya no está en la vuelta';
-    $('acciones').innerHTML = '<a class="btn btn-primario" href="/pages/hoy.html">Volver a la vuelta</a>';
+    $('acciones').innerHTML = '<a class="btn btn-primario" href="/">Volver a la vuelta</a>';
     $('botones-estado').innerHTML = '';
     $('btn-ubicacion').classList.add('oculto');
     $('gestion').classList.add('oculto');
@@ -149,7 +150,7 @@ function pintar() {
 function irALaSiguiente() {
   const p = laParada();
   const pendiente = paradasDe(vuelta, p ? p.fleteroUid : ctx.user.uid).find((x) => !paradaHecha(x) && x.id !== id);
-  location.href = pendiente ? `/pages/parada.html?id=${encodeURIComponent(pendiente.id)}` : '/pages/hoy.html';
+  location.href = pendiente ? `/pages/parada.html?id=${encodeURIComponent(pendiente.id)}` : '/';
 }
 
 $('botones-estado').addEventListener('click', async (e) => {
@@ -201,6 +202,7 @@ $('btn-ubicacion').addEventListener('click', async () => {
         return paradas;
       });
       if (p.clienteId) await corregirUbicacionCliente(ctx.equipo.id, p.clienteId, lat, lng);
+      recordarLugar({ texto: p.direccion, nombre: p.clienteId ? '' : p.nombre, direccion: p.direccion, lat, lng });
       aviso('Ubicación guardada');
     },
     () => aviso('No se pudo obtener la ubicación. Revisá el permiso de ubicación.'),
@@ -225,7 +227,7 @@ $('btn-editar').addEventListener('click', () => {
       }),
     quitar: async () => {
       await cambiarParada(ctx.equipo.id, fecha, id, (paradas) => paradas.filter((x) => x.id !== id));
-      location.href = '/pages/hoy.html';
+      location.href = '/';
     }
   });
 });
@@ -235,5 +237,5 @@ $('btn-eliminar').addEventListener('click', async () => {
   if (!p || !(await confirmarQuitar(p))) return;
   await cambiarParada(ctx.equipo.id, fecha, id, (paradas) => paradas.filter((x) => x.id !== id));
   aviso('Destino eliminado');
-  location.href = '/pages/hoy.html';
+  location.href = '/';
 });
