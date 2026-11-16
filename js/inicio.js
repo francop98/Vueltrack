@@ -29,6 +29,7 @@ import {
   linkWaze,
   linkTel,
   linkGoogleMapsVuelta,
+  linkWhatsApp,
   PARADAS_POR_TRAMO,
   aviso
 } from './ui.js';
@@ -446,13 +447,39 @@ function pintarListas(grupos) {
   // Reordenar: lo hace quien organiza o el fletero independiente, no el fletero de equipo
   $('btn-reordenar').classList.toggle('oculto', !uidDeLaLista(grupos) || ctx.fleteroDeEquipo);
   $('lista-titulo').textContent = grupos.length === 1 ? `Paradas de ${grupos[0].uid === ctx.user.uid ? 'tu vuelta' : grupos[0].nombre}` : 'Paradas por fletero';
+  const externos = new Set(fleterosDelEquipo(ctx.equipo).filter((f) => f.externo).map((f) => f.uid));
   $('listas').innerHTML = grupos
     .map(
       (g) => `
       ${grupos.length > 1 ? `<span class="letra-grupo"><i class="punto" style="background:${esc(g.color)}"></i> ${esc(g.nombre)}</span>` : ''}
+      ${
+        ctx.organizador && externos.has(g.uid) && g.paradas.some((p) => !p.hecha)
+          ? `<a class="btn btn-contorno" href="${esc(linkRecorridoWhatsApp(g))}" target="_blank" rel="noopener">${ICONOS.mensaje}Mandarle el recorrido a ${esc(g.nombre.split(' ')[0])} por WhatsApp</a>`
+          : ''
+      }
       <div class="lista">${g.paradas.map(filaParada).join('')}</div>`
     )
     .join('');
+}
+
+/* Fletero sin la app: el recorrido ordenado, con horarios y links de Google Maps, por WhatsApp */
+function linkRecorridoWhatsApp(g) {
+  const f = fleterosDelEquipo(ctx.equipo).find((x) => x.uid === g.uid) || {};
+  const pendientes = g.paradas.filter((p) => !p.hecha);
+  const lineas = pendientes.map((p, i) => {
+    const extra = [p.llegada != null ? `aprox. ${horaDeSegundos(p.llegada)}` : '', textoHorario(p), p.tipo === 'retiro' ? 'RETIRO' : '', p.nota].filter(Boolean).join(' · ');
+    return `${i + 1}. ${p.nombre}${p.nombre !== p.direccion ? ` – ${p.direccion}` : ''}${extra ? ` (${extra})` : ''}${p.telefono ? ` · Tel. ${p.telefono}` : ''}`;
+  });
+  const tramos = [];
+  for (let i = 0; i < pendientes.length; i += PARADAS_POR_TRAMO) tramos.push(linkGoogleMapsVuelta(pendientes.slice(i, i + PARADAS_POR_TRAMO)));
+  const texto = [
+    `Hola ${String(f.nombre || '').split(' ')[0]}! Tu vuelta de hoy (${pendientes.length} ${pendientes.length === 1 ? 'parada' : 'paradas'}):`,
+    '',
+    ...lineas,
+    '',
+    tramos.length === 1 ? `Recorrido en Google Maps: ${tramos[0]}` : tramos.map((t, i) => `Recorrido ${i + 1}: ${t}`).join('\n')
+  ].join('\n');
+  return linkWhatsApp(f.telefono || '', texto);
 }
 
 /* =========================================================

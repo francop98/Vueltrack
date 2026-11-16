@@ -381,3 +381,19 @@ export function escucharLugares(equipoId, alCambiar) {
     () => alCambiar([])
   );
 }
+
+/* Borra la vuelta entera de un día (paradas y recorridos) */
+export async function borrarVuelta(equipoId, fecha) {
+  await deleteDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha));
+}
+
+/* Fletero que no usa la app: el organizador le asigna paradas y le manda el recorrido por WhatsApp */
+export async function agregarFleteroSinApp(equipo, { nombre, telefono = '' }) {
+  const uid = `ext_${idNuevo()}`;
+  const usados = new Set(Object.values(equipo.miembros || {}).map((m) => m.color).filter(Boolean));
+  const color = COLORES_FLETERO.find((c) => !usados.has(c)) || COLORES_FLETERO[Object.keys(equipo.miembros || {}).length % COLORES_FLETERO.length];
+  await updateDoc(doc(db, 'equipos', equipo.id), {
+    [`miembros.${uid}`]: { nombre, telefono, roles: ['fletero'], externo: true, vehiculo: '', gasto: null, color }
+  });
+  return uid;
+}

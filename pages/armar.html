@@ -25,7 +25,6 @@
     <main class="contenido">
       <header class="barra-sup">
         <div class="barra-izq">
-          <button type="button" class="btn-icono" id="btn-menu" aria-label="Abrir menú" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
           <a class="marca" href="/" aria-label="Vueltrack, inicio">
           <img src="/assets/icono.svg" alt="">
           <span class="marca-texto">vuel<span>track</span></span>
@@ -45,7 +44,7 @@
           <button type="button" class="link" id="btn-redistribuir">Dividir por zona</button>
         </div>
         <div class="chips" id="chips-salen" role="group" aria-label="Fleteros que salen"></div>
-        <p class="texto-tenue">Cada destino que agregues se asigna solo al fletero de esa zona. Tocá el nombre en una parada para cambiarlo.</p>
+        <p class="texto-tenue" id="ayuda-salen"></p>
       </section>
 
       <div class="campo buscador">
@@ -73,7 +72,10 @@
       </section>
 
       <section class="seccion">
-        <h2 class="subtitulo" id="titulo-paradas">Paradas cargadas</h2>
+        <div class="fila-titulo">
+          <h2 class="subtitulo" id="titulo-paradas">Paradas cargadas</h2>
+          <button type="button" class="link link-peligro oculto" id="btn-borrar-todo">Borrar todo</button>
+        </div>
         <div class="lista" id="lista-paradas"></div>
         <p class="texto-tenue oculto" id="sin-paradas">Todavía no cargaste paradas para este día.</p>
       </section>

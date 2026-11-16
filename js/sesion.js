@@ -126,6 +126,7 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
       iniciarLugares(equipo.id);
       pintarNav(pagina, { organizador: ctx.organizador, fletero: ctx.fletero });
       ponerVolver(pagina);
+      ctxActual = ctx;
       prepararMenu(ctx);
 
       if (primera) {
@@ -207,11 +208,41 @@ function ponerVolver(pagina) {
 
 /* ---------- Menú desplegable (cuenta, seguridad, etc.) ---------- */
 
+/* El menú lateral está solo en Inicio: se abre con el botón o deslizando
+   desde el borde izquierdo hacia la derecha, y se cierra deslizando a la izquierda */
+let gestoListo = false;
 function prepararMenu(ctx) {
   const boton = document.getElementById('btn-menu');
   if (!boton) return;
   boton.onclick = () => abrirMenu(ctx);
+  if (gestoListo) return;
+  gestoListo = true;
+  let inicio = null;
+  document.addEventListener(
+    'touchstart',
+    (e) => {
+      const t = e.touches[0];
+      inicio = !document.querySelector('.velo') && t.clientX < 28 ? { x: t.clientX, y: t.clientY } : null;
+    },
+    { passive: true }
+  );
+  document.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!inicio) return;
+      const t = e.touches[0];
+      const dx = t.clientX - inicio.x;
+      const dy = Math.abs(t.clientY - inicio.y);
+      if (dy > 40) inicio = null;
+      else if (dx > 60) {
+        inicio = null;
+        abrirMenu(ctxActual || ctx);
+      }
+    },
+    { passive: true }
+  );
 }
+let ctxActual = null;
 
 const ICONO_CANDADO =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
@@ -285,6 +316,46 @@ export function abrirMenu(ctx) {
     }
   });
   document.addEventListener('keydown', teclas);
+
+  // Deslizar hacia la izquierda para cerrar (el cajón sigue al dedo)
+  const cajon = velo.querySelector('.cajon');
+  let toque = null;
+  velo.addEventListener(
+    'touchstart',
+    (e) => {
+      const t = e.touches[0];
+      toque = { x: t.clientX, y: t.clientY, dx: 0, horizontal: null };
+    },
+    { passive: true }
+  );
+  velo.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!toque) return;
+      const t = e.touches[0];
+      const dx = t.clientX - toque.x;
+      const dy = t.clientY - toque.y;
+      if (toque.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) toque.horizontal = Math.abs(dx) > Math.abs(dy);
+      if (!toque.horizontal) return;
+      toque.dx = Math.min(0, dx);
+      cajon.style.transition = 'none';
+      cajon.style.transform = `translateX(${toque.dx}px)`;
+    },
+    { passive: true }
+  );
+  velo.addEventListener('touchend', () => {
+    if (!toque) return;
+    const cerrarlo = toque.horizontal && toque.dx < -60;
+    cajon.style.transition = 'transform 0.2s ease';
+    if (cerrarlo) {
+      cajon.style.transform = 'translateX(-100%)';
+      setTimeout(cerrar, 180);
+    } else {
+      cajon.style.transform = '';
+    }
+    toque = null;
+  });
+
   document.body.appendChild(velo);
   velo.querySelector('[data-accion="cerrar"]').focus();
 }

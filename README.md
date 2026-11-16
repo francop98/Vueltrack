@@ -1,4 +1,4 @@
-# Vueltrack v6.0
+# Vueltrack v6.1
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,13 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v6.1
+- Vista de computadora (960 px o más): menú fijo a la izquierda, Inicio con el mapa al lado de la lista, Armar en dos columnas (cargar | paradas) y las hojas como ventanas centradas.
+- Armar: “Borrar todo” para descartar la vuelta del día entera (con confirmación).
+- Menú lateral solo en Inicio; se abre deslizando desde el borde izquierdo y se cierra deslizando hacia la izquierda. En las demás pantallas, solo el botón de volver.
+- Armar → “¿Quiénes salen este día?” → “+ Agregar fletero”: invitar por WhatsApp (link con el código, se completa solo al crear la cuenta) o cargar un fletero sin la app. Si trabajabas solo, pasa a equipo.
+- Fleteros sin la app: se les asignan paradas igual y desde Inicio se les manda el recorrido ordenado (con horarios y links de Google Maps) por WhatsApp.
 
 ### v6.0
 **Perfiles bien separados**

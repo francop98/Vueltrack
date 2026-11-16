@@ -3,6 +3,14 @@
    Registra el service worker y guarda el aviso de instalación
    que ofrecen Chrome y Android (en iPhone se instala a mano).
    ========================================================= */
+/* Link de invitación (?codigo=VT-XXXX): se guarda para completarlo solo al sumarse a un equipo */
+try {
+  var codigoInvitacion = new URLSearchParams(location.search).get('codigo');
+  if (codigoInvitacion) localStorage.setItem('vueltrack_codigo', codigoInvitacion.toUpperCase());
+} catch (e) {
+  /* sin almacenamiento */
+}
+
 if ('serviceWorker' in navigator) {
   // Cuando se activa una versión nueva de la app, se recarga una vez para usarla entera
   var habiaVersion = !!navigator.serviceWorker.controller;

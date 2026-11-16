@@ -7,6 +7,8 @@ import {
   escucharClientes,
   guardarVuelta,
   obtenerVuelta,
+  agregarFleteroSinApp,
+  borrarVuelta,
   actualizarEquipo,
   fleterosDelEquipo
 } from './datos.js';
@@ -27,6 +29,7 @@ import {
   fechaLarga,
   ordenarAlfa,
   aviso,
+  confirmar,
   abrirHoja,
   botonCargando,
   horaAhora
@@ -136,17 +139,106 @@ async function guardarParadas(nuevas) {
 }
 
 function pintarSalen() {
-  $('bloque-salen').classList.toggle('oculto', !hayVarios());
-  if (!hayVarios()) return;
+  $('bloque-salen').classList.toggle('oculto', !ctx.organizador);
+  if (!ctx.organizador) return;
+  $('btn-redistribuir').classList.toggle('oculto', !hayVarios());
+  $('ayuda-salen').textContent = hayVarios()
+    ? 'Cada destino que agregues se asigna solo al fletero de esa zona. Tocá el nombre en una parada para cambiarlo.'
+    : 'Sumá fleteros y la app reparte cada destino por zona entre los que salen.';
   const uids = activos().map((f) => f.uid);
-  $('chips-salen').innerHTML = fleterosEquipo()
-    .map((f) => {
-      const sale = uids.includes(f.uid);
-      const cant = paradas().filter((p) => p.fleteroUid === f.uid && !paradaHecha(p)).length;
-      return `<button type="button" class="chip ${sale ? 'activo' : ''}" data-sale="${esc(f.uid)}" aria-pressed="${sale}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre)}${sale && cant ? ` · ${cant}` : ''}</button>`;
-    })
-    .join('');
+  $('chips-salen').innerHTML =
+    fleterosEquipo()
+      .map((f) => {
+        const sale = uids.includes(f.uid);
+        const cant = paradas().filter((p) => p.fleteroUid === f.uid && !paradaHecha(p)).length;
+        return `<button type="button" class="chip ${sale ? 'activo' : ''}" data-sale="${esc(f.uid)}" aria-pressed="${sale}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre)}${f.externo ? ' (sin app)' : ''}${sale && cant ? ` · ${cant}` : ''}</button>`;
+      })
+      .join('') + '<button type="button" class="chip punteado" id="btn-agregar-fletero"><span class="mas" aria-hidden="true">+</span>Agregar fletero</button>';
 }
+
+/* ---------- Agregar fletero: con la app (invitación) o sin la app ---------- */
+$('chips-salen').addEventListener('click', (e) => {
+  if (!e.target.closest('#btn-agregar-fletero')) return;
+  const solo = ctx.equipo.modo === 'solo';
+  const hoja = abrirHoja({
+    titulo: 'Agregar fletero',
+    html: `
+      ${
+        solo
+          ? `<div class="campo">
+        <label for="af-equipo">Nombre de tu equipo o empresa</label>
+        <input id="af-equipo" placeholder="Ej.: Transportes del Sur">
+        <span class="texto-tenue">Al sumar fleteros pasás a trabajar en equipo.</span>
+      </div>`
+          : ''
+      }
+      <div class="tarjeta seccion">
+        <strong>Usa la app</strong>
+        <span class="texto-tenue">Le mandás una invitación. Crea su cuenta y ve las paradas que le asignás, pero no las puede cambiar.</span>
+        <button type="button" class="btn btn-primario" id="af-invitar">Invitar por WhatsApp</button>
+        <span class="texto-tenue centrado-texto" id="af-codigo"></span>
+      </div>
+      <div class="tarjeta seccion">
+        <strong>No usa la app</strong>
+        <span class="texto-tenue">Lo cargás vos. Le asignás paradas igual y le mandás el recorrido por WhatsApp.</span>
+        <div class="campo"><label for="af-nombre">Nombre</label><input id="af-nombre" placeholder="Nombre del fletero"></div>
+        <div class="campo"><label for="af-tel">Teléfono</label><input id="af-tel" type="tel" inputmode="tel" placeholder="Celular"></div>
+        <button type="button" class="btn btn-contorno" id="af-cargar">Agregar fletero</button>
+      </div>`
+  });
+  const el = hoja.el;
+  const pasarAEquipo = async () => {
+    if (ctx.equipo.modo !== 'solo') return true;
+    const nombre = el.querySelector('#af-equipo').value.trim();
+    if (!nombre) {
+      aviso('Escribí el nombre de tu equipo o empresa');
+      el.querySelector('#af-equipo').focus();
+      return false;
+    }
+    await actualizarEquipo(ctx.equipo.id, { modo: 'equipo', nombre });
+    ctx.equipo.modo = 'equipo';
+    ctx.equipo.nombre = nombre;
+    return true;
+  };
+  if (!solo) el.querySelector('#af-codigo').textContent = `Código del equipo: ${ctx.equipo.codigo}`;
+  el.querySelector('#af-invitar').addEventListener('click', async () => {
+    const ventana = window.open('', '_blank');
+    if (!(await pasarAEquipo())) {
+      if (ventana) ventana.close();
+      return;
+    }
+    const texto = `Sumate a "${ctx.equipo.nombre}" en Vueltrack para recibir tus retiros y entregas. Entrá a ${location.origin}/?codigo=${encodeURIComponent(ctx.equipo.codigo)} , creá tu cuenta y elegí "Me sumo a un equipo" (código ${ctx.equipo.codigo}).`;
+    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    if (ventana) ventana.location.href = url;
+    else location.href = url;
+    el.querySelector('#af-codigo').textContent = `Código del equipo: ${ctx.equipo.codigo}`;
+  });
+  let cargando = false;
+  el.querySelector('#af-cargar').addEventListener('click', async () => {
+    if (cargando) return;
+    const nombre = el.querySelector('#af-nombre').value.trim();
+    if (!nombre) {
+      aviso('Falta el nombre del fletero');
+      return;
+    }
+    cargando = true;
+    try {
+      if (!(await pasarAEquipo())) {
+        cargando = false;
+        return;
+      }
+      const uid = await agregarFleteroSinApp(ctx.equipo, { nombre, telefono: el.querySelector('#af-tel').value.trim() });
+      // Sale este día junto con los que ya salían
+      const uids = [...new Set([...activos().map((f) => f.uid), uid])];
+      await guardarVuelta(ctx.equipo.id, fecha, { activos: uids });
+      hoja.cerrar();
+      aviso(`${nombre} quedó en tu equipo y sale este día`);
+    } catch (err) {
+      cargando = false;
+      aviso('No se pudo agregar. Revisá la conexión.');
+    }
+  });
+});
 
 $('chips-salen').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-sale]');
@@ -326,6 +418,7 @@ $('btn-elegir-clientes').addEventListener('click', () => {
 function pintarParadas() {
   const lista = paradas();
   $('titulo-paradas').textContent = `Paradas cargadas · ${lista.length}`;
+  $('btn-borrar-todo').classList.toggle('oculto', !lista.length);
   $('sin-paradas').classList.toggle('oculto', lista.length > 0);
   $('lista-paradas').classList.toggle('oculto', !lista.length);
   const ordenada = vuelta && vuelta.ordenada;
@@ -423,6 +516,26 @@ function pintarAjustes() {
   pintarBotones();
 }
 
+
+/* ---------- Borrar toda la vuelta del día ---------- */
+$('btn-borrar-todo').addEventListener('click', async () => {
+  const lista = paradas();
+  if (!lista.length) return;
+  const hechas = lista.filter(paradaHecha).length;
+  const ok = await confirmar({
+    titulo: '¿Borrar toda la vuelta?',
+    texto: `Se borran las ${lista.length} paradas de este día${hechas ? `, incluidas ${hechas} que ya están marcadas` : ''}, y el recorrido calculado. No se puede deshacer.`,
+    aceptar: 'Borrar todo',
+    peligro: true
+  });
+  if (!ok) return;
+  try {
+    await borrarVuelta(ctx.equipo.id, fecha);
+    aviso('Vuelta borrada');
+  } catch (e) {
+    aviso('No se pudo borrar. Revisá la conexión.');
+  }
+});
 
 /* ---------- Pausa de la jornada (almuerzo) ---------- */
 $('btn-pausa').addEventListener('click', () => {

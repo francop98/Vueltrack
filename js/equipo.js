@@ -65,6 +65,7 @@ function pintar() {
           <span class="chips chips-chicas">
             ${roles.includes('organizador') ? '<span class="etiqueta etiqueta-oscura">Organizador</span>' : ''}
             ${roles.includes('fletero') ? '<span class="etiqueta etiqueta-acento">Fletero</span>' : ''}
+            ${m.externo ? '<span class="etiqueta">Sin app</span>' : ''}
             ${m.vehiculo ? `<span class="fila-detalle">· ${esc(m.vehiculo)}</span>` : ''}
           </span>
         </span>

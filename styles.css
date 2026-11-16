@@ -1908,3 +1908,172 @@ body:has(.velo) .ingreso {
   font-size: 13px;
   border-radius: 10px;
 }
+
+/* =========================================================
+   Computadora (pantallas de 960 px o más)
+   - La barra de abajo pasa a ser un menú fijo a la izquierda.
+   - El contenido usa el ancho: Inicio con el mapa al lado de la
+     lista, Armar con la carga a la izquierda y las paradas a la derecha.
+   - Las hojas se abren como ventanas en el centro.
+   ========================================================= */
+@media (min-width: 960px) {
+  body {
+    flex-direction: row;
+  }
+
+  .nav-inferior {
+    order: -1;
+    width: 220px;
+    flex-shrink: 0;
+    border-top: 0;
+    border-right: 1px solid var(--linea);
+    padding: calc(24px + env(safe-area-inset-top)) 12px 24px;
+    overflow-y: auto;
+  }
+
+  .nav-inferior-interno {
+    height: auto;
+    max-width: none;
+    grid-auto-flow: row;
+    grid-auto-rows: 52px;
+    gap: 4px;
+  }
+
+  .nav-inferior a {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 0 16px;
+    border-radius: 14px;
+    font-size: 15px;
+  }
+
+  .nav-inferior a:hover {
+    background: var(--superficie-2);
+    color: var(--tinta);
+  }
+
+  .nav-inferior a.activo {
+    background: var(--acento-suave);
+  }
+
+  .nav-inferior a svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .app {
+    max-width: none;
+    margin: 0;
+  }
+
+  .contenido {
+    width: 100%;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 40px 48px;
+  }
+
+  /* Pantallas sin menú (parada, modo manejo): columna cómoda en el centro */
+  .contenido.sin-nav,
+  .parada-cabecera {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+  }
+
+  .grilla-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* Inicio: mapa a la izquierda (fijo al desplazar) y próxima parada + lista a la derecha */
+  .contenido:has(#mapa-caja) {
+    max-width: 1240px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    column-gap: 28px;
+    row-gap: 16px;
+    align-items: start;
+    grid-auto-flow: row dense;
+  }
+
+  .contenido:has(#mapa-caja) > * {
+    grid-column: 1 / -1;
+  }
+
+  .contenido:has(#mapa-caja) > #mapa-caja {
+    grid-column: 1;
+    grid-row: span 3;
+    position: sticky;
+    top: 24px;
+    height: calc(100vh - 220px);
+    min-height: 420px;
+  }
+
+  .contenido:has(#mapa-caja) > #compartir,
+  .contenido:has(#mapa-caja) > #proxima,
+  .contenido:has(#mapa-caja) > #bloque-lista {
+    grid-column: 2;
+  }
+
+  /* Armar: todo lo de cargar a la izquierda, las paradas a la derecha */
+  .contenido:has(#lista-paradas) {
+    max-width: 1240px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 32px;
+    row-gap: 16px;
+    align-items: start;
+    grid-auto-flow: row dense;
+  }
+
+  .contenido:has(#lista-paradas) > * {
+    grid-column: 1;
+  }
+
+  .contenido:has(#lista-paradas) > .barra-sup,
+  .contenido:has(#lista-paradas) > .fila-titulo {
+    grid-column: 1 / -1;
+  }
+
+  .contenido:has(#lista-paradas) > .seccion:has(#lista-paradas) {
+    grid-column: 2;
+    grid-row: 3 / span 40;
+    position: sticky;
+    top: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+
+  /* Hojas y avisos */
+  .velo {
+    align-items: center;
+  }
+
+  .hoja {
+    max-width: 560px;
+    border-radius: 22px;
+    max-height: 86vh;
+    padding-bottom: 24px;
+  }
+
+  .aviso {
+    bottom: 28px;
+    left: calc(50% + 110px);
+  }
+
+  .sin-senal {
+    bottom: 28px;
+    left: calc(50% + 110px);
+  }
+
+  .flotante {
+    right: 32px;
+    bottom: 32px;
+  }
+}
+
+.link.link-peligro {
+  color: var(--error);
+}

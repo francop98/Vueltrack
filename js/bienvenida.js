@@ -216,6 +216,11 @@ async function guardarTodo() {
     await guardarUsuario(user.uid, { nombre, telefono, onboardingCompleto: true });
     if (modo === 'unirme') {
       await unirseConCodigo({ uid: user.uid, nombre, codigo: $('codigo').value, telefono, vehiculo, gasto });
+      try {
+        localStorage.removeItem('vueltrack_codigo');
+      } catch (e) {
+        /* sin almacenamiento */
+      }
     } else {
       await crearEquipo({
         uid: user.uid,
@@ -266,3 +271,17 @@ function pintarResumen() {
 }
 
 $('btn-instalar').addEventListener('click', instalarApp);
+
+/* Si llegó con un link de invitación, queda elegido "Me sumo a un equipo" con el código */
+(() => {
+  let codigo = '';
+  try {
+    codigo = localStorage.getItem('vueltrack_codigo') || '';
+  } catch (e) {
+    codigo = '';
+  }
+  if (!codigo) return;
+  $('codigo').value = codigo;
+  const boton = document.querySelector('[data-modo="unirme"]');
+  if (boton) boton.click();
+})();
