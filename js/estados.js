@@ -165,6 +165,8 @@ export async function pasarAlFinal(ctx, fecha, paradaId) {
  */
 export function elegirNoEntregado(ctx, fecha, vuelta, p, alTerminar) {
   const manana = sumarDias(fecha, 1);
+  // El fletero de equipo avisa qué pasó; pasarla a otro día lo decide quien organiza
+  const puedePasar = !ctx.fleteroDeEquipo;
   const hoja = abrirHoja({
     titulo: p.tipo === 'retiro' ? 'No se pudo retirar' : 'No se pudo entregar',
     html: `
@@ -180,11 +182,16 @@ export function elegirNoEntregado(ctx, fecha, vuelta, p, alTerminar) {
         <label for="ne-motivo">Detalle (opcional)</label>
         <input id="ne-motivo" placeholder="Ej.: local cerrado, dirección incorrecta">
       </div>
-      <label class="interruptor tarjeta" for="ne-pasar">
+      ${
+        puedePasar
+          ? ''
+          : '<p class="texto-tenue">Queda avisado con el motivo. Quien organiza decide si la pasa a otro día.</p>'
+      }
+      <label class="interruptor tarjeta ${puedePasar ? '' : 'oculto'}" for="ne-pasar">
         <span><strong>Pasarla a otro día</strong><br><span class="texto-tenue">Se suma pendiente a esa vuelta</span></span>
-        <input type="checkbox" id="ne-pasar" checked>
+        <input type="checkbox" id="ne-pasar" ${puedePasar ? 'checked' : ''}>
       </label>
-      <div class="campo" id="ne-fecha-caja">
+      <div class="campo ${puedePasar ? '' : 'oculto'}" id="ne-fecha-caja">
         <label for="ne-fecha">Día</label>
         <input type="date" id="ne-fecha" class="input" value="${manana}" min="${manana}">
       </div>

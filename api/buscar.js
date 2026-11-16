@@ -117,32 +117,46 @@ async function deGeoref(texto, foco) {
     });
 }
 
-/* ---------- Google Places: autocompletado ----------
-   Devuelve sugerencias sin coordenadas; la ubicación se pide recién
-   al elegir una (GET /api/lugar?placeId=...), así se gasta menos. */
+/* ---------- Google Places: búsqueda de texto ----------
+   Igual que buscar en Google Maps: devuelve el nombre del lugar, su dirección
+   completa y la ubicación exacta en un solo pedido (no hace falta otro al elegir).
+   "Text Search Pro": 5.000 pedidos gratis por mes. */
 
 const TIPOS_DE_LUGAR = ['establishment', 'point_of_interest', 'store', 'food', 'health', 'finance', 'lodging'];
 
-async function deGoogle(texto, foco, sesion) {
-  const cuerpo = { input: texto, languageCode: 'es', regionCode: 'ar', includedRegionCodes: ['ar'] };
-  if (sesion) cuerpo.sessionToken = sesion;
+/* "Chiclana 765, B8000 Bahía Blanca, Provincia de Buenos Aires, Argentina" → calle y ciudad */
+function direccionCorta(formateada) {
+  const partes = String(formateada || '')
+    .replace(/,\s*Argentina$/, '')
+    .split(',')
+    .map((p) => p.replace(/\b[A-Z]\d{4}[A-Z]{0,3}\b/g, '').trim())
+    .filter(Boolean);
+  return { calle: partes[0] || '', resto: partes.slice(1).filter((p) => !/^provincia de /i.test(p)).join(', ') };
+}
+
+async function deGoogle(texto, foco) {
+  const cuerpo = { textQuery: texto, languageCode: 'es', regionCode: 'ar', pageSize: 6 };
   if (foco) cuerpo.locationBias = { circle: { center: { latitude: foco.lat, longitude: foco.lng }, radius: 50000 } };
-  const datos = await pedirGoogle('places:autocomplete', { metodo: 'POST', cuerpo });
-  return (datos.suggestions || [])
-    .map((s) => s.placePrediction)
-    .filter(Boolean)
-    .slice(0, 6)
+  const datos = await pedirGoogle('places:searchText', {
+    metodo: 'POST',
+    cuerpo,
+    campos: 'places.id,places.displayName,places.formattedAddress,places.location,places.types'
+  });
+  return (datos.places || [])
+    .filter((p) => p.location)
     .map((p) => {
-      const principal = (p.structuredFormat && p.structuredFormat.mainText && p.structuredFormat.mainText.text) || (p.text && p.text.text) || '';
-      const secundario = ((p.structuredFormat && p.structuredFormat.secondaryText && p.structuredFormat.secondaryText.text) || '').replace(/,\s*Argentina$/, '');
-      const esLugar = (p.types || []).some((t) => TIPOS_DE_LUGAR.includes(t));
+      const { calle, resto } = direccionCorta(p.formattedAddress);
+      const nombre = (p.displayName && p.displayName.text) || '';
+      const esLugar = (p.types || []).some((t) => TIPOS_DE_LUGAR.includes(t)) && nombre && nombre !== calle;
       return {
-        tipo: 'google',
-        placeId: p.placeId,
-        nombre: esLugar ? principal : '',
-        direccion: esLugar ? secundario.split(',')[0] : principal,
-        detalle: esLugar ? secundario.split(',').slice(1).join(',').trim() : secundario,
-        esLugar
+        tipo: esLugar ? 'lugar' : 'direccion',
+        fuente: 'google',
+        nombre: esLugar ? nombre : '',
+        direccion: calle || nombre,
+        ciudad: resto,
+        detalle: resto,
+        lat: p.location.latitude,
+        lng: p.location.longitude
       };
     });
 }
@@ -461,7 +475,7 @@ export default async function handler(req, res) {
   if (hayGoogle() && req.query.gratis !== '1') {
     const centro = Number.isFinite(Number(req.query.lat)) && Number.isFinite(Number(req.query.lng)) ? { lat: Number(req.query.lat), lng: Number(req.query.lng) } : null;
     try {
-      const deG = await deGoogle(texto, centro, String(req.query.sesion || '').slice(0, 64));
+      const deG = await deGoogle(texto, centro);
       if (deG.length) {
         console.log('[buscar] google', JSON.stringify({ texto, resultados: deG.length }));
         return responder(res, 200, { resultados: deG, fuente: 'google' });

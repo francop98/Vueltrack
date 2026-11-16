@@ -11,6 +11,8 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/assets/icono.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/assets/icono-180.png">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
@@ -58,6 +60,11 @@
         <button type="button" class="chip" id="btn-pegar">Pegar varias direcciones</button>
         <button type="button" class="chip" id="btn-repetir">Repetir una vuelta anterior</button>
       </div>
+
+      <section class="seccion oculto" id="bloque-frecuentes">
+        <h2 class="subtitulo">Van seguido y no son clientes</h2>
+        <div class="lista" id="lista-frecuentes"></div>
+      </section>
 
       <section class="seccion">
         <h2 class="subtitulo">Clientes habituales</h2>

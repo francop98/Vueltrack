@@ -33,9 +33,9 @@
   --sombra: 0 6px 18px rgba(0, 0, 0, 0.35);
   --radio: 16px;
   --radio-chico: 12px;
-  --nav-alto: 60px;
+  --nav-alto: 68px;
   /* Espacio bajo la barra: la mitad del margen del iPhone alcanza para la rayita de inicio */
-  --nav-abajo: max(4px, calc(env(safe-area-inset-bottom) - 18px));
+  --nav-abajo: max(12px, calc(env(safe-area-inset-bottom) - 8px));
   color-scheme: dark;
 }
 
@@ -908,16 +908,16 @@ h3 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   text-decoration: none;
   color: var(--tenue);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .nav-inferior a svg {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
 }
 
 .nav-inferior a.activo {
@@ -1856,12 +1856,7 @@ body:has(.velo) .ingreso {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
-/* Origen de los resultados del buscador */
-.etiqueta-google {
-  background: #1F2D4A;
-  color: #8AB4F8;
-}
-
+/* Atribución de Google en el buscador */
 .sugerencias .sug-fuente {
   display: block;
   padding: 6px 14px 8px;
@@ -1869,4 +1864,47 @@ body:has(.velo) .ingreso {
   font-weight: 600;
   color: var(--tenue);
   text-align: right;
+}
+
+/* ---------- Mi perfil ---------- */
+.perfil-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.iniciales.grande {
+  width: 64px;
+  height: 64px;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.perfil-tipo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.perfil-tipo p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.perfil-tipo .seccion,
+.perfil-tipo .btn {
+  width: 100%;
+}
+.iniciales.redondo.grande {
+  border-radius: 32px;
+}
+
+/* Botón chico dentro de una fila (ej.: "Agregar a clientes") */
+.btn-chico-fila {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: 10px;
 }

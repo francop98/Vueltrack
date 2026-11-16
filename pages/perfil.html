@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es" data-tema="oscuro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E1420">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vueltrack">
+  <title>Vueltrack — Mi perfil</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/icono-180.png">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <main class="contenido">
+      <header class="barra-sup">
+        <div class="barra-izq">
+          <button type="button" class="btn-icono" id="btn-menu" aria-label="Abrir menú" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+          <a class="marca" href="/" aria-label="Vueltrack, inicio">
+            <img src="/assets/icono.svg" alt="">
+            <span class="marca-texto">vuel<span>track</span></span>
+          </a>
+        </div>
+      </header>
+
+      <section class="perfil-cabecera">
+        <span class="iniciales redondo grande" id="iniciales"></span>
+        <div class="titulo-bloque">
+          <h1 class="titulo" id="nombre-titulo"></h1>
+          <span class="texto-tenue" id="correo"></span>
+        </div>
+      </section>
+
+      <section class="tarjeta perfil-tipo">
+        <span class="etiqueta etiqueta-acento" id="perfil-nombre"></span>
+        <p id="perfil-texto"></p>
+        <div id="perfil-acciones" class="seccion"></div>
+      </section>
+
+      <form class="seccion" id="form-datos" novalidate>
+        <h2 class="subtitulo">Tus datos</h2>
+        <div class="campo">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" autocomplete="name" placeholder="Nombre y apellido">
+        </div>
+        <div class="campo">
+          <label for="telefono">Teléfono</label>
+          <input id="telefono" type="tel" inputmode="tel" autocomplete="tel" placeholder="Celular">
+        </div>
+        <p class="error-texto oculto" id="error-datos" role="alert"></p>
+        <button type="submit" class="btn btn-primario btn-grande" id="btn-datos">Guardar datos</button>
+      </form>
+
+      <section class="seccion oculto" id="bloque-roles">
+        <h2 class="subtitulo">Tu rol en el equipo</h2>
+        <div class="lista ajustes">
+          <label class="fila interruptor" for="rol-org">
+            <span><strong>Organizo las vueltas</strong><br><span class="texto-tenue">Cargás retiros y entregas y los asignás</span></span>
+            <input type="checkbox" id="rol-org">
+          </label>
+          <label class="fila interruptor" for="rol-flet">
+            <span><strong>Salgo a repartir</strong><br><span class="texto-tenue">Recibís paradas y usás un vehículo</span></span>
+            <input type="checkbox" id="rol-flet">
+          </label>
+        </div>
+      </section>
+
+      <section class="seccion oculto" id="bloque-vehiculo">
+        <h2 class="subtitulo">Tu vehículo</h2>
+        <a class="fila tarjeta enlace-plano" href="/pages/vehiculo.html">
+          <span class="fila-cuerpo">
+            <span class="fila-titulo-texto" id="vehiculo-nombre"></span>
+            <span class="fila-detalle" id="vehiculo-detalle"></span>
+          </span>
+          <span class="texto-tenue">Editar</span>
+        </a>
+      </section>
+
+      <section class="seccion">
+        <h2 class="subtitulo">Cuenta</h2>
+        <div class="lista ajustes">
+          <button type="button" class="fila" id="btn-seguridad"><span>Contraseña y forma de ingreso</span><strong>›</strong></button>
+          <button type="button" class="fila" id="btn-cerrar"><span>Cerrar sesión</span><strong>›</strong></button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>
+  <script src="/js/nav.js"></script>
+
+  <script src="/js/pwa.js"></script>
+  <script type="module" src="/js/perfil.js"></script>
+</body>
+</html>

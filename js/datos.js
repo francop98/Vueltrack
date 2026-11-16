@@ -138,6 +138,11 @@ export async function quitarMiembro(equipoId, uid) {
 }
 
 export async function salirDelEquipo(equipoId, uid) {
+  try {
+    localStorage.removeItem('vueltrack_equipo');
+  } catch (e) {
+    /* sin almacenamiento */
+  }
   await quitarMiembro(equipoId, uid);
   await guardarUsuario(uid, { equipoId: null });
 }

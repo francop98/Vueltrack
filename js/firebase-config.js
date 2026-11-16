@@ -12,4 +12,4 @@ export const firebaseConfig = {
   appId: '1:209314464438:web:467760e89f03d31ca61c17'
 };
 
-export const VERSION_APP = '5.2';
+export const VERSION_APP = '6.0';

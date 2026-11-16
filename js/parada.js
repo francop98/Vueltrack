@@ -122,7 +122,8 @@ function pintar() {
   $('gestion').classList.toggle('oculto', !ctx.organizador);
 
   const puede = puedoMarcar(p);
-  $('btn-ubicacion').classList.toggle('oculto', !puede);
+  // El fletero de equipo no cambia la parada (ni su ubicación): solo marca cómo le fue
+  $('btn-ubicacion').classList.toggle('oculto', !puede || ctx.fleteroDeEquipo);
   const palabra = p.tipo === 'retiro' ? 'Retirado' : 'Entregado';
   if (!puede) {
     $('botones-estado').innerHTML = '';
@@ -134,10 +135,14 @@ function pintar() {
   } else {
     $('botones-estado').innerHTML = `
       <button type="button" class="btn btn-ok btn-grande" data-accion="entregado">${ICONOS.check}${palabra}</button>
-      <div class="grilla-2">
+      ${
+        ctx.fleteroDeEquipo
+          ? `<button type="button" class="btn" data-accion="no">${p.tipo === 'retiro' ? 'No se pudo retirar' : 'No se pudo entregar'}</button>`
+          : `<div class="grilla-2">
         <button type="button" class="btn" data-accion="no">${p.tipo === 'retiro' ? 'No se pudo retirar' : 'No se pudo entregar'}</button>
         <button type="button" class="btn" data-accion="final">Pasar para el final</button>
-      </div>`;
+      </div>`
+      }`;
   }
 
   // Comprobante: se pinta una sola vez por parada (para no recargar la foto con cada cambio)

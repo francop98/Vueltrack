@@ -88,29 +88,20 @@ export function crearBuscador(input, { foco = () => null, alElegir, clientes = (
   function fila(r, i) {
     const titulo = r.nombre || r.direccion;
     const secundaria = [r.nombre ? r.direccion : '', r.detalle].filter(Boolean).join(' · ');
+    // Solo se marca lo que es tuyo; el resto se ve igual venga de donde venga
     const etiqueta =
       r.tipo === 'cliente'
         ? '<span class="etiqueta etiqueta-ok">Cliente</span>'
         : r.tipo === 'guardado'
           ? '<span class="etiqueta etiqueta-ok">Guardado</span>'
-          : r.tipo === 'pegado' || r.tipo === 'link'
-            ? '<span class="etiqueta etiqueta-ok">Exacto</span>'
-            : r.tipo === 'google'
-              ? '<span class="etiqueta etiqueta-google">Google</span>'
-              : r.tipo === 'lugar'
-                ? '<span class="etiqueta etiqueta-aviso">Lugar</span>'
-                : '';
+          : '';
     return `<button type="button" role="option" data-i="${i}"><span class="sug-titulo">${esc(titulo)}${etiqueta}</span><span class="sug-sec">${esc(secundaria)}</span></button>`;
   }
 
   function mostrar(resultados, mensaje, propios = [], conAcciones = true, ofrecerBuscar = false) {
     ultimos = [...propios, ...resultados];
-    // Google pide mostrar de dónde salen sus resultados
-    const deGoogle = resultados.some((r) => r.tipo === 'google')
-      ? '<span class="sug-fuente">Resultados de Google Maps</span>'
-      : resultados.length
-        ? '<span class="sug-fuente">Resultados de OpenStreetMap</span>'
-        : '';
+    // Google exige nombrarlo cuando se muestran sus resultados (va chiquito, abajo)
+    const deGoogle = resultados.some((r) => r.fuente === 'google' || r.tipo === 'google') ? '<span class="sug-fuente">Google Maps</span>' : '';
     const filas = ultimos.map(fila).join('') + deGoogle + (ofrecerBuscar ? BUSCAR_MAS : '');
     const nota = mensaje
       ? `<button type="button" disabled><span class="sug-sec">${esc(mensaje)}</span></button>`
@@ -193,6 +184,10 @@ export function crearBuscador(input, { foco = () => null, alElegir, clientes = (
       } finally {
         sesion = '';
       }
+    }
+    // Lo encontrado en Google queda guardado: la próxima vez no gasta otra búsqueda
+    if (r.fuente === 'google') {
+      recordarLugar({ texto: escrito || r.nombre || r.direccion, nombre: r.nombre, direccion: r.direccion, lat: r.lat, lng: r.lng });
     }
     // Lo pegado desde Google Maps se recuerda con lo que se escribió
     if (r.tipo === 'pegado' || r.tipo === 'link') {

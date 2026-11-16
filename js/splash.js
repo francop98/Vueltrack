@@ -8,7 +8,7 @@
   var splash = document.getElementById('splash');
   if (!splash) return;
   var CLAVE = 'vueltrack_splash';
-  var MINIMO = 1500;
+  var MINIMO = 700;
   var MAXIMO = 8000;
   var visto = false;
   try {

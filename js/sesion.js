@@ -12,7 +12,7 @@ import {
   reauthenticateWithCredential,
   updatePassword
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { obtenerUsuario, guardarUsuario, escucharEquipo, actualizarMiembro } from './datos.js';
+import { obtenerUsuario, guardarUsuario, escucharEquipo } from './datos.js';
 import { VERSION_APP } from './firebase-config.js';
 import { abrirGuia } from './guia.js';
 import { instalarApp, estaInstalada } from './instalar.js';
@@ -41,7 +41,39 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
     return new Promise(() => {});
   }
 
-  let usuario = await obtenerUsuario(user.uid);
+  // Para abrir más rápido: si ya sabemos de qué equipo es, se arranca a cargar
+  // el equipo enseguida y el perfil del usuario se confirma por detrás
+  const CLAVE_EQUIPO = 'vueltrack_equipo';
+  let guardado = null;
+  try {
+    guardado = JSON.parse(localStorage.getItem(CLAVE_EQUIPO) || 'null');
+  } catch (e) {
+    guardado = null;
+  }
+  let usuario = null;
+  const desdeGuardado = !!(guardado && guardado.uid === user.uid && guardado.equipoId);
+  if (desdeGuardado) {
+    usuario = { id: user.uid, nombre: user.displayName || '', email: user.email || '', equipoId: guardado.equipoId };
+    obtenerUsuario(user.uid)
+      .then((real) => {
+        if (!real || real.equipoId !== guardado.equipoId) {
+          localStorage.removeItem(CLAVE_EQUIPO);
+          location.reload();
+        } else {
+          Object.assign(usuario, real);
+        }
+      })
+      .catch(() => {});
+  } else {
+    usuario = await obtenerUsuario(user.uid);
+  }
+  if (usuario && usuario.equipoId) {
+    try {
+      localStorage.setItem(CLAVE_EQUIPO, JSON.stringify({ uid: user.uid, equipoId: usuario.equipoId }));
+    } catch (e) {
+      /* sin almacenamiento */
+    }
+  }
   if (!usuario) {
     usuario = {
       id: user.uid,
@@ -63,6 +95,16 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
 
     escucharEquipo(usuario.equipoId, async (equipo) => {
       if (!equipo || !(equipo.miembrosIds || []).includes(user.uid)) {
+        try {
+          localStorage.removeItem('vueltrack_equipo');
+        } catch (e) {
+          /* sin almacenamiento */
+        }
+        // Si el equipo salió de lo guardado en el celular, se vuelve a cargar con el perfil real
+        if (desdeGuardado) {
+          location.reload();
+          return;
+        }
         await guardarUsuario(user.uid, { equipoId: null });
         location.replace('/pages/bienvenida.html');
         return;
@@ -71,6 +113,9 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
       ctx.yo = { uid: user.uid, ...equipo.miembros[user.uid] };
       ctx.organizador = (ctx.yo.roles || []).includes('organizador');
       ctx.fletero = (ctx.yo.roles || []).includes('fletero');
+      // Fletero de un equipo al que otro le arma la vuelta: ve y marca sus paradas, no las cambia
+      ctx.fleteroDeEquipo = equipo.modo === 'equipo' && !ctx.organizador;
+      ctx.perfil = perfilDe(ctx);
 
       if (soloOrganizador && !ctx.organizador) {
         location.replace('/');
@@ -92,6 +137,24 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
     });
   });
 }
+
+/* ---------- Perfiles ----------
+   independiente:        trabaja solo y se arma sus propias vueltas
+   organizador:          asigna retiros y entregas a sus fleteros (sin vehículo)
+   organizador-fletero:  organiza y también sale a repartir
+   fletero-equipo:       recibe lo que le asignan; marca cómo le fue */
+export function perfilDe(ctx) {
+  if (ctx.equipo.modo === 'solo') return 'independiente';
+  if (ctx.organizador) return ctx.fletero ? 'organizador-fletero' : 'organizador';
+  return 'fletero-equipo';
+}
+
+export const PERFILES = {
+  independiente: { nombre: 'Fletero independiente', texto: 'Armás y ordenás tus propias vueltas, sin depender de nadie.' },
+  organizador: { nombre: 'Organizador', texto: 'Cargás retiros y entregas y se los asignás a tus fleteros. No salís a repartir.' },
+  'organizador-fletero': { nombre: 'Organizador y fletero', texto: 'Asignás retiros y entregas a tu equipo y también salís a repartir.' },
+  'fletero-equipo': { nombre: 'Fletero de equipo', texto: 'Ves las paradas que te asignan y marcás cómo te fue. Solo quien organiza puede cambiarlas.' }
+};
 
 /* ---------- Aviso de sin señal ----------
    Sin conexión la app sigue funcionando: lo que marques se guarda en el
@@ -173,9 +236,9 @@ export function abrirMenu(ctx) {
         <button type="button" class="btn-icono sin-borde" data-accion="cerrar" aria-label="Cerrar menú">${ICONOS.cruz}</button>
       </div>
       <span class="menu-grupo">Tu cuenta</span>
-      ${item('datos', ICONOS.cuenta, 'Mis datos')}
-      ${item('seguridad', ICONO_CANDADO, 'Seguridad')}
+      ${item('', ICONOS.cuenta, 'Mi perfil', '/pages/perfil.html')}
       ${ctx.fletero ? item('', ICONOS.auto, 'Mi vehículo', '/pages/vehiculo.html') : ''}
+      ${item('seguridad', ICONO_CANDADO, 'Seguridad')}
       <span class="menu-grupo">Tu trabajo</span>
       ${item('', ICONOS.equipo, ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', '/pages/equipo.html')}
       <span class="menu-grupo">Ayuda</span>
@@ -202,10 +265,6 @@ export function abrirMenu(ctx) {
     if (!b) return;
     const accion = b.dataset.accion;
     if (accion === 'cerrar') cerrar();
-    if (accion === 'datos') {
-      cerrar();
-      abrirCuenta(ctx);
-    }
     if (accion === 'seguridad') {
       cerrar();
       abrirSeguridad(ctx);
@@ -228,103 +287,6 @@ export function abrirMenu(ctx) {
   document.addEventListener('keydown', teclas);
   document.body.appendChild(velo);
   velo.querySelector('[data-accion="cerrar"]').focus();
-}
-
-export function abrirCuenta(ctx) {
-  const hoja = abrirHoja({
-    titulo: 'Mis datos',
-    html: `
-      <div class="campo">
-        <label for="cuenta-nombre">Nombre</label>
-        <input id="cuenta-nombre" value="${esc(ctx.yo.nombre || ctx.usuario.nombre)}" autocomplete="name">
-      </div>
-      <div class="campo">
-        <label for="cuenta-mail">Correo electrónico</label>
-        <input id="cuenta-mail" value="${esc(ctx.user.email || '')}" disabled>
-      </div>
-      <div class="campo">
-        <label for="cuenta-tel">Teléfono</label>
-        <input id="cuenta-tel" type="tel" inputmode="tel" value="${esc(ctx.yo.telefono || '')}" placeholder="Celular" autocomplete="tel">
-      </div>
-      <div class="ajustes lista">
-        <div class="fila"><span>Equipo</span><strong>${esc(ctx.equipo.modo === 'solo' ? 'Trabajo solo' : ctx.equipo.nombre)}</strong></div>
-      </div>
-      ${
-        ctx.organizador
-          ? `<span class="etiqueta-campo">Tu rol</span>
-        <div class="lista ajustes">
-          <label class="fila interruptor" for="cuenta-org">
-            <span><strong>Organizo las vueltas</strong><br><span class="texto-tenue">Armás, repartís y cargás clientes</span></span>
-            <input type="checkbox" id="cuenta-org" ${ctx.organizador ? 'checked' : ''}>
-          </label>
-          <label class="fila interruptor" for="cuenta-flet">
-            <span><strong>Salgo a repartir</strong><br><span class="texto-tenue">Recibís una vuelta y usás un vehículo</span></span>
-            <input type="checkbox" id="cuenta-flet" ${ctx.fletero ? 'checked' : ''}>
-          </label>
-        </div>`
-          : `<div class="ajustes lista"><div class="fila"><span>Rol</span><strong>Fletero</strong></div></div>
-        <p class="texto-tenue">Tu rol lo cambia quien organiza el equipo.</p>`
-      }
-      <p class="error-texto oculto" id="cuenta-error" role="alert"></p>
-      <button type="button" class="btn btn-primario btn-grande" id="cuenta-guardar">Guardar</button>`
-  });
-
-  let guardando = false;
-  hoja.el.querySelector('#cuenta-guardar').addEventListener('click', async () => {
-    if (guardando) return;
-    const el = hoja.el;
-    const error = el.querySelector('#cuenta-error');
-    const nombre = el.querySelector('#cuenta-nombre').value.trim();
-    const telefono = el.querySelector('#cuenta-tel').value.trim();
-    if (!nombre) {
-      error.textContent = 'Falta tu nombre.';
-      error.classList.remove('oculto');
-      return;
-    }
-    let roles = null;
-    if (ctx.organizador) {
-      const organiza = el.querySelector('#cuenta-org').checked;
-      const reparte = el.querySelector('#cuenta-flet').checked;
-      const otrosOrganizadores = Object.entries(ctx.equipo.miembros || {}).filter(
-        ([uid, m]) => uid !== ctx.user.uid && (m.roles || []).includes('organizador')
-      ).length;
-      const problema = !organiza && !reparte
-        ? 'Tenés que tener al menos un rol.'
-        : !organiza && !otrosOrganizadores
-          ? 'El equipo necesita al menos un organizador. Dale ese rol a otra persona primero (desde Equipo).'
-          : !reparte && ctx.equipo.modo === 'solo'
-            ? 'Trabajando solo, sos quien sale a repartir. Para organizar sin vehículo, pasá a “En equipo” desde Equipo.'
-            : '';
-      if (problema) {
-        error.textContent = problema;
-        error.classList.remove('oculto');
-        return;
-      }
-      if (organiza !== ctx.organizador || reparte !== ctx.fletero) {
-        if (!organiza) {
-          const ok = await confirmar({
-            titulo: '¿Dejar de organizar?',
-            texto: 'Vas a ver solo tu vuelta y no vas a poder volver a cambiar tu rol: lo hace otro organizador.',
-            aceptar: 'Dejar de organizar',
-            peligro: true
-          });
-          if (!ok) return;
-        }
-        roles = [organiza ? 'organizador' : '', reparte ? 'fletero' : ''].filter(Boolean);
-      }
-    }
-    guardando = true;
-    try {
-      await guardarUsuario(ctx.user.uid, { nombre });
-      await actualizarMiembro(ctx.equipo.id, ctx.user.uid, roles ? { nombre, telefono, roles } : { nombre, telefono });
-      hoja.cerrar();
-      aviso('Datos guardados');
-    } catch (e) {
-      guardando = false;
-      error.textContent = 'No se pudo guardar. Revisá la conexión.';
-      error.classList.remove('oculto');
-    }
-  });
 }
 
 export function abrirSeguridad(ctx) {

@@ -443,7 +443,8 @@ function pintarListas(grupos) {
     }
     arrastre = null;
   }
-  $('btn-reordenar').classList.toggle('oculto', !uidDeLaLista(grupos));
+  // Reordenar: lo hace quien organiza o el fletero independiente, no el fletero de equipo
+  $('btn-reordenar').classList.toggle('oculto', !uidDeLaLista(grupos) || ctx.fleteroDeEquipo);
   $('lista-titulo').textContent = grupos.length === 1 ? `Paradas de ${grupos[0].uid === ctx.user.uid ? 'tu vuelta' : grupos[0].nombre}` : 'Paradas por fletero';
   $('listas').innerHTML = grupos
     .map(

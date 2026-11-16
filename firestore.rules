@@ -128,13 +128,14 @@ service cloud.firestore {
       // ---------- Vueltas del día ----------
       match /vueltas/{fecha} {
         allow read: if esMiembro(equipoId);
-        // Los fleteros también pueden crear la vuelta de otro día al reprogramar una parada
-        allow create: if esOrganizador(equipoId)
-          || (esMiembro(equipoId) && request.resource.data.keys().hasOnly(['fecha', 'paradas', 'ordenada', 'actualizado']));
-        allow delete: if esOrganizador(equipoId);
-        // Los fleteros marcan el estado de las paradas y pueden reordenar su vuelta
+        // Solo quien organiza crea, borra, reordena o cambia paradas
+        allow create, delete: if esOrganizador(equipoId);
+        // El fletero de equipo solo marca cómo le fue: no puede sumar ni sacar paradas
+        // ni tocar el recorrido calculado
         allow update: if esOrganizador(equipoId)
-          || (esMiembro(equipoId) && soloCambian(['paradas', 'rutas', 'orden', 'ordenada', 'actualizado']));
+          || (esMiembro(equipoId)
+              && soloCambian(['paradas', 'actualizado'])
+              && request.resource.data.paradas.size() == resource.data.paradas.size());
       }
 
       // ---------- Ubicación en vivo: cada fletero publica solo la suya ----------

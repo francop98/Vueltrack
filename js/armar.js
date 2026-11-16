@@ -17,6 +17,7 @@ import { editarParada, confirmarQuitar } from './editarParada.js';
 import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario } from './vuelta.js';
 import { buscarDirecciones } from './rutas.js';
 import { activosDelDia, asignarPendientes, redistribuirPorZona } from './asignar.js';
+import { direccionesFrecuentes, agregarFrecuente, descartarFrecuente } from './frecuentes.js';
 import {
   ICONOS,
   esc,
@@ -59,9 +60,54 @@ $('fecha').addEventListener('change', () => {
   escucharDia();
 });
 
+/* ---------- Direcciones frecuentes: sugerir agregarlas a clientes ---------- */
+let frecuentes = [];
+let frecuentesBuscadas = false;
+async function buscarFrecuentes() {
+  frecuentesBuscadas = true;
+  frecuentes = await direccionesFrecuentes(ctx.equipo.id, clientes);
+  pintarFrecuentes();
+}
+function pintarFrecuentes() {
+  $('bloque-frecuentes').classList.toggle('oculto', !frecuentes.length);
+  $('lista-frecuentes').innerHTML = frecuentes
+    .map(
+      (f) => `
+      <div class="fila">
+        <span class="fila-cuerpo">
+          <span class="fila-titulo-texto">${esc(f.nombre)}</span>
+          <span class="fila-detalle">${esc(f.direccion)} · ${f.veces} días en el último mes</span>
+        </span>
+        <button type="button" class="btn btn-primario btn-chico-fila" data-agregar-frecuente="${esc(f.clave)}">Agregar a clientes</button>
+        <button type="button" class="btn-icono sin-borde" data-descartar-frecuente="${esc(f.clave)}" aria-label="No sugerir más ${esc(f.nombre)}">${ICONOS.cruz}</button>
+      </div>`
+    )
+    .join('');
+}
+$('lista-frecuentes').addEventListener('click', async (e) => {
+  const agregar = e.target.closest('[data-agregar-frecuente]');
+  const descartar = e.target.closest('[data-descartar-frecuente]');
+  const c = (agregar || descartar) && (agregar || descartar).dataset[agregar ? 'agregarFrecuente' : 'descartarFrecuente'];
+  const f = frecuentes.find((x) => x.clave === c);
+  if (!f) return;
+  frecuentes = frecuentes.filter((x) => x !== f);
+  pintarFrecuentes();
+  if (descartar) {
+    descartarFrecuente(f.clave);
+    return;
+  }
+  try {
+    await agregarFrecuente(ctx.equipo.id, f);
+    aviso(`${f.nombre} quedó en tus clientes. Los demás datos los completás en Clientes.`);
+  } catch (err) {
+    aviso('No se pudo agregar. Revisá la conexión.');
+  }
+});
+
 escucharClientes(ctx.equipo.id, (lista) => {
   clientes = ordenarAlfa(lista);
   pintarClientes();
+  if (!frecuentesBuscadas) buscarFrecuentes();
 });
 
 function escucharDia() {

@@ -1,10 +1,12 @@
 /* =========================================================
    Vueltrack — service worker
-   Todo va primero a internet (siempre lo último publicado) y se guarda
-   una copia para usar la app sin señal.
-   Al publicar una versión nueva, subí el número de VERSION.
+   Cada versión de la app se guarda entera en el celular al instalarse:
+   así abre al instante y nunca mezcla archivos de versiones distintas.
+   Cuando se publica una versión nueva (cambia VERSION), se descarga entera
+   por detrás, se activa y la app se recarga sola una vez.
+   Firebase, el mapa y las fuentes (archivos con versión fija) también se guardan.
    ========================================================= */
-const VERSION = 'vueltrack-v5.2';
+const VERSION = 'vueltrack-v6.0';
 
 const ARCHIVOS = [
   '/',
@@ -18,6 +20,7 @@ const ARCHIVOS = [
   '/pages/login.html',
   '/pages/manejo.html',
   '/pages/parada.html',
+  '/pages/perfil.html',
   '/pages/repartir.html',
   '/pages/seguimiento.html',
   '/pages/vehiculo.html',
@@ -40,6 +43,7 @@ const ARCHIVOS = [
   '/js/enVivo.js',
   '/js/equipo.js',
   '/js/estados.js',
+  '/js/frecuentes.js',
   '/js/firebase-config.js',
   '/js/firebase.js',
   '/js/guia.js',
@@ -55,6 +59,7 @@ const ARCHIVOS = [
   '/js/nav.js',
   '/js/ordenar.js',
   '/js/parada.js',
+  '/js/perfil.js',
   '/js/pwa.js',
   '/js/repartir.js',
   '/js/rutas.js',
@@ -91,27 +96,48 @@ self.addEventListener('activate', (evento) => {
   );
 });
 
+/* Archivos externos que no cambian (llevan la versión en la dirección) */
+const EXTERNOS_FIJOS = ['www.gstatic.com', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+
 self.addEventListener('fetch', (evento) => {
   const pedido = evento.request;
   if (pedido.method !== 'GET') return;
   const url = new URL(pedido.url);
 
-  // Solo archivos propios; /api, Firebase, mapas y fuentes van directo a internet
+  // Firebase SDK, Leaflet y fuentes: de la copia guardada; si no está, de internet y se guarda
+  if (EXTERNOS_FIJOS.includes(url.hostname)) {
+    evento.respondWith(
+      caches.match(pedido).then(
+        (guardado) =>
+          guardado ||
+          fetch(pedido).then((resp) => {
+            if (resp.ok || resp.type === 'opaque') {
+              const copia = resp.clone();
+              caches.open(VERSION).then((cache) => cache.put(pedido, copia));
+            }
+            return resp;
+          })
+      )
+    );
+    return;
+  }
+
+  // /api, Firebase (datos), Google y los mapas van siempre a internet
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  // Todo (pantallas, estilos y scripts): primero internet, así nunca se mezcla
-  // una pantalla nueva con un script viejo. La copia guardada es solo para sin señal.
+  // Archivos de la app: de la versión guardada (todos de la misma versión); si falta alguno, de internet
   evento.respondWith(
-    fetch(pedido, { cache: 'no-cache' })
-      .then((resp) => {
-        if (resp.ok) {
-          const copia = resp.clone();
-          caches.open(VERSION).then((cache) => cache.put(pedido, copia));
-        }
-        return resp;
-      })
-      .catch(() =>
-        caches.match(pedido, { ignoreSearch: true }).then((r) => r || (pedido.mode === 'navigate' ? caches.match('/') : undefined))
-      )
+    caches.match(pedido, { ignoreSearch: pedido.mode === 'navigate' }).then((guardado) => {
+      if (guardado) return guardado;
+      return fetch(pedido)
+        .then((resp) => {
+          if (resp.ok) {
+            const copia = resp.clone();
+            caches.open(VERSION).then((cache) => cache.put(pedido, copia));
+          }
+          return resp;
+        })
+        .catch(() => (pedido.mode === 'navigate' ? caches.match('/') : undefined));
+    })
   );
 });

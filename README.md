@@ -1,4 +1,4 @@
-# Vueltrack v5.2
+# Vueltrack v6.0
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,22 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v6.0
+**Perfiles bien separados**
+- Fletero independiente (trabaja solo, maneja sus vueltas), Organizador (asigna, sin vehículo), Organizador y fletero, Fletero de equipo (ve lo asignado y marca cómo le fue).
+- El fletero de equipo no puede sumar, sacar, mover, reordenar ni pasar paradas a otro día; reporta "no se pudo" con motivo y decide quien organiza. Reforzado en firestore.rules (no puede cambiar la cantidad de paradas ni el recorrido).
+- Nueva página Mi perfil (/pages/perfil.html): datos, tipo de perfil, rol, vehículo y cuenta. Reemplaza "Mis datos" del menú.
+
+**Buscador**
+- Google Text Search: nombre del lugar + calle + ubicación exacta en un solo pedido (como Google Maps). Lo elegido se guarda como lugar del equipo.
+- Sin etiquetas técnicas: solo "Cliente" y "Guardado"; "Google Maps" chiquito abajo (lo exige Google).
+
+**Otros**
+- Sugerencia en Armar: direcciones que se repiten (3 días en el último mes) y no son clientes → "Agregar a clientes" con un toque.
+- Más rápida: la app se guarda entera en el celular por versión (abre al instante), Firebase y el mapa también; pantalla de carga más corta; el equipo empieza a cargar sin esperar el perfil.
+- Barra de abajo más grande y con más margen.
+- firestore.rules cambió: volver a publicar.
 
 ### v5.2
 - Service worker: todo va primero a internet (la copia guardada es solo para sin señal). Antes podía mezclar una pantalla nueva con scripts viejos (barra vieja, Inicio vacío). Al activarse una versión nueva, la app se recarga sola una vez.
