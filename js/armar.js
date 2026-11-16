@@ -62,46 +62,19 @@ $('fecha').addEventListener('change', () => {
 escucharClientes(ctx.equipo.id, (lista) => {
   clientes = ordenarAlfa(lista);
   pintarClientes();
-  clientesListos = true;
-  if (pendienteAuto) sumarClientesDelDiaSolos();
 });
 
 function escucharDia() {
   if (cortarVuelta) cortarVuelta();
-  let primera = true;
   cortarVuelta = escucharVuelta(ctx.equipo.id, fecha, (v) => {
     vuelta = v;
     pintarSalen();
     pintarParadas();
     pintarAjustes();
     pintarClientes();
-    if (primera) {
-      primera = false;
-      sumarClientesDelDiaSolos();
-    }
   });
 }
 
-/* Vueltas que se repiten: si el día está vacío, se suman solos los clientes que les toca */
-let clientesListos = false;
-let pendienteAuto = false;
-async function sumarClientesDelDiaSolos() {
-  if (!clientesListos) {
-    pendienteAuto = true;
-    return;
-  }
-  pendienteAuto = false;
-  const a = ctx.equipo.ajustes || {};
-  if (a.autoClientes === false || vuelta || fecha < fechaISO()) return;
-  const dia = diaSemana(fecha);
-  const lesToca = clientes.filter((c) => (c.dias || []).includes(dia));
-  if (!lesToca.length) return;
-  // Se confirma con el servidor que el día sigue vacío antes de escribir
-  const enServidor = await obtenerVuelta(ctx.equipo.id, fecha).catch(() => undefined);
-  if (enServidor !== null) return;
-  await guardarParadas(lesToca.map(paradaDesdeCliente));
-  aviso(lesToca.length === 1 ? `Sumamos a ${lesToca[0].nombre}, que le toca este día` : `Sumamos los ${lesToca.length} clientes que les toca este día`);
-}
 escucharDia();
 pintarAjustes();
 
@@ -401,11 +374,9 @@ function pintarAjustes() {
   $('demora').value = String(a.demora ?? 5);
   $('txt-orden').textContent = nombreOrden(a.orden || 'optimo');
   $('txt-pausa').textContent = a.pausa && a.pausa.desde && Number(a.pausa.minutos) > 0 ? `${a.pausa.minutos} min, entre ${a.pausa.desde} y ${a.pausa.hasta}` : 'Sin pausa';
-  $('auto-clientes').checked = a.autoClientes !== false;
   pintarBotones();
 }
 
-$('auto-clientes').addEventListener('change', () => actualizarEquipo(ctx.equipo.id, { 'ajustes.autoClientes': $('auto-clientes').checked }));
 
 /* ---------- Pausa de la jornada (almuerzo) ---------- */
 $('btn-pausa').addEventListener('click', () => {

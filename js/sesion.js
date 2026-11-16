@@ -242,22 +242,88 @@ export function abrirCuenta(ctx) {
         <label for="cuenta-mail">Correo electrónico</label>
         <input id="cuenta-mail" value="${esc(ctx.user.email || '')}" disabled>
       </div>
+      <div class="campo">
+        <label for="cuenta-tel">Teléfono</label>
+        <input id="cuenta-tel" type="tel" inputmode="tel" value="${esc(ctx.yo.telefono || '')}" placeholder="Celular" autocomplete="tel">
+      </div>
       <div class="ajustes lista">
         <div class="fila"><span>Equipo</span><strong>${esc(ctx.equipo.modo === 'solo' ? 'Trabajo solo' : ctx.equipo.nombre)}</strong></div>
-        <div class="fila"><span>Rol</span><strong>${esc(
-          [ctx.organizador ? 'Organizador' : '', ctx.fletero ? 'Fletero' : ''].filter(Boolean).join(' y ')
-        )}</strong></div>
       </div>
+      ${
+        ctx.organizador
+          ? `<span class="etiqueta-campo">Tu rol</span>
+        <div class="lista ajustes">
+          <label class="fila interruptor" for="cuenta-org">
+            <span><strong>Organizo las vueltas</strong><br><span class="texto-tenue">Armás, repartís y cargás clientes</span></span>
+            <input type="checkbox" id="cuenta-org" ${ctx.organizador ? 'checked' : ''}>
+          </label>
+          <label class="fila interruptor" for="cuenta-flet">
+            <span><strong>Salgo a repartir</strong><br><span class="texto-tenue">Recibís una vuelta y usás un vehículo</span></span>
+            <input type="checkbox" id="cuenta-flet" ${ctx.fletero ? 'checked' : ''}>
+          </label>
+        </div>`
+          : `<div class="ajustes lista"><div class="fila"><span>Rol</span><strong>Fletero</strong></div></div>
+        <p class="texto-tenue">Tu rol lo cambia quien organiza el equipo.</p>`
+      }
+      <p class="error-texto oculto" id="cuenta-error" role="alert"></p>
       <button type="button" class="btn btn-primario btn-grande" id="cuenta-guardar">Guardar</button>`
   });
 
+  let guardando = false;
   hoja.el.querySelector('#cuenta-guardar').addEventListener('click', async () => {
-    const nombre = hoja.el.querySelector('#cuenta-nombre').value.trim();
-    if (!nombre) return;
-    await guardarUsuario(ctx.user.uid, { nombre });
-    await actualizarMiembro(ctx.equipo.id, ctx.user.uid, { nombre });
-    hoja.cerrar();
-    aviso('Datos guardados');
+    if (guardando) return;
+    const el = hoja.el;
+    const error = el.querySelector('#cuenta-error');
+    const nombre = el.querySelector('#cuenta-nombre').value.trim();
+    const telefono = el.querySelector('#cuenta-tel').value.trim();
+    if (!nombre) {
+      error.textContent = 'Falta tu nombre.';
+      error.classList.remove('oculto');
+      return;
+    }
+    let roles = null;
+    if (ctx.organizador) {
+      const organiza = el.querySelector('#cuenta-org').checked;
+      const reparte = el.querySelector('#cuenta-flet').checked;
+      const otrosOrganizadores = Object.entries(ctx.equipo.miembros || {}).filter(
+        ([uid, m]) => uid !== ctx.user.uid && (m.roles || []).includes('organizador')
+      ).length;
+      const problema = !organiza && !reparte
+        ? 'Tenés que tener al menos un rol.'
+        : !organiza && !otrosOrganizadores
+          ? 'El equipo necesita al menos un organizador. Dale ese rol a otra persona primero (desde Equipo).'
+          : !reparte && ctx.equipo.modo === 'solo'
+            ? 'Trabajando solo, sos quien sale a repartir. Para organizar sin vehículo, pasá a “En equipo” desde Equipo.'
+            : '';
+      if (problema) {
+        error.textContent = problema;
+        error.classList.remove('oculto');
+        return;
+      }
+      if (organiza !== ctx.organizador || reparte !== ctx.fletero) {
+        if (!organiza) {
+          const ok = await confirmar({
+            titulo: '¿Dejar de organizar?',
+            texto: 'Vas a ver solo tu vuelta y no vas a poder volver a cambiar tu rol: lo hace otro organizador.',
+            aceptar: 'Dejar de organizar',
+            peligro: true
+          });
+          if (!ok) return;
+        }
+        roles = [organiza ? 'organizador' : '', reparte ? 'fletero' : ''].filter(Boolean);
+      }
+    }
+    guardando = true;
+    try {
+      await guardarUsuario(ctx.user.uid, { nombre });
+      await actualizarMiembro(ctx.equipo.id, ctx.user.uid, roles ? { nombre, telefono, roles } : { nombre, telefono });
+      hoja.cerrar();
+      aviso('Datos guardados');
+    } catch (e) {
+      guardando = false;
+      error.textContent = 'No se pudo guardar. Revisá la conexión.';
+      error.classList.remove('oculto');
+    }
   });
 }
 

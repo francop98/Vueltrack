@@ -95,15 +95,23 @@ export function crearBuscador(input, { foco = () => null, alElegir, clientes = (
           ? '<span class="etiqueta etiqueta-ok">Guardado</span>'
           : r.tipo === 'pegado' || r.tipo === 'link'
             ? '<span class="etiqueta etiqueta-ok">Exacto</span>'
-            : r.tipo === 'lugar' || (r.tipo === 'google' && r.esLugar)
-              ? '<span class="etiqueta etiqueta-aviso">Lugar</span>'
-              : '';
+            : r.tipo === 'google'
+              ? '<span class="etiqueta etiqueta-google">Google</span>'
+              : r.tipo === 'lugar'
+                ? '<span class="etiqueta etiqueta-aviso">Lugar</span>'
+                : '';
     return `<button type="button" role="option" data-i="${i}"><span class="sug-titulo">${esc(titulo)}${etiqueta}</span><span class="sug-sec">${esc(secundaria)}</span></button>`;
   }
 
   function mostrar(resultados, mensaje, propios = [], conAcciones = true, ofrecerBuscar = false) {
     ultimos = [...propios, ...resultados];
-    const filas = ultimos.map(fila).join('') + (ofrecerBuscar ? BUSCAR_MAS : '');
+    // Google pide mostrar de dónde salen sus resultados
+    const deGoogle = resultados.some((r) => r.tipo === 'google')
+      ? '<span class="sug-fuente">Resultados de Google Maps</span>'
+      : resultados.length
+        ? '<span class="sug-fuente">Resultados de OpenStreetMap</span>'
+        : '';
+    const filas = ultimos.map(fila).join('') + deGoogle + (ofrecerBuscar ? BUSCAR_MAS : '');
     const nota = mensaje
       ? `<button type="button" disabled><span class="sug-sec">${esc(mensaje)}</span></button>`
       : !ultimos.length

@@ -1,10 +1,10 @@
 /* =========================================================
    Vueltrack — service worker
-   Pantallas: primero la red (siempre lo último), si no hay señal, la copia.
-   Estilos, scripts e íconos: copia guardada y se actualiza por detrás.
+   Todo va primero a internet (siempre lo último publicado) y se guarda
+   una copia para usar la app sin señal.
    Al publicar una versión nueva, subí el número de VERSION.
    ========================================================= */
-const VERSION = 'vueltrack-v5.1';
+const VERSION = 'vueltrack-v5.2';
 
 const ARCHIVOS = [
   '/',
@@ -77,7 +77,7 @@ self.addEventListener('install', (evento) => {
   evento.waitUntil(
     caches
       .open(VERSION)
-      .then((cache) => cache.addAll(ARCHIVOS))
+      .then((cache) => cache.addAll(ARCHIVOS.map((a) => new Request(a, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -99,31 +99,19 @@ self.addEventListener('fetch', (evento) => {
   // Solo archivos propios; /api, Firebase, mapas y fuentes van directo a internet
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  if (pedido.mode === 'navigate' || pedido.destination === 'document') {
-    evento.respondWith(
-      fetch(pedido)
-        .then((resp) => {
+  // Todo (pantallas, estilos y scripts): primero internet, así nunca se mezcla
+  // una pantalla nueva con un script viejo. La copia guardada es solo para sin señal.
+  evento.respondWith(
+    fetch(pedido, { cache: 'no-cache' })
+      .then((resp) => {
+        if (resp.ok) {
           const copia = resp.clone();
           caches.open(VERSION).then((cache) => cache.put(pedido, copia));
-          return resp;
-        })
-        .catch(() => caches.match(pedido, { ignoreSearch: true }).then((r) => r || caches.match('/')))
-    );
-    return;
-  }
-
-  evento.respondWith(
-    caches.match(pedido).then((guardado) => {
-      const deRed = fetch(pedido)
-        .then((resp) => {
-          if (resp.ok) {
-            const copia = resp.clone();
-            caches.open(VERSION).then((cache) => cache.put(pedido, copia));
-          }
-          return resp;
-        })
-        .catch(() => guardado);
-      return guardado || deRed;
-    })
+        }
+        return resp;
+      })
+      .catch(() =>
+        caches.match(pedido, { ignoreSearch: true }).then((r) => r || (pedido.mode === 'navigate' ? caches.match('/') : undefined))
+      )
   );
 });

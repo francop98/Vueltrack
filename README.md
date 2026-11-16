@@ -1,4 +1,4 @@
-# Vueltrack v5.1
+# Vueltrack v5.2
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,13 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v5.2
+- Service worker: todo va primero a internet (la copia guardada es solo para sin señal). Antes podía mezclar una pantalla nueva con scripts viejos (barra vieja, Inicio vacío). Al activarse una versión nueva, la app se recarga sola una vez.
+- Barra de abajo: ya no flota; va al final de la pantalla y pegada al borde (arreglo para iPhone con la app instalada).
+- Buscador: cada resultado de Google lleva la etiqueta “Google” y abajo dice de dónde salen los resultados (Google Maps u OpenStreetMap).
+- Mis datos: nombre, teléfono y rol (organizo / salgo a repartir). Se quitó la sección de rol de Equipo.
+- Armar: se quitó “Cargar solos los clientes de cada día”.
 
 ### v5.1
 - Inicio y Hoy en una sola pantalla: saludo y avisos arriba, después el mapa, la próxima parada y la lista. La barra queda: organizador Inicio, Armar, Clientes, Historial; fletero Inicio, Manejo, Historial.
