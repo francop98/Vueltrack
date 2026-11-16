@@ -58,7 +58,7 @@ async function codigoLibre() {
   return 'VT-' + idNuevo().slice(-6).toUpperCase();
 }
 
-export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base, zona = null, ajustes = {}, telefono = '', vehiculo = '', gasto = null }) {
+export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base, zona = null, ajustes = {}, telefono = '', vehiculo = '', gasto = null, reparte = true }) {
   const equipoRef = doc(collection(db, 'equipos'));
   const codigo = await codigoLibre();
   const lote = writeBatch(db);
@@ -71,7 +71,7 @@ export async function crearEquipo({ uid, nombre, nombreEquipo, modo, base, zona 
     zona: zona || null,
     ajustes: { ...AJUSTES_INICIALES, ...ajustes },
     miembros: {
-      [uid]: { nombre, telefono, roles: ['organizador', 'fletero'], vehiculo, gasto, color: COLORES_FLETERO[0] }
+      [uid]: { nombre, telefono, roles: reparte ? ['organizador', 'fletero'] : ['organizador'], vehiculo: reparte ? vehiculo : '', gasto: reparte ? gasto : null, color: COLORES_FLETERO[0] }
     },
     miembrosIds: [uid],
     creado: serverTimestamp()

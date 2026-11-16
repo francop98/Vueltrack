@@ -6,13 +6,11 @@
    (son del equipo).
    ========================================================= */
 import { auth } from './firebase.js';
-import { rindeSugerido } from './consumos.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { obtenerUsuario, guardarUsuario, crearEquipo, unirseConCodigo, codigoValido } from './datos.js';
 import { crearBuscador } from './buscador.js';
 import { miUbicacion, direccionDe, definirZonaBusqueda } from './rutas.js';
 import { htmlZona, conectarZona, textoZona } from './zona.js';
-import { COMBUSTIBLES } from './vuelta.js';
 import { instalarApp, estaInstalada } from './instalar.js';
 import { esc } from './ui.js';
 
@@ -20,6 +18,7 @@ const $ = (id) => document.getElementById(id);
 const FLUJOS = {
   solo: ['datos', 'modo', 'zona', 'salida', 'jornada', 'vehiculo', 'listo'],
   equipo: ['datos', 'modo', 'zona', 'salida', 'jornada', 'vehiculo', 'listo'],
+  organizador: ['datos', 'modo', 'zona', 'salida', 'jornada', 'listo'],
   unirme: ['datos', 'modo', 'vehiculo', 'listo']
 };
 const OPCIONALES = ['salida', 'vehiculo'];
@@ -31,7 +30,8 @@ let base = null;
 let indice = 0;
 let guardado = false;
 
-const flujo = () => FLUJOS[modo || 'solo'];
+const reparto = () => (document.querySelector('input[name="reparto"]:checked') || {}).value || '';
+const flujo = () => FLUJOS[modo === 'equipo' && reparto() === 'no' ? 'organizador' : modo || 'solo'];
 const pasoActual = () => flujo()[indice];
 
 onAuthStateChanged(auth, async (u) => {
@@ -65,7 +65,7 @@ function mostrar() {
   $('btn-siguiente').textContent = paso === 'listo' ? 'Empezar' : paso === 'vehiculo' ? 'Terminar' : 'Continuar';
   error('');
   if (paso === 'listo') pintarResumen();
-  window.scrollTo(0, 0);
+  document.querySelector('.ingreso').scrollTo(0, 0);
 }
 
 function error(texto) {
@@ -78,6 +78,7 @@ async function validar(paso) {
   if (paso === 'modo') {
     if (!modo) return 'Elegí cómo vas a usar Vueltrack.';
     if (modo === 'equipo' && !$('nombre-equipo').value.trim()) return 'Escribí el nombre del equipo.';
+    if (modo === 'equipo' && !reparto()) return 'Contanos si vos también salís a repartir.';
     if (modo === 'unirme') {
       if (!$('codigo').value.trim()) return 'Escribí el código del equipo.';
       try {
@@ -120,8 +121,7 @@ $('btn-saltar').addEventListener('click', async () => {
   if (pasoActual() === 'salida') base = null;
   if (pasoActual() === 'vehiculo') {
     $('vehiculo').value = '';
-    $('rinde').value = '';
-    $('precio').value = '';
+    $('capacidad').value = '';
   }
   const proximo = flujo()[indice + 1];
   if (proximo === 'listo' && !guardado && !(await guardarTodo())) return;
@@ -136,6 +136,7 @@ document.querySelectorAll('[data-modo]').forEach((b) =>
     modo = b.dataset.modo;
     document.querySelectorAll('[data-modo]').forEach((x) => x.classList.toggle('activo', x === b));
     $('campo-equipo').classList.toggle('oculto', modo !== 'equipo');
+    $('campo-reparto').classList.toggle('oculto', modo !== 'equipo');
     $('campo-codigo').classList.toggle('oculto', modo !== 'unirme');
     (modo === 'equipo' ? $('nombre-equipo') : modo === 'unirme' ? $('codigo') : $('btn-siguiente')).focus();
     error('');
@@ -188,38 +189,20 @@ crearBuscador($('base'), {
 
 /* ---------- Vehículo ---------- */
 
-function etiquetasVehiculo() {
-  const sel = document.querySelector('input[name="combustible"]:checked');
-  const c = COMBUSTIBLES[sel ? sel.value : 'nafta'];
-  document.querySelector('label[for="rinde"]').textContent = `Km por ${c.unidad}`;
-  document.querySelector('label[for="precio"]').textContent = `Precio por ${c.unidad} ($)`;
-}
-document.querySelectorAll('input[name="combustible"]').forEach((i) => i.addEventListener('change', etiquetasVehiculo));
-
-/* Rinde aproximado según el modelo: se completa solo mientras el fletero no lo cambie */
-let rindeAuto = true;
-function sugerirRinde() {
-  if (!rindeAuto && $('rinde').value) return;
-  const combustible = (document.querySelector('input[name="combustible"]:checked') || {}).value || 'nafta';
-  const s = rindeSugerido({ nombre: $('vehiculo').value, tipo: 'utilitario', combustible });
-  $('rinde').value = s && $('vehiculo').value.trim() ? s.valor : '';
-  rindeAuto = true;
-}
-$('vehiculo').addEventListener('input', sugerirRinde);
-document.querySelectorAll('input[name="combustible"]').forEach((i) => i.addEventListener('change', sugerirRinde));
-$('rinde').addEventListener('input', () => {
-  rindeAuto = false;
-});
-
 function datosVehiculo() {
-  const rinde = Number(String($('rinde').value).replace(',', '.')) || 0;
-  const precio = Number(String($('precio').value).replace(',', '.')) || 0;
-  const combustible = (document.querySelector('input[name="combustible"]:checked') || {}).value || 'nafta';
+  const capacidad = Math.max(0, Math.round(Number($('capacidad').value) || 0));
   return {
     vehiculo: $('vehiculo').value.trim(),
-    gasto: rinde > 0 && precio > 0 ? { tipo: 'utilitario', combustible, rinde, precio, extraKm: 0 } : null
+    gasto: capacidad ? { tipo: 'utilitario', capacidad } : null
   };
 }
+
+document.querySelectorAll('input[name="reparto"]').forEach((r) =>
+  r.addEventListener('change', () => {
+    error('');
+    mostrar();
+  })
+);
 
 /* ---------- Guardar todo ---------- */
 
@@ -248,7 +231,8 @@ async function guardarTodo() {
         },
         telefono,
         vehiculo,
-        gasto
+        gasto,
+        reparte: modo === 'solo' || reparto() === 'si'
       });
     }
     guardado = true;
@@ -270,11 +254,12 @@ function pintarResumen() {
     filas.push(['Equipo', 'Te sumaste con el código ' + $('codigo').value.trim().toUpperCase()]);
   } else {
     filas.push(['Modo', modo === 'equipo' ? `Equipo: ${$('nombre-equipo').value.trim()}` : 'Trabajo solo']);
+    if (modo === 'equipo') filas.push(['Tu rol', reparto() === 'no' ? 'Organizador (sin vehículo)' : 'Organizador y fletero']);
     filas.push(['Zona', textoZona(zona)]);
     filas.push(['Punto de salida', base ? base.direccion : 'Lo cargás después']);
     filas.push(['Salida habitual', $('hora-salida').value]);
   }
-  filas.push(['Vehículo', vehiculo || (gasto ? 'Cargado' : 'Lo cargás después')]);
+  if (flujo().includes('vehiculo')) filas.push(['Vehículo', vehiculo || (gasto ? 'Cargado' : 'Lo cargás después')]);
   $('resumen').innerHTML = filas.map(([a, b]) => `<div class="fila"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`).join('');
   $('listo-titulo').textContent = modo === 'equipo' ? '¡Tu equipo está listo!' : '¡Ya podés empezar!';
   $('aviso-instalar').classList.toggle('oculto', estaInstalada());

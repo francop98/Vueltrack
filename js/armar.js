@@ -16,6 +16,7 @@ import { elegirPuntoDeSalida, elegirOrden } from './salida.js';
 import { editarParada, confirmarQuitar } from './editarParada.js';
 import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario } from './vuelta.js';
 import { buscarDirecciones } from './rutas.js';
+import { activosDelDia, asignarPendientes, redistribuirPorZona } from './asignar.js';
 import {
   ICONOS,
   esc,
@@ -70,6 +71,7 @@ function escucharDia() {
   let primera = true;
   cortarVuelta = escucharVuelta(ctx.equipo.id, fecha, (v) => {
     vuelta = v;
+    pintarSalen();
     pintarParadas();
     pintarAjustes();
     pintarClientes();
@@ -103,8 +105,82 @@ async function sumarClientesDelDiaSolos() {
 escucharDia();
 pintarAjustes();
 
+/* ---------- Quiénes salen y a quién le toca cada parada ---------- */
+
+const fleterosEquipo = () => fleterosDelEquipo(ctx.equipo);
+const hayVarios = () => fleterosEquipo().length > 1;
+const activos = () => activosDelDia(vuelta, fleterosEquipo());
+
 async function guardarParadas(nuevas) {
-  await guardarVuelta(ctx.equipo.id, fecha, { paradas: nuevas, ordenada: false });
+  const lista = hayVarios() ? asignarPendientes(nuevas, activos()).paradas : nuevas;
+  await guardarVuelta(ctx.equipo.id, fecha, { paradas: lista, ordenada: false });
+}
+
+function pintarSalen() {
+  $('bloque-salen').classList.toggle('oculto', !hayVarios());
+  if (!hayVarios()) return;
+  const uids = activos().map((f) => f.uid);
+  $('chips-salen').innerHTML = fleterosEquipo()
+    .map((f) => {
+      const sale = uids.includes(f.uid);
+      const cant = paradas().filter((p) => p.fleteroUid === f.uid && !paradaHecha(p)).length;
+      return `<button type="button" class="chip ${sale ? 'activo' : ''}" data-sale="${esc(f.uid)}" aria-pressed="${sale}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre)}${sale && cant ? ` · ${cant}` : ''}</button>`;
+    })
+    .join('');
+}
+
+$('chips-salen').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-sale]');
+  if (!b) return;
+  let uids = activos().map((f) => f.uid);
+  if (uids.includes(b.dataset.sale)) {
+    if (uids.length === 1) {
+      aviso('Tiene que salir al menos un fletero');
+      return;
+    }
+    uids = uids.filter((u) => u !== b.dataset.sale);
+  } else {
+    uids = [...uids, b.dataset.sale];
+  }
+  const nuevosActivos = fleterosEquipo().filter((f) => uids.includes(f.uid));
+  // Las paradas de quien no sale pasan a la zona que corresponda
+  const { paradas: lista, asignadas } = asignarPendientes(paradas(), nuevosActivos);
+  await guardarVuelta(ctx.equipo.id, fecha, { activos: uids, paradas: lista, ordenada: false });
+  if (asignadas) aviso(`Reasignamos ${asignadas} ${asignadas === 1 ? 'parada' : 'paradas'}`);
+});
+
+$('btn-redistribuir').addEventListener('click', async () => {
+  if (!paradas().some((p) => !paradaHecha(p))) {
+    aviso('Todavía no hay paradas para dividir');
+    return;
+  }
+  await guardarVuelta(ctx.equipo.id, fecha, { paradas: redistribuirPorZona(paradas(), activos()), ordenada: false });
+  aviso(`Dividimos las paradas en ${activos().length} zonas`);
+});
+
+function elegirFletero(paradaId) {
+  const p = paradas().find((x) => x.id === paradaId);
+  if (!p) return;
+  const hoja = abrirHoja({
+    titulo: `¿Quién va a ${p.nombre}?`,
+    html: `<div class="lista">${activos()
+      .map(
+        (f) => `
+        <button type="button" class="fila" data-uid="${esc(f.uid)}">
+          <span class="fila-cuerpo"><span class="fila-titulo-texto"><i class="punto" style="background:${esc(f.color)}"></i> ${esc(f.nombre)}</span>
+          <span class="fila-detalle">${paradas().filter((x) => x.fleteroUid === f.uid && !paradaHecha(x)).length} paradas</span></span>
+          ${p.fleteroUid === f.uid ? ICONOS.check : ''}
+        </button>`
+      )
+      .join('')}</div>`
+  });
+  hoja.el.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-uid]');
+    if (!b) return;
+    hoja.cerrar();
+    const lista = paradas().map((x) => (x.id === paradaId ? { ...x, fleteroUid: b.dataset.uid } : x));
+    await guardarVuelta(ctx.equipo.id, fecha, { paradas: asignarPendientes(lista, activos()).paradas, ordenada: false });
+  });
 }
 
 /* ---------- Buscador de direcciones sueltas ---------- */
@@ -152,22 +228,8 @@ function idsClientesEnVuelta() {
 function pintarClientes() {
   const enVuelta = idsClientesEnVuelta();
   const dia = diaSemana(fecha);
-  const lesToca = clientes.filter((c) => (c.dias || []).includes(dia));
-  const primero = [...lesToca, ...clientes.filter((c) => !lesToca.includes(c))].slice(0, 10);
-
-  if (!clientes.length) {
-    $('chips-clientes').innerHTML = '<a class="chip punteado" href="/pages/clientes.html">Cargá tus clientes habituales para sumarlos con un toque</a>';
-  } else {
-    $('chips-clientes').innerHTML = primero
-      .map((c) =>
-        enVuelta.has(c.id)
-          ? `<button type="button" class="chip activo" data-cliente="${esc(c.id)}" aria-pressed="true">${ICONOS.check}${esc(c.nombre)}</button>`
-          : `<button type="button" class="chip" data-cliente="${esc(c.id)}" aria-pressed="false"><span class="mas" aria-hidden="true">+</span>${esc(c.nombre)}</button>`
-      )
-      .join('');
-  }
-
-  const faltan = lesToca.filter((c) => !enVuelta.has(c.id));
+  const faltan = clientes.filter((c) => (c.dias || []).includes(dia) && !enVuelta.has(c.id));
+  $('btn-elegir-clientes').textContent = clientes.length ? 'Elegir clientes' : 'Cargar clientes habituales';
   $('btn-toca').classList.toggle('oculto', !faltan.length);
   $('btn-toca').textContent =
     faltan.length === 1 ? `Sumar a ${faltan[0].nombre}, que le toca este día` : `Sumar los ${faltan.length} que les toca este día`;
@@ -177,16 +239,67 @@ function pintarClientes() {
   };
 }
 
-$('chips-clientes').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-cliente]');
-  if (!b) return;
-  const cliente = clientes.find((c) => c.id === b.dataset.cliente);
-  if (!cliente) return;
-  if (idsClientesEnVuelta().has(cliente.id)) {
-    aviso('Ya está en la vuelta');
+/* Hoja para elegir varios clientes de una, con buscador */
+$('btn-elegir-clientes').addEventListener('click', () => {
+  if (!clientes.length) {
+    location.href = '/pages/clientes.html';
     return;
   }
-  await guardarParadas([...paradas(), paradaDesdeCliente(cliente)]);
+  const enVuelta = idsClientesEnVuelta();
+  const elegidos = new Set();
+  const hoja = abrirHoja({
+    titulo: 'Elegir clientes',
+    html: `
+      <div class="campo">
+        <label for="ec-buscar" class="solo-lector">Buscar cliente</label>
+        <input id="ec-buscar" placeholder="Buscar por nombre o dirección" autocomplete="off">
+      </div>
+      <div class="lista" id="ec-lista"></div>
+      <button type="button" class="btn btn-primario btn-grande" id="ec-agregar" disabled>Elegí uno o más clientes</button>`
+  });
+  const el = hoja.el;
+  const normal = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const pintarLista = () => {
+    const q = normal(el.querySelector('#ec-buscar').value.trim());
+    const visibles = clientes.filter((c) => !q || normal(c.nombre).includes(q) || normal(c.direccion).includes(q));
+    el.querySelector('#ec-lista').innerHTML =
+      visibles
+        .map((c) => {
+          const ya = enVuelta.has(c.id);
+          return `
+          <label class="fila casilla-fila" for="ec-${esc(c.id)}">
+            <input type="checkbox" id="ec-${esc(c.id)}" data-id="${esc(c.id)}" ${ya || elegidos.has(c.id) ? 'checked' : ''} ${ya ? 'disabled' : ''}>
+            <span class="fila-cuerpo">
+              <span class="fila-titulo-texto">${esc(String(c.nombre).toUpperCase())}</span>
+              <span class="fila-detalle">${ya ? 'Ya está en la vuelta' : esc(c.direccion)}</span>
+            </span>
+          </label>`;
+        })
+        .join('') || '<p class="texto-tenue">No hay clientes con ese nombre.</p>';
+  };
+  const pintarBoton = () => {
+    const b = el.querySelector('#ec-agregar');
+    b.disabled = !elegidos.size;
+    b.textContent = elegidos.size ? `Agregar ${elegidos.size} ${elegidos.size === 1 ? 'cliente' : 'clientes'}` : 'Elegí uno o más clientes';
+  };
+  el.querySelector('#ec-buscar').addEventListener('input', pintarLista);
+  el.querySelector('#ec-lista').addEventListener('change', (e) => {
+    const c = e.target.closest('[data-id]');
+    if (!c) return;
+    if (c.checked) elegidos.add(c.dataset.id);
+    else elegidos.delete(c.dataset.id);
+    pintarBoton();
+  });
+  let agregando = false;
+  el.querySelector('#ec-agregar').addEventListener('click', async () => {
+    if (agregando || !elegidos.size) return;
+    agregando = true;
+    const nuevos = clientes.filter((c) => elegidos.has(c.id) && !idsClientesEnVuelta().has(c.id));
+    await guardarParadas([...paradas(), ...nuevos.map(paradaDesdeCliente)]);
+    hoja.cerrar();
+    aviso(nuevos.length === 1 ? `Sumaste a ${nuevos[0].nombre}` : `Sumaste ${nuevos.length} clientes`);
+  });
+  pintarLista();
 });
 
 /* ---------- Paradas cargadas ---------- */
@@ -206,6 +319,8 @@ function pintarParadas() {
     .map((p) => {
       const entrega = p.tipo === 'retiro' && p.entregaId ? porId.get(p.entregaId) : null;
       const detalle = [
+        p.tipo === 'retiro' ? 'Retiro' : '',
+        p.urgente ? 'Urgente' : '',
         p.direccion,
         textoHorario(p),
         Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
@@ -221,10 +336,8 @@ function pintarParadas() {
             <span class="fila-titulo-texto">${esc(p.nombre)}</span>
             <span class="fila-detalle">${esc(detalle)}</span>
           </span>
-          ${p.tipo === 'retiro' ? '<span class="etiqueta etiqueta-azul">retiro</span>' : ''}
-          ${p.urgente ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''}
         </button>
-        <button type="button" class="btn-icono sin-borde" data-editar="${esc(p.id)}" aria-label="Editar ${esc(p.nombre)}">${ICONOS.lapiz}</button>
+        ${filaFletero(p)}
         <button type="button" class="btn-icono sin-borde btn-peligro" data-quitar="${esc(p.id)}" aria-label="Eliminar ${esc(p.nombre)}">${ICONOS.basura}</button>
       </div>`;
     })
@@ -232,7 +345,19 @@ function pintarParadas() {
   pintarBotones();
 }
 
+function filaFletero(p) {
+  if (!hayVarios() || paradaHecha(p)) return '';
+  const f = fleterosEquipo().find((x) => x.uid === p.fleteroUid);
+  if (!f) return '';
+  return `<button type="button" class="chip-fletero" data-fletero="${esc(p.id)}" aria-label="Cambiar fletero de ${esc(p.nombre)}, ahora ${esc(f.nombre)}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre.split(' ')[0])}</button>`;
+}
+
 $('lista-paradas').addEventListener('click', (e) => {
+  const fletero = e.target.closest('[data-fletero]');
+  if (fletero) {
+    elegirFletero(fletero.dataset.fletero);
+    return;
+  }
   const quitar = e.target.closest('[data-quitar]');
   if (quitar) {
     quitarDirecto(quitar.dataset.quitar);

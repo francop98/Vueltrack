@@ -1,4 +1,4 @@
-# Vueltrack v4.0
+# Vueltrack v5.0
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -93,6 +93,19 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 
 - Cambios chicos: v1.1, v1.2…  Cambios grandes: v2.0.
 - Al publicar una versión nueva, cambiá `VERSION_APP` en `js/firebase-config.js` y `VERSION` en `sw.js` para que los celulares bajen lo nuevo.
+
+### v5.0
+- Scroll: el fondo queda fijo; solo se desplaza el contenido. Con una hoja, el menú o un aviso abiertos, la pantalla de atrás no se mueve.
+- Barra de abajo nueva. Organizador: Inicio, Armar, Hoy, Clientes, Historial. Fletero: Inicio, Hoy, Manejo, Historial. Equipo pasa al menú ☰ y al Inicio.
+- Botón para volver en todas las pantallas.
+- Pantalla de carga al entrar: el punto del logo recorre la línea.
+- Se quitó el cotizador de fletes y el cálculo de gasto (rinde y precio). Mi vehículo queda con datos, capacidad, vencimientos y service.
+- Perfil solo organizador (sin vehículo): se elige en el onboarding y desde Equipo.
+- Armar: “¿Quiénes salen este día?” y cada destino nuevo se asigna solo al fletero de esa zona (se puede cambiar tocando el nombre). Botón “Dividir por zona”.
+- Armar: “Elegir clientes” abre la lista completa con buscador para sumar varios de una.
+- Clientes: nombre siempre en mayúsculas, sin repetidos y sin doble guardado. Se quitó “Bultos habituales”.
+- Búsqueda: esquinas (“Alsina y Chiclana”) y rutas con kilómetro (“Ruta 3 km 696”).
+- Archivos eliminados: pages/cotizar.html, js/cotizar.js, css/cotizar.css, js/consumos.js.
 
 ### v4.0
 **En la calle**

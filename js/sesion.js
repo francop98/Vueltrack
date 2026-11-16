@@ -77,7 +77,8 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
       }
 
       definirZonaBusqueda(equipo.zona);
-      pintarNav(pagina, { organizador: ctx.organizador });
+      pintarNav(pagina, { organizador: ctx.organizador, fletero: ctx.fletero });
+      ponerVolver(pagina);
       prepararMenu(ctx);
 
       if (primera) {
@@ -88,6 +89,32 @@ export async function iniciarPantalla({ pagina, soloOrganizador = false, alCambi
       }
     });
   });
+}
+
+/* ---------- Botón para volver ---------- */
+
+const ICONO_VOLVER =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+
+/* Vuelve a la pantalla anterior de la app; si se entró directo, va al Inicio */
+export function volver() {
+  const vieneDeLaApp = document.referrer && document.referrer.startsWith(location.origin);
+  if (vieneDeLaApp && history.length > 1) history.back();
+  else location.href = '/';
+}
+
+function ponerVolver(pagina) {
+  if (pagina === 'inicio' || document.getElementById('btn-volver')) return;
+  const barra = document.querySelector('.barra-sup .barra-izq');
+  if (!barra || barra.querySelector('[aria-label^="Volver"]')) return;
+  const boton = document.createElement('button');
+  boton.type = 'button';
+  boton.className = 'btn-icono';
+  boton.id = 'btn-volver';
+  boton.setAttribute('aria-label', 'Volver');
+  boton.innerHTML = ICONO_VOLVER;
+  boton.addEventListener('click', volver);
+  barra.insertBefore(boton, barra.firstChild);
 }
 
 /* ---------- Menú desplegable (cuenta, seguridad, etc.) ---------- */
@@ -126,9 +153,6 @@ export function abrirMenu(ctx) {
       ${ctx.fletero ? item('', ICONOS.auto, 'Mi vehículo', '/pages/vehiculo.html') : ''}
       <span class="menu-grupo">Tu trabajo</span>
       ${item('', ICONOS.equipo, ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', '/pages/equipo.html')}
-      ${ctx.organizador ? item('', ICONOS.clientes, 'Clientes habituales', '/pages/clientes.html') : ''}
-      ${item('', ICONOS.plata, 'Cotizar un flete', '/pages/cotizar.html')}
-      ${item('', ICONOS.historial, 'Historial', '/pages/historial.html')}
       <span class="menu-grupo">Ayuda</span>
       ${item('guia', ICONOS.ayuda, 'Guía de uso')}
       ${estaInstalada() ? '' : item('instalar', ICONOS.descargar, 'Instalar la app')}

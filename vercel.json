@@ -44,6 +44,11 @@
       "source": "/vehiculo.html",
       "destination": "/pages/vehiculo.html",
       "permanent": true
+    },
+    {
+      "source": "/pages/cotizar.html",
+      "destination": "/",
+      "permanent": false
     }
   ],
   "functions": {

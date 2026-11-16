@@ -1,0 +1,94 @@
+/* =========================================================
+   Vueltrack — Historial
+   El bloque .presupuesto solo se ve al imprimir o guardar PDF.
+   ========================================================= */
+
+.detalle-costos .fila {
+  justify-content: space-between;
+}
+
+.detalle-costos .total {
+  font-weight: 800;
+}
+
+.presupuesto {
+  display: none;
+}
+
+.dia-historial .fila-detalle {
+  white-space: normal;
+}
+
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  html,
+  body {
+    background: #FFFFFF !important;
+    color: #111827 !important;
+  }
+
+  body::before,
+  .app,
+  .nav-inferior,
+  .velo,
+  .aviso {
+    display: none !important;
+  }
+
+  .presupuesto {
+    display: block !important;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: #111827;
+    font-size: 12pt;
+    line-height: 1.45;
+  }
+
+  .presupuesto h1 {
+    font-size: 20pt;
+    margin: 0 0 4pt;
+  }
+
+  .presupuesto h2 {
+    font-size: 13pt;
+    margin: 14pt 0 6pt;
+  }
+
+  .presupuesto .marca-pdf {
+    color: #E8681F;
+    font-weight: 800;
+    font-size: 11pt;
+  }
+
+  .presupuesto .tenue-pdf {
+    color: #4B5563;
+  }
+
+  .presupuesto table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6pt;
+  }
+
+  .presupuesto th,
+  .presupuesto td {
+    text-align: left;
+    padding: 5pt 6pt;
+    border-bottom: 1px solid #E5E7EB;
+    vertical-align: top;
+  }
+
+  .presupuesto td.num,
+  .presupuesto th.num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .presupuesto .total-pdf {
+    font-size: 18pt;
+    font-weight: 800;
+    margin-top: 12pt;
+  }
+}

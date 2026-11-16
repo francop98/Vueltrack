@@ -106,7 +106,7 @@ function pintar() {
               <button type="button" class="fila enlace-plano sin-padding" data-editar="${esc(c.id)}">
                 <span class="iniciales">${esc(iniciales(c.nombre))}</span>
                 <span class="fila-cuerpo">
-                  <span class="fila-titulo-texto">${esc(c.nombre)}</span>
+                  <span class="fila-titulo-texto">${esc(String(c.nombre).toUpperCase())}</span>
                   <span class="fila-detalle">${esc(detalle)}</span>
                 </span>
               </button>
@@ -161,7 +161,7 @@ $('btn-nuevo').addEventListener('click', () => abrirEditor(null));
 /* ---------- Alta y edición ---------- */
 
 function abrirEditor(cliente) {
-  const c = cliente || { nombre: '', direccion: '', telefono: '', dias: [], desde: '', hasta: '', nota: '', bultos: 1 };
+  const c = cliente || { nombre: '', direccion: '', telefono: '', dias: [], desde: '', hasta: '', nota: '' };
   let ubicacion = cliente ? { direccion: c.direccion, lat: c.lat, lng: c.lng } : null;
   let pin = null;
   const orden = [1, 2, 3, 4, 5, 6, 0];
@@ -169,14 +169,11 @@ function abrirEditor(cliente) {
   const hoja = abrirHoja({
     titulo: cliente ? 'Editar cliente' : 'Nuevo cliente',
     html: `
-      <div class="campo"><label for="c-nombre">Nombre</label><input id="c-nombre" value="${esc(c.nombre)}" placeholder="Nombre del cliente"></div>
+      <div class="campo"><label for="c-nombre">Nombre</label><input id="c-nombre" class="mayusculas" value="${esc(String(c.nombre || '').toUpperCase())}" placeholder="NOMBRE DEL CLIENTE" autocapitalize="characters" autocomplete="off"></div>
       ${htmlBuscador('c-direccion', 'Dirección', 'Dirección o nombre del lugar', c.direccion)}
       <div class="mapa chico ${ubicacion ? '' : 'oculto'}" id="c-mapa-caja"><div class="mapa-lienzo" id="c-mapa"></div></div>
       <span class="texto-tenue ${ubicacion ? '' : 'oculto'}" id="c-ayuda-pin">Si el pin quedó corrido, arrastralo a la puerta.</span>
-      <div class="grilla-2 siempre">
-        <div class="campo"><label for="c-tel">Teléfono</label><input id="c-tel" type="tel" inputmode="tel" value="${esc(c.telefono)}" placeholder="Celular"></div>
-        <div class="campo"><label for="c-bultos">Bultos habituales</label><input id="c-bultos" type="number" inputmode="numeric" min="0" step="1" value="${esc(c.bultos ?? 1)}"></div>
-      </div>
+      <div class="campo"><label for="c-tel">Teléfono</label><input id="c-tel" type="tel" inputmode="tel" value="${esc(c.telefono)}" placeholder="Celular"></div>
       <div class="grilla-2 siempre">
         <div class="campo"><label for="c-desde">Recibe desde</label><input id="c-desde" type="time" value="${esc(c.desde || '')}"></div>
         <div class="campo"><label for="c-hasta">Recibe hasta</label><input id="c-hasta" type="time" value="${esc(c.hasta)}"></div>
@@ -199,6 +196,14 @@ function abrirEditor(cliente) {
   });
   const el = hoja.el;
 
+  // El nombre se escribe siempre en mayúsculas
+  const campoNombre = el.querySelector('#c-nombre');
+  campoNombre.addEventListener('input', () => {
+    const pos = campoNombre.selectionStart;
+    campoNombre.value = campoNombre.value.toUpperCase();
+    campoNombre.setSelectionRange(pos, pos);
+  });
+
   function ponerPin() {
     el.querySelector('#c-mapa-caja').classList.remove('oculto');
     el.querySelector('#c-ayuda-pin').classList.remove('oculto');
@@ -219,15 +224,23 @@ function abrirEditor(cliente) {
       const direccion = r.direccion || r.nombre;
       ubicacion = { direccion, lat: r.lat, lng: r.lng };
       el.querySelector('#c-direccion').value = direccion;
-      const campoNombre = el.querySelector('#c-nombre');
-      if (r.nombre && !campoNombre.value.trim()) campoNombre.value = r.nombre;
+      if (r.nombre && !campoNombre.value.trim()) campoNombre.value = r.nombre.toUpperCase();
       ponerPin();
     }
   });
 
-  el.querySelector('#c-guardar').addEventListener('click', async () => {
-    const nombre = el.querySelector('#c-nombre').value.trim();
+  let guardando = false;
+  const boton = el.querySelector('#c-guardar');
+  boton.addEventListener('click', async () => {
+    if (guardando) return;
+    const nombre = campoNombre.value.trim().replace(/\s+/g, ' ').toUpperCase();
     const error = el.querySelector('#c-error');
+    const repetido = clientes.find((x) => (!cliente || x.id !== cliente.id) && sinTildes(x.nombre).trim() === sinTildes(nombre));
+    if (repetido) {
+      error.textContent = 'Ya tenés un cliente con ese nombre. Si es otra sucursal, agregale algo al nombre (ej.: “COOPERATIVA OBRERA CENTRO”).';
+      error.classList.remove('oculto');
+      return;
+    }
     const desdeH = el.querySelector('#c-desde').value;
     const hastaH = el.querySelector('#c-hasta').value;
     if (!nombre || !ubicacion || (desdeH && hastaH && desdeH >= hastaH)) {
@@ -240,6 +253,11 @@ function abrirEditor(cliente) {
       return;
     }
     const dias = [...el.querySelectorAll('.casillas input:checked')].map((i) => Number(i.value));
+    guardando = true;
+    boton.disabled = true;
+    error.classList.add('oculto');
+    // Se cierra enseguida: un segundo toque ya no puede volver a guardar
+    hoja.cerrar();
     await guardarCliente(ctx.equipo.id, {
       id: cliente ? cliente.id : undefined,
       nombre,
@@ -249,12 +267,12 @@ function abrirEditor(cliente) {
       telefono: el.querySelector('#c-tel').value.trim(),
       desde: el.querySelector('#c-desde').value,
       hasta: el.querySelector('#c-hasta').value,
-      bultos: Math.max(0, Number(el.querySelector('#c-bultos').value) || 0),
       nota: el.querySelector('#c-nota').value.trim(),
       dias
-    });
-    hoja.cerrar();
-    aviso(cliente ? 'Cliente actualizado' : 'Cliente guardado');
+    }).then(
+      () => aviso(cliente ? 'Cliente actualizado' : 'Cliente guardado'),
+      () => aviso('No se pudo guardar el cliente. Revisá la conexión.')
+    );
   });
 
   const borrar = el.querySelector('#c-borrar');

@@ -10,7 +10,7 @@ export function paradaDesdeCliente(c) {
   return {
     id: idNuevo(),
     clienteId: c.id,
-    nombre: c.nombre,
+    nombre: String(c.nombre || '').toUpperCase(),
     direccion: c.direccion,
     lat: c.lat,
     lng: c.lng,
@@ -18,7 +18,7 @@ export function paradaDesdeCliente(c) {
     nota: c.nota || '',
     desde: c.desde || '',
     hasta: c.hasta || '',
-    bultos: Number(c.bultos) || 1,
+    bultos: 1,
     tipo: 'entrega',
     urgente: false,
     estado: 'pendiente',
@@ -136,26 +136,4 @@ export function resumen(grupos) {
     }
   });
   return { paradas, hechas, distancia, duracion, fin };
-}
-
-/* ---------- Gastos del vehículo ---------- */
-
-export const COMBUSTIBLES = {
-  nafta: { nombre: 'Nafta', unidad: 'litro', rinde: 'km por litro' },
-  gasoil: { nombre: 'Gasoil', unidad: 'litro', rinde: 'km por litro' },
-  gnc: { nombre: 'GNC', unidad: 'm³', rinde: 'km por m³' },
-  electrico: { nombre: 'Eléctrico', unidad: 'kWh', rinde: 'km por kWh' }
-};
-
-/* Gasto estimado de una ruta según los datos del vehículo del fletero */
-export function costoDeRuta(distanciaMetros, gasto) {
-  if (!gasto || !distanciaMetros) return null;
-  const rinde = Number(gasto.rinde);
-  const precio = Number(gasto.precio);
-  if (!(rinde > 0) || !(precio >= 0)) return null;
-  const km = distanciaMetros / 1000;
-  const combustible = (km / rinde) * precio;
-  const extra = km * (Number(gasto.extraKm) || 0);
-  if (!Number.isFinite(combustible)) return null;
-  return { km, unidades: km / rinde, combustible, extra, total: combustible + extra };
 }

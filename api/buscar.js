@@ -11,6 +11,9 @@
      2. Photon (bueno para nombres de lugares)
      3. Nominatim
      4. Overpass: todo lo cargado en OpenStreetMap cerca del punto de salida
+   Casos especiales (se prueban primero):
+     Esquinas ("Alsina y Chiclana"): Georef y, si no, el cruce de las dos calles en OpenStreetMap.
+     Rutas con kilómetro ("Ruta 3 km 696"): mojón de ese km en OpenStreetMap (o el más cercano).
    Prioridad: primero lo que está en tu localidad, después en tu provincia
    y después el resto, ordenado por cercanía al punto de salida.
    Cada resultado trae:
@@ -19,7 +22,17 @@
      detalle   ciudad, provincia y aclaraciones
      tipo      "direccion" | "lugar" | "calle"
    ========================================================= */
-import { verificarUsuario, pedirORS, pedirNominatim, pedirGeoref, pedirPhoton, pedirOverpass, responder } from './_comun.js';
+import {
+  verificarUsuario,
+  pedirORS,
+  pedirNominatim,
+  pedirGeoref,
+  pedirPhoton,
+  pedirOverpass,
+  consultarOverpass,
+  patronOverpass,
+  responder
+} from './_comun.js';
 
 const MAX = 7;
 
@@ -89,16 +102,89 @@ async function deGeoref(texto, foco) {
     .map((d) => {
       const calle = nombrePropio(d.calle && d.calle.nombre);
       const altura = d.altura && d.altura.valor != null ? String(d.altura.valor) : '';
+      const cruce = d.calle_cruce_1 && d.calle_cruce_1.nombre ? nombrePropio(d.calle_cruce_1.nombre) : '';
       return {
-        tipo: altura ? 'direccion' : 'calle',
+        tipo: altura || cruce ? 'direccion' : 'calle',
         calle,
-        direccion: armarDireccion(calle, altura),
+        direccion: cruce && !altura ? `${calle} y ${cruce}` : armarDireccion(calle, altura),
         ciudad: nombrePropio((d.localidad_censal && d.localidad_censal.nombre) || (d.departamento && d.departamento.nombre) || ''),
         provincia: (d.provincia && d.provincia.nombre) || '',
         lat: d.ubicacion.lat,
         lng: d.ubicacion.lon
       };
     });
+}
+
+/* ---------- Esquinas: "Calle A y Calle B" ---------- */
+
+function separarEsquina(texto) {
+  const m = texto.split(',')[0].match(/^(.{3,}?)\s+(?:y|e|esq\.?|esquina|&)\s+(.{3,})$/i);
+  if (!m) return null;
+  const limpiar = (t) => t.replace(/^(?:calle|av\.?|avenida)\s+/i, '').trim();
+  return { a: limpiar(m[1]), b: limpiar(m[2]) };
+}
+
+async function esquinaEnOverpass({ a, b }, foco) {
+  if (!foco) return [];
+  const radio = 25000;
+  const datos = await consultarOverpass(
+    `[out:json][timeout:8];` +
+      `way["highway"]["name"~"${patronOverpass(a)}",i](around:${radio},${foco.lat},${foco.lng})->.a;` +
+      `way["highway"]["name"~"${patronOverpass(b)}",i](around:${radio},${foco.lat},${foco.lng})->.b;` +
+      `node(w.a)->.na;node(w.b)->.nb;node.na.nb;out 6;`
+  );
+  return (datos.elements || [])
+    .filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon))
+    .map((e) => ({
+      tipo: 'direccion',
+      calle: nombrePropio(a),
+      direccion: `${nombrePropio(a)} y ${nombrePropio(b)}`,
+      ciudad: '',
+      provincia: '',
+      lat: e.lat,
+      lng: e.lon
+    }));
+}
+
+/* ---------- Rutas con kilómetro: "Ruta 3 km 696" ---------- */
+
+function separarRutaKm(texto) {
+  const m = texto.match(/\b(?:ruta|rn|rp|r\.n\.|r\.p\.)\s*(?:nacional|provincial)?\s*(?:n[°º]?\s*)?(\d{1,4})\b.*?\bkm\.?\s*(\d{1,4})(?:[.,]\d+)?/i);
+  return m ? { ruta: m[1], km: Number(m[2]) } : null;
+}
+
+async function rutaKmEnOverpass({ ruta, km }, foco) {
+  if (!foco) return [];
+  // Kilómetro pedido y los cercanos, por si ese mojón no está cargado
+  const cercanos = [0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5].map((d) => km + d).filter((k) => k >= 0);
+  const distancias = cercanos.join('|');
+  const datos = await consultarOverpass(
+    `[out:json][timeout:12];` +
+      `way["highway"]["ref"~"(^|;)[ ]*(RN|RP|R|Ruta)?[ -]*${ruta}[ ]*($|;)",i](around:200000,${foco.lat},${foco.lng})->.r;` +
+      `node["highway"="milestone"]["distance"~"^(${distancias})([.,]0+)?$"](around.r:250);out 20;`,
+    13000
+  );
+  const mojones = (datos.elements || [])
+    .filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon))
+    .map((e) => ({ e, km: Number(String((e.tags || {}).distance).replace(',', '.')) }))
+    .filter((x) => Number.isFinite(x.km))
+    .sort((x, y) => Math.abs(x.km - km) - Math.abs(y.km - km) || distanciaKm(foco, { lat: x.e.lat, lng: x.e.lon }) - distanciaKm(foco, { lat: y.e.lat, lng: y.e.lon }));
+  if (!mojones.length) return [];
+  const mejor = mojones[0];
+  const exacto = mejor.km === km;
+  return [
+    {
+      tipo: 'direccion',
+      calle: `Ruta ${ruta}`,
+      direccion: `Ruta ${ruta} km ${km}`,
+      ciudad: '',
+      provincia: '',
+      nota: exacto ? 'mojón del km' : `cerca del mojón km ${mejor.km}, ajustá el pin`,
+      aproximada: !exacto,
+      lat: mejor.e.lat,
+      lng: mejor.e.lon
+    }
+  ];
 }
 
 /* ---------- OpenRouteService (Pelias) ---------- */
@@ -226,7 +312,7 @@ function formatear(lista, numero, { localidad, provincia, foco }) {
     .sort((a, b) => b.puntaje - a.puntaje || (numero ? 0 : orden[a.tipo] - orden[b.tipo]) || a.km - b.km)
     .map((r) => {
       let direccion = r.direccion;
-      let aproximada = false;
+      let aproximada = !!r.aproximada;
       if (r.tipo === 'calle' && numero) {
         const yaTieneNumero = new RegExp(`\\b${numero}$`).test(String(r.calle || r.direccion).trim());
         if (!yaTieneNumero) {
@@ -235,8 +321,9 @@ function formatear(lista, numero, { localidad, provincia, foco }) {
         }
       }
       const lugar = [r.ciudad, r.provincia].filter(Boolean).join(', ');
-      let aclaracion = '';
-      if (aproximada) aclaracion = 'altura aproximada, ajustá el pin';
+      let aclaracion = r.nota || '';
+      if (r.nota) aclaracion = r.nota;
+      else if (aproximada) aclaracion = 'altura aproximada, ajustá el pin';
       else if (r.tipo === 'calle') aclaracion = 'sin altura';
       return {
         tipo: r.tipo,
@@ -248,7 +335,7 @@ function formatear(lista, numero, { localidad, provincia, foco }) {
         aproximada
       };
     })
-    .filter((r, _, todas) => !(r.aproximada && todas.some((x) => x.tipo === 'direccion')))
+    .filter((r, _, todas) => !(r.aproximada && r.tipo === 'calle' && todas.some((x) => x.tipo === 'direccion')))
     .filter((r) => {
       const clave = `${(r.nombre || r.direccion).toLowerCase()}|${r.lat.toFixed(3)}|${r.lng.toFixed(3)}`;
       if (vistos.has(clave)) return false;
@@ -291,7 +378,41 @@ export default async function handler(req, res) {
   const conZona = !texto.includes(',') && localidad ? `${texto}, ${localidad}${provincia ? ', ' + provincia : ''}` : texto;
 
   let resultado;
-  if (numero) {
+
+  // Casos especiales: ruta con kilómetro y esquinas
+  const rutaKm = separarRutaKm(texto);
+  const esquina = rutaKm ? null : separarEsquina(texto);
+  if (rutaKm || esquina) {
+    const especial = await probar(
+      rutaKm
+        ? [() => rutaKmEnOverpass(rutaKm, foco)]
+        : [() => deGeoref(`${esquina.a} y ${esquina.b}`, foco).then((l) => l.filter((r) => / y /.test(r.direccion))), () => esquinaEnOverpass(esquina, foco)],
+      (lista) => lista.length > 0
+    );
+    if (especial.encontrados.length) {
+      const resultados = formatear(especial.encontrados, null, { localidad, provincia, foco });
+      console.log('[buscar]', JSON.stringify({ texto, especial: rutaKm ? 'ruta-km' : 'esquina', resultados: resultados.length }));
+      if (resultados.length) return responder(res, 200, { resultados });
+    }
+  }
+
+  if (rutaKm) {
+    // Sin mojón cargado: se muestra la ruta para ubicar el pin a mano
+    resultado = await probar(
+      [
+        async () =>
+          desdeNominatim(await pedirNominatim(`Ruta Nacional ${rutaKm.ruta}${localidad ? ', ' + localidad : ''}`, foco)).map((r) => ({
+            ...r,
+            tipo: 'direccion',
+            nombre: '',
+            direccion: `Ruta ${rutaKm.ruta} km ${rutaKm.km}`,
+            aproximada: true,
+            nota: 'ese km no está en el mapa, ubicá el pin'
+          }))
+      ],
+      (lista) => lista.length > 0
+    );
+  } else if (numero) {
     // Dirección con altura
     resultado = await probar(
       [

@@ -37,6 +37,15 @@
         <input type="date" id="fecha" class="input input-fecha">
       </div>
 
+      <section class="seccion oculto" id="bloque-salen">
+        <div class="fila-titulo">
+          <h2 class="subtitulo">¿Quiénes salen este día?</h2>
+          <button type="button" class="link" id="btn-redistribuir">Dividir por zona</button>
+        </div>
+        <div class="chips" id="chips-salen" role="group" aria-label="Fleteros que salen"></div>
+        <p class="texto-tenue">Cada destino que agregues se asigna solo al fletero de esa zona. Tocá el nombre en una parada para cambiarlo.</p>
+      </section>
+
       <div class="campo buscador">
         <label for="dir">Agregar destino</label>
         <div class="buscador-caja">
@@ -51,11 +60,8 @@
       </div>
 
       <section class="seccion">
-        <div class="fila-titulo">
-          <h2 class="subtitulo">Clientes habituales</h2>
-          <a class="link" href="/pages/clientes.html">Ver todos</a>
-        </div>
-        <div class="chips" id="chips-clientes"></div>
+        <h2 class="subtitulo">Clientes habituales</h2>
+        <button type="button" class="btn btn-contorno" id="btn-elegir-clientes">Elegir clientes</button>
         <button type="button" class="chip punteado oculto" id="btn-toca"></button>
       </section>
 

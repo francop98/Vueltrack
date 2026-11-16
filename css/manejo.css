@@ -3,7 +3,6 @@
    ========================================================= */
 
 .manejo {
-  min-height: 100dvh;
   padding: calc(14px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
   gap: 14px;
 }

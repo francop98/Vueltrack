@@ -5,13 +5,13 @@
    A mano:   vos elegís quién va a cada parada.
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
-import { escucharVuelta, fleterosDelEquipo } from './datos.js';
+import { escucharVuelta, fleterosDelEquipo, actualizarEquipo, guardarVuelta } from './datos.js';
 import { crearMapa, pintarVuelta } from './mapa.js';
 import { dividirPorZona } from './rutas.js';
 import { calcularVuelta, guardarCalculo, mensajeError, horaDeSalida, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirOrden } from './salida.js';
-import { actualizarEquipo } from './datos.js';
-import { gruposDeVuelta, paradaHecha, costoDeRuta } from './vuelta.js';
+import { gruposDeVuelta, paradaHecha } from './vuelta.js';
+import { activosDelDia } from './asignar.js';
 import {
   esc,
   fechaISO,
@@ -22,7 +22,6 @@ import {
   horaDeSegundos,
   aviso,
   botonCargando,
-  formatoPlata,
   ICONOS
 } from './ui.js';
 
@@ -57,6 +56,7 @@ escucharVuelta(ctx.equipo.id, fecha, (v) => {
   vuelta = v;
   if (primeraVez) {
     primeraVez = false;
+    seleccionados = activosDelDia(vuelta, fleteros).map((f) => f.uid);
     asignacionInicial();
     pintarTodo();
     if (pendientes().length) calcular();
@@ -66,8 +66,9 @@ escucharVuelta(ctx.equipo.id, fecha, (v) => {
 function asignacionInicial() {
   asignacion = new Map();
   const lista = pendientes();
-  const ya = lista.every((p) => p.fleteroUid && seleccionados.includes(p.fleteroUid));
-  if (ya && vuelta && vuelta.ordenada) {
+  // Si en Armar ya quedó asignada cada parada, se respeta esa asignación
+  const ya = lista.length && lista.every((p) => p.fleteroUid && seleccionados.includes(p.fleteroUid));
+  if (ya) {
     lista.forEach((p) => asignacion.set(p.id, p.fleteroUid));
   } else {
     asignarPorZona();
@@ -123,6 +124,7 @@ $('chips-fleteros').addEventListener('click', (e) => {
   } else {
     seleccionados = [...seleccionados, uid];
   }
+  guardarVuelta(ctx.equipo.id, fecha, { activos: seleccionados }).catch(() => {});
   if (modo === 'mano') {
     const activos = fleterosActivos();
     asignacion.forEach((v, k) => {
@@ -251,7 +253,6 @@ function pintarTarjetas() {
       const cant = v.paradas.filter((p) => p.fleteroUid === f.uid).length;
       const ruta = calculo ? calculo.rutas[f.uid] : null;
       const sinDatos = !calculo;
-      const costo = ruta ? costoDeRuta(ruta.distancia, f.gasto) : null;
       return `
         <div class="tarjeta tarjeta-fletero" style="--color-fletero:${esc(f.color)}">
           <div class="fila-titulo">
@@ -264,7 +265,6 @@ function pintarTarjetas() {
             </div>
             <strong>${ruta && ruta.fin != null ? `vuelve ${horaDeSegundos(ruta.fin)}` : ''}</strong>
           </div>
-          ${costo ? `<span class="texto-tenue">Gasto estimado: <strong>${formatoPlata(costo.total)}</strong></span>` : ''}
           <div class="grilla-stats de-3">
             <div class="stat"><span class="stat-valor">${sinDatos && modo === 'parejo' ? '—' : cant}</span><span class="stat-nombre">paradas</span></div>
             <div class="stat"><span class="stat-valor">${ruta ? formatoKm(ruta.distancia) : '—'}</span><span class="stat-nombre">recorrido</span></div>

@@ -28,7 +28,7 @@ let ctx;
 let vuelta = null;
 let ocupado = false;
 
-ctx = await iniciarPantalla({ pagina: 'hoy' });
+ctx = await iniciarPantalla({ pagina: 'manejo' });
 compartirSiCorresponde(ctx);
 
 /* Mantener la pantalla encendida mientras se usa el modo manejo */

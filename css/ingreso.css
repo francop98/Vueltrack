@@ -3,10 +3,9 @@
    ========================================================= */
 
 .ingreso {
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 22px;
   padding: calc(32px + env(safe-area-inset-top)) 20px calc(32px + env(safe-area-inset-bottom));
   max-width: 440px;
@@ -126,4 +125,13 @@
 
 .grilla-stats.dos {
   grid-template-columns: 1fr 1fr;
+}
+
+/* Centrado vertical que igual permite desplazarse si no entra */
+.ingreso > :first-child {
+  margin-top: auto;
+}
+
+.ingreso > :last-child {
+  margin-bottom: auto;
 }

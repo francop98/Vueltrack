@@ -30,15 +30,9 @@
       </header>
 
       <div class="titulo-bloque">
-        <span class="sobre-titulo">Para calcular cuánto gastás</span>
+        <span class="sobre-titulo">Datos, vencimientos y service</span>
         <h1 class="titulo">Mi vehículo</h1>
       </div>
-
-      <section class="tarjeta-destacada" id="resumen" aria-live="polite">
-        <span class="acento">Gasto estimado</span>
-        <strong class="subtitulo" id="res-hoy">Completá los datos</strong>
-        <span class="tenue" id="res-100"></span>
-      </section>
 
       <form class="seccion" id="form" novalidate>
         <div class="campo">
@@ -50,44 +44,12 @@
           <legend class="etiqueta-campo">Tipo</legend>
           <div class="casillas" id="tipos">
             <label class="casilla"><input type="radio" name="tipo" value="auto"><span>Auto</span></label>
-            <label class="casilla"><input type="radio" name="tipo" value="utilitario" checked><span>Utilitario</span></label>
-            <label class="casilla"><input type="radio" name="tipo" value="camioneta"><span>Camioneta</span></label>
             <label class="casilla"><input type="radio" name="tipo" value="camion"><span>Camión</span></label>
+            <label class="casilla"><input type="radio" name="tipo" value="camioneta"><span>Camioneta</span></label>
             <label class="casilla"><input type="radio" name="tipo" value="moto"><span>Moto</span></label>
+            <label class="casilla"><input type="radio" name="tipo" value="utilitario" checked><span>Utilitario</span></label>
           </div>
         </fieldset>
-
-        <fieldset class="campo sin-borde">
-          <legend class="etiqueta-campo">Combustible</legend>
-          <div class="casillas" id="combustibles">
-            <label class="casilla"><input type="radio" name="combustible" value="nafta" checked><span>Nafta</span></label>
-            <label class="casilla"><input type="radio" name="combustible" value="gasoil"><span>Gasoil</span></label>
-            <label class="casilla"><input type="radio" name="combustible" value="gnc"><span>GNC</span></label>
-            <label class="casilla"><input type="radio" name="combustible" value="electrico"><span>Eléctrico</span></label>
-          </div>
-        </fieldset>
-
-        <div class="grilla-2 siempre">
-          <div class="campo">
-            <label for="rinde" id="label-rinde">Rinde (km por litro)</label>
-            <input id="rinde" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0">
-          </div>
-          <div class="campo">
-            <label for="precio" id="label-precio">Precio ($ por litro)</label>
-            <input id="precio" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
-          </div>
-        </div>
-        <div class="sugerencia oculto" id="sug-rinde">
-          <span id="sug-rinde-texto"></span>
-          <button type="button" class="btn btn-primario" id="usar-rinde">Usar</button>
-        </div>
-        <p class="texto-tenue" id="precio-fecha">Cargá el precio que pagaste en tu última carga. Actualizalo cuando cambie.</p>
-
-        <div class="campo">
-          <label for="extra">Amortización y mantenimiento por km (opcional)</label>
-          <input id="extra" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0">
-        </div>
-        <button type="button" class="btn btn-contorno" id="btn-amortizacion">Calcular amortización</button>
 
         <div class="campo">
           <label for="capacidad">Capacidad en bultos (opcional)</label>
@@ -95,8 +57,7 @@
           <span class="texto-tenue">Si la cargás, al ordenar no te asigna más bultos de los que entran.</span>
         </div>
 
-        <p class="error-texto oculto" id="error" role="alert"></p>
-        <button type="submit" class="btn btn-primario btn-grande">Guardar vehículo</button>
+        <button type="submit" class="btn btn-primario btn-grande" id="btn-guardar">Guardar vehículo</button>
       </form>
 
       <section class="seccion">

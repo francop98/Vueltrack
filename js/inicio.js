@@ -6,7 +6,7 @@ import { abrirGuia, guiaVista } from './guia.js';
 import { instalarApp, sePuedeInstalar } from './instalar.js';
 import { elegirZona } from './zona.js';
 import { escucharVuelta, fleterosDelEquipo } from './datos.js';
-import { gruposDeVuelta, resumen, paradasSinOrdenar, costoDeRuta, paradaHecha } from './vuelta.js';
+import { gruposDeVuelta, resumen, paradasSinOrdenar, paradaHecha } from './vuelta.js';
 import { alertasDelVehiculo, kmRecorridosDesde, tieneService } from './mantenimiento.js';
 import {
   ICONOS,
@@ -14,7 +14,6 @@ import {
   fechaISO,
   fechaLarga,
   formatoKm,
-  formatoPlata,
   horaDeSegundos,
   linkGoogleMapsVuelta,
   PARADAS_POR_TRAMO
@@ -72,12 +71,12 @@ $('aviso-zona').addEventListener('click', () => elegirZona(ctx.equipo));
 
 function pintar() {
   $('cargando').classList.add('oculto');
+  window.dispatchEvent(new Event('vueltrack:listo'));
   $('aviso-zona').classList.toggle('oculto', !ctx.organizador || !!ctx.equipo.zona);
   const nombre = (ctx.yo.nombre || '').split(' ')[0];
   $('saludo').textContent = `Hola, ${nombre}`;
   $('equipo-nombre').textContent = ctx.equipo.modo === 'solo' ? 'Trabajás solo' : ctx.equipo.nombre;
   pintarResumen();
-  pintarGasto();
   pintarMosaico();
   pintarAlertas();
 }
@@ -160,31 +159,6 @@ function pintarResumen() {
     <a class="btn btn-primario" href="/pages/hoy.html">${ICONOS.ruta}Ver la vuelta</a>`;
 }
 
-function pintarGasto() {
-  const caja = $('gasto');
-  if (!ctx.fletero) {
-    caja.classList.add('oculto');
-    return;
-  }
-  caja.classList.remove('oculto');
-  const gasto = ctx.yo.gasto;
-  const ruta = vuelta && vuelta.rutas ? vuelta.rutas[ctx.user.uid] : null;
-  if (!gasto || !gasto.rinde) {
-    caja.innerHTML = `
-      <span class="titulo-bloque"><strong class="subtitulo">Mi vehículo</strong>
-      <span class="texto-tenue">Cargá tu vehículo para saber cuánto gastás en cada vuelta.</span></span>
-      ${ICONOS.auto}`;
-    return;
-  }
-  const costo = ruta ? costoDeRuta(ruta.distancia, gasto) : null;
-  caja.innerHTML = `
-    <span class="titulo-bloque">
-      <span class="texto-tenue">Gasto estimado de hoy${ruta ? ` · ${formatoKm(ruta.distancia)}` : ''}</span>
-      <strong>${costo ? formatoPlata(costo.total) : 'Sin vuelta todavía'}</strong>
-    </span>
-    ${ICONOS.auto}`;
-}
-
 function baldosa({ href, icono, titulo, texto, id }) {
   if (id) {
     return `<button type="button" class="baldosa" id="${id}">${icono}<span><strong>${esc(titulo)}</strong><span>${esc(texto)}</span></span></button>`;
@@ -194,16 +168,12 @@ function baldosa({ href, icono, titulo, texto, id }) {
 
 function pintarMosaico() {
   const varios = fleterosDelEquipo(ctx.equipo).length > 1;
+  // Solo accesos que no están en la barra de abajo
   const items = [
-    { href: '/pages/hoy.html', icono: ICONOS.ruta, titulo: 'La vuelta de hoy', texto: 'Mapa, paradas y navegación' },
-    ctx.organizador && { href: '/pages/armar.html', icono: ICONOS.armar, titulo: 'Armar la vuelta', texto: 'Cargar y ordenar paradas' },
     ctx.organizador && varios && { href: `/pages/repartir.html?fecha=${fecha}`, icono: ICONOS.equipo, titulo: 'Repartir', texto: 'Dividir entre fleteros' },
-    ctx.organizador && { href: '/pages/clientes.html', icono: ICONOS.clientes, titulo: 'Clientes', texto: 'Tus clientes habituales' },
-    ctx.fletero && { href: '/pages/manejo.html', icono: ICONOS.navegar, titulo: 'Modo manejo', texto: 'Una parada por vez' },
-    ctx.fletero && { href: '/pages/vehiculo.html', icono: ICONOS.auto, titulo: 'Mi vehículo', texto: 'Gastos y vencimientos' },
-    { href: '/pages/cotizar.html', icono: ICONOS.plata, titulo: 'Cotizar un flete', texto: 'Costo y presupuesto' },
-    { href: '/pages/historial.html', icono: ICONOS.historial, titulo: 'Historial', texto: 'Km, gastos y entregas' },
-    { href: '/pages/equipo.html', icono: ICONOS.equipo, titulo: 'Equipo', texto: ctx.equipo.modo === 'solo' ? 'Trabajo solo' : 'Integrantes y roles' }
+    ctx.organizador && ctx.fletero && { href: '/pages/manejo.html', icono: ICONOS.navegar, titulo: 'Modo manejo', texto: 'Una parada por vez' },
+    ctx.fletero && { href: '/pages/vehiculo.html', icono: ICONOS.auto, titulo: 'Mi vehículo', texto: 'Vencimientos y service' },
+    { href: '/pages/equipo.html', icono: ICONOS.equipo, titulo: ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', texto: ctx.equipo.modo === 'solo' ? 'Trabajo solo' : 'Integrantes y roles' }
   ].filter(Boolean);
   $('mosaico').innerHTML = items.map(baldosa).join('');
 }

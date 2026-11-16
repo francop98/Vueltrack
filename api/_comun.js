@@ -137,19 +137,27 @@ export async function pedirPhoton(texto, foco) {
 
 /* Overpass: busca por nombre todo lo cargado en OpenStreetMap alrededor del punto de salida.
    Encuentra comercios que los buscadores a veces no indexan. */
-export async function pedirOverpass(texto, foco, radioMetros = 25000) {
-  const limpio = texto.replace(/[\\^$.|?*+()[\]{}"]/g, ' ').trim();
-  if (!limpio || !foco) return { elements: [] };
-  // Sin importar tildes ni mayúsculas: "ferreteria" encuentra "Ferretería"
+/* Patrón para Overpass sin importar tildes ni mayúsculas: "ferreteria" encuentra "Ferretería" */
+export function patronOverpass(texto) {
+  const limpio = String(texto || '').replace(/[\\^$.|?*+()[\]{}"]/g, ' ').replace(/\s+/g, ' ').trim();
   const VOCALES = { a: '[aáAÁ]', e: '[eéEÉ]', i: '[iíIÍ]', o: '[oóOÓ]', u: '[uúüUÚÜ]', n: '[nñNÑ]' };
-  const patron = limpio
+  return limpio
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .split('')
     .map((c) => VOCALES[c] || c)
     .join('');
-  const consulta = `[out:json][timeout:8];nwr["name"~"${patron}",i](around:${radioMetros},${foco.lat},${foco.lng});out center tags 8;`;
+}
+
+export async function pedirOverpass(texto, foco, radioMetros = 25000) {
+  const patron = patronOverpass(texto);
+  if (!patron || !foco) return { elements: [] };
+  return consultarOverpass(`[out:json][timeout:8];nwr["name"~"${patron}",i](around:${radioMetros},${foco.lat},${foco.lng});out center tags 8;`);
+}
+
+/* Consulta libre a Overpass (OpenStreetMap) */
+export async function consultarOverpass(consulta, tope = 9000) {
   const resp = await conTiempo(
     'https://overpass-api.de/api/interpreter',
     {
@@ -157,7 +165,7 @@ export async function pedirOverpass(texto, foco, radioMetros = 25000) {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Vueltrack/2.2 (https://vueltrack.vercel.app)' },
       body: 'data=' + encodeURIComponent(consulta)
     },
-    9000
+    tope
   );
   if (!resp.ok) {
     const error = new Error('overpass');

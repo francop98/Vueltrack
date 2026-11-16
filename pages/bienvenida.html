@@ -64,6 +64,13 @@
         <label for="nombre-equipo">Nombre del equipo o empresa</label>
         <input id="nombre-equipo" placeholder="Nombre del equipo">
       </div>
+      <fieldset class="campo sin-borde oculto" id="campo-reparto">
+        <legend class="etiqueta-campo">¿Vos también salís a repartir?</legend>
+        <div class="casillas">
+          <label class="casilla"><input type="radio" name="reparto" value="no"><span>No, solo organizo</span></label>
+          <label class="casilla"><input type="radio" name="reparto" value="si"><span>Sí, también reparto</span></label>
+        </div>
+      </fieldset>
       <div class="campo oculto" id="campo-codigo">
         <label for="codigo">Código del equipo</label>
         <input id="codigo" placeholder="Código del equipo" autocapitalize="characters" autocomplete="off">
@@ -143,26 +150,11 @@
         <label for="vehiculo">Vehículo</label>
         <input id="vehiculo" placeholder="Marca y modelo">
       </div>
-      <fieldset class="campo sin-borde">
-        <legend class="etiqueta-campo">Combustible</legend>
-        <div class="casillas">
-          <label class="casilla"><input type="radio" name="combustible" value="nafta" checked><span>Nafta</span></label>
-          <label class="casilla"><input type="radio" name="combustible" value="gasoil"><span>Gasoil</span></label>
-          <label class="casilla"><input type="radio" name="combustible" value="gnc"><span>GNC</span></label>
-          <label class="casilla"><input type="radio" name="combustible" value="electrico"><span>Eléctrico</span></label>
-        </div>
-      </fieldset>
-      <div class="grilla-2 siempre">
-        <div class="campo">
-          <label for="rinde">Km por litro</label>
-          <input id="rinde" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0">
-        </div>
-        <div class="campo">
-          <label for="precio">Precio por litro ($)</label>
-          <input id="precio" type="number" inputmode="decimal" min="0" step="1" placeholder="0">
-        </div>
+      <div class="campo">
+        <label for="capacidad">Capacidad en bultos (opcional)</label>
+        <input id="capacidad" type="number" inputmode="numeric" min="0" step="1" placeholder="Sin límite">
       </div>
-      <p class="texto-tenue">Con esto te mostramos cuánto gastás en combustible en cada vuelta. Lo podés completar después desde el menú.</p>
+      <p class="texto-tenue">Desde el menú vas a poder cargar los vencimientos (VTV, seguro, patente) y el service.</p>
     </section>
 
     <!-- 7. Listo -->

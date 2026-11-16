@@ -4,7 +4,7 @@
    Estilos, scripts e íconos: copia guardada y se actualiza por detrás.
    Al publicar una versión nueva, subí el número de VERSION.
    ========================================================= */
-const VERSION = 'vueltrack-v4.0';
+const VERSION = 'vueltrack-v5.0';
 
 const ARCHIVOS = [
   '/',
@@ -13,7 +13,6 @@ const ARCHIVOS = [
   '/pages/armar.html',
   '/pages/bienvenida.html',
   '/pages/clientes.html',
-  '/pages/cotizar.html',
   '/pages/equipo.html',
   '/pages/historial.html',
   '/pages/hoy.html',
@@ -23,8 +22,8 @@ const ARCHIVOS = [
   '/pages/repartir.html',
   '/pages/seguimiento.html',
   '/pages/vehiculo.html',
-  '/css/cotizar.css',
   '/css/equipo.css',
+  '/css/historial.css',
   '/css/ingreso.css',
   '/css/inicio.css',
   '/css/manejo.css',
@@ -32,12 +31,11 @@ const ARCHIVOS = [
   '/css/parada.css',
   '/css/repartir.css',
   '/js/armar.js',
+  '/js/asignar.js',
   '/js/bienvenida.js',
   '/js/buscador.js',
-  '/js/consumos.js',
   '/js/clientes.js',
   '/js/comprobante.js',
-  '/js/cotizar.js',
   '/js/datos.js',
   '/js/editarParada.js',
   '/js/enVivo.js',
@@ -62,6 +60,7 @@ const ARCHIVOS = [
   '/js/salida.js',
   '/js/seguimiento.js',
   '/js/sesion.js',
+  '/js/splash.js',
   '/js/ui.js',
   '/js/vehiculo.js',
   '/js/vuelta.js',

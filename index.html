@@ -18,6 +18,23 @@
   <link rel="stylesheet" href="/css/inicio.css">
 </head>
 <body>
+  <div class="splash" id="splash" role="status" aria-label="Cargando Vueltrack">
+    <svg class="splash-logo" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="9" fill="#172033"/>
+      <path d="M9 22c0-6 3-11 7-11s7 5 7 9-3 5-5 5-3.5-2-3.5-4" fill="none" stroke="#F07A2B" stroke-opacity="0.22" stroke-width="2.6" stroke-linecap="round"/>
+      <path id="splash-camino" d="M9 22c0-6 3-11 7-11s7 5 7 9-3 5-5 5-3.5-2-3.5-4" fill="none" stroke="#F07A2B" stroke-width="2.6" stroke-linecap="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1">
+        <animate attributeName="stroke-dashoffset" values="1;0;0" keyTimes="0;0.78;1" dur="1.6s" repeatCount="indefinite"/>
+      </path>
+      <circle r="2.4" fill="#FFFFFF">
+        <animateMotion dur="1.6s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;0.78;1" calcMode="linear">
+          <mpath href="#splash-camino"/>
+        </animateMotion>
+      </circle>
+    </svg>
+    <span class="splash-texto">vuel<span>track</span></span>
+  </div>
+  <script src="/js/splash.js"></script>
+
   <div class="app">
     <main class="contenido">
       <header class="barra-sup">
@@ -62,7 +79,6 @@
 
       <section class="tarjeta-destacada oculto" id="resumen" aria-labelledby="resumen-titulo"></section>
 
-      <a class="gasto oculto" id="gasto" href="/pages/vehiculo.html"></a>
 
       <nav class="mosaico" id="mosaico" aria-label="Menú principal"></nav>
     </main>

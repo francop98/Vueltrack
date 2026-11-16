@@ -324,18 +324,26 @@ export function botonCargando(boton, cargando, textoOriginal) {
 
 /* ---------- Navegación inferior ---------- */
 
-export function pintarNav(activa, { organizador }) {
+export function pintarNav(activa, { organizador, fletero }) {
   const nav = document.getElementById('nav');
   if (!nav) return;
-  const items = [
-    { id: 'inicio', href: '/', texto: 'Inicio', icono: ICONOS.inicio, ver: true },
-    { id: 'hoy', href: '/pages/hoy.html', texto: 'Hoy', icono: ICONOS.ruta, ver: true },
-    { id: 'armar', href: '/pages/armar.html', texto: 'Armar', icono: ICONOS.armar, ver: organizador },
-    { id: 'clientes', href: '/pages/clientes.html', texto: 'Clientes', icono: ICONOS.clientes, ver: organizador },
-    { id: 'equipo', href: '/pages/equipo.html', texto: 'Equipo', icono: ICONOS.equipo, ver: true }
-  ];
+  // Organizador: arma, ve la vuelta, sus clientes y el historial.
+  // Fletero (sin organizar): su vuelta, el modo manejo y su historial.
+  const items = organizador
+    ? [
+        { id: 'inicio', href: '/', texto: 'Inicio', icono: ICONOS.inicio },
+        { id: 'armar', href: '/pages/armar.html', texto: 'Armar', icono: ICONOS.armar },
+        { id: 'hoy', href: '/pages/hoy.html', texto: 'Hoy', icono: ICONOS.ruta },
+        { id: 'clientes', href: '/pages/clientes.html', texto: 'Clientes', icono: ICONOS.clientes },
+        { id: 'historial', href: '/pages/historial.html', texto: 'Historial', icono: ICONOS.historial }
+      ]
+    : [
+        { id: 'inicio', href: '/', texto: 'Inicio', icono: ICONOS.inicio },
+        { id: 'hoy', href: '/pages/hoy.html', texto: 'Hoy', icono: ICONOS.ruta },
+        fletero && { id: 'manejo', href: '/pages/manejo.html', texto: 'Manejo', icono: ICONOS.navegar },
+        { id: 'historial', href: '/pages/historial.html', texto: 'Historial', icono: ICONOS.historial }
+      ].filter(Boolean);
   nav.innerHTML = `<div class="nav-inferior-interno">${items
-    .filter((i) => i.ver)
     .map(
       (i) =>
         `<a href="${i.href}" class="${i.id === activa ? 'activo' : ''}" ${i.id === activa ? 'aria-current="page"' : ''}>${i.icono}${i.texto}</a>`

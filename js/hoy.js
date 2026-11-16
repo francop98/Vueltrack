@@ -4,7 +4,7 @@
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, fleterosDelEquipo, escucharUbicaciones } from './datos.js';
 import { crearMapa, pintarVuelta, pintarFleteros } from './mapa.js';
-import { gruposDeVuelta, resumen, paradasSinOrdenar, costoDeRuta, textoHorario } from './vuelta.js';
+import { gruposDeVuelta, resumen, paradasSinOrdenar, textoHorario } from './vuelta.js';
 import { conectarAviso, textoResultado } from './estados.js';
 import { compartirSiCorresponde, puedeCompartir, estaCompartiendo, cambiarCompartir, haceCuanto, ubicacionesRecientes } from './enVivo.js';
 import { reordenarFletero, mensajeError, nombreOrden, ORDENES } from './ordenar.js';
@@ -24,7 +24,6 @@ import {
   linkTel,
   linkGoogleMapsVuelta,
   PARADAS_POR_TRAMO,
-  formatoPlata,
   aviso
 } from './ui.js';
 
@@ -120,7 +119,6 @@ function pintar() {
   $('st-km').textContent = formatoKm(r.distancia);
   $('st-tiempo').textContent = formatoDuracion(r.duracion);
   $('st-fin').textContent = r.fin != null ? horaDeSegundos(r.fin) : '—';
-  pintarGasto(grupos);
 
   if (!mapa) mapa = crearMapa($('mapa'), { centro: ctx.equipo.base || undefined });
   pintarVuelta(mapa, {
@@ -168,7 +166,7 @@ function pintarFiltro(grupos) {
 }
 
 function pintarVacio() {
-  ['stats', 'gasto', 'mapa-caja', 'proxima', 'bloque-lista'].forEach((id) => mostrar(id, false));
+  ['stats', 'mapa-caja', 'proxima', 'bloque-lista'].forEach((id) => mostrar(id, false));
   mostrar('vacio', true);
   const sinOrdenar = paradasSinOrdenar(vuelta).length;
   if (ctx.organizador) {
@@ -278,32 +276,6 @@ function filaParada(p) {
           : `<a class="btn-icono sin-borde mas-acento" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener" aria-label="Navegar solo a ${esc(p.nombre)}">${ICONOS.navegar}</a>`
       }
     </div>`;
-}
-
-function pintarGasto(grupos) {
-  const caja = $('gasto');
-  let total = 0;
-  let conDatos = 0;
-  grupos.forEach((g) => {
-    const f = fleterosDelEquipo(ctx.equipo).find((x) => x.uid === g.uid);
-    const c = g.ruta ? costoDeRuta(g.ruta.distancia, f && f.gasto) : null;
-    if (c) {
-      total += c.total;
-      conDatos++;
-    }
-  });
-  const mio = grupos.length === 1 && grupos[0].uid === ctx.user.uid;
-  if (!conDatos) {
-    caja.classList.toggle('oculto', !mio);
-    caja.innerHTML = `<span class="texto-tenue">Cargá tu vehículo para ver cuánto gastás en esta vuelta</span>${ICONOS.auto}`;
-    return;
-  }
-  caja.classList.remove('oculto');
-  caja.innerHTML = `
-    <span class="titulo-bloque">
-      <span class="texto-tenue">Gasto estimado${conDatos < grupos.length ? ' (solo fleteros con vehículo cargado)' : ''}</span>
-      <strong>${formatoPlata(total)}</strong>
-    </span>${ICONOS.auto}`;
 }
 
 function uidDeLaLista(grupos) {

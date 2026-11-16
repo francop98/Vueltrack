@@ -47,14 +47,14 @@ function pasos(ctx) {
   if (ctx.fletero) {
     lista.push({
       icono: ICONOS.auto,
-      titulo: `${lista.length + 1}. Controlá tus gastos`,
-      texto: 'Cargá tu vehículo en el menú ☰: ves cuánto gastás en cada vuelta y te avisamos de la VTV, el seguro y el service.'
+      titulo: `${lista.length + 1}. Tu vehículo al día`,
+      texto: 'Cargá tu vehículo en el menú ☰ y te avisamos cuando se acerque la VTV, el seguro, la patente o el service.'
     });
   }
   lista.push({
     icono: ICONOS.menu,
     titulo: 'El menú',
-    texto: 'Con ☰ arriba a la izquierda llegás a tus datos, vehículo, equipo, el cotizador de fletes, el historial, esta guía e instalar la app. Inicio siempre está abajo, en la casita.'
+    texto: 'Con ☰ arriba a la izquierda llegás a tus datos, seguridad, vehículo, equipo, esta guía e instalar la app. Con la flecha volvés a la pantalla anterior.'
   });
   return lista;
 }

@@ -145,9 +145,9 @@ function editarMiembro(uid) {
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Roles</legend>
         <label class="interruptor tarjeta" for="r-org"><span><strong>Organizador</strong><br><span class="texto-tenue">Arma y reparte las vueltas</span></span><input type="checkbox" id="r-org" ${roles.includes('organizador') ? 'checked' : ''}></label>
-        <label class="interruptor tarjeta" for="r-flet"><span><strong>Fletero</strong><br><span class="texto-tenue">Recibe una vuelta para hacer</span></span><input type="checkbox" id="r-flet" ${roles.includes('fletero') ? 'checked' : ''}></label>
+        <label class="interruptor tarjeta" for="r-flet"><span><strong>Fletero</strong><br><span class="texto-tenue">Sale a repartir. Si no lo marcás, es solo organizador, sin vehículo.</span></span><input type="checkbox" id="r-flet" ${roles.includes('fletero') ? 'checked' : ''}></label>
       </fieldset>
-      <div class="campo"><label for="r-vehiculo">Vehículo</label><input id="r-vehiculo" value="${esc(m.vehiculo || '')}" placeholder="Marca y modelo"></div>
+      <div class="campo ${roles.includes('fletero') ? '' : 'oculto'}" id="r-vehiculo-caja"><label for="r-vehiculo">Vehículo</label><input id="r-vehiculo" value="${esc(m.vehiculo || '')}" placeholder="Marca y modelo"></div>
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Color en el mapa</legend>
         <div class="casillas">
@@ -162,6 +162,7 @@ function editarMiembro(uid) {
       ${yo ? '' : `<button type="button" class="btn btn-peligro" id="r-quitar">${ICONOS.basura}Quitar del equipo</button>`}`
   });
   const el = hoja.el;
+  el.querySelector('#r-flet').addEventListener('change', (e) => el.querySelector('#r-vehiculo-caja').classList.toggle('oculto', !e.target.checked));
 
   el.querySelector('#r-guardar').addEventListener('click', async () => {
     const nuevos = [];

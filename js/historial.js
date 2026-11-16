@@ -1,11 +1,10 @@
 /* =========================================================
    Vueltrack — Historial y resumen
-   Km, tiempo, gasto y entregas por período y por fletero.
+   Km, tiempo y entregas por período y por fletero.
    Exporta el detalle a Excel (CSV) y el resumen a PDF.
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
 import { vueltasEntre, fleterosDelEquipo } from './datos.js';
-import { costoDeRuta } from './vuelta.js';
 import { textoResultado } from './estados.js';
 import {
   esc,
@@ -16,7 +15,6 @@ import {
   sumarDias,
   formatoKm,
   formatoDuracion,
-  formatoPlata,
   horaDeSegundos,
   aviso
 } from './ui.js';
@@ -113,8 +111,7 @@ async function cargar() {
 
 function calcular() {
   const uids = fletero === 'todos' ? fleteros.map((f) => f.uid) : [fletero];
-  const gastoDe = (uid) => (fleteros.find((f) => f.uid === uid) || {}).gasto;
-  const total = { dias: 0, paradas: 0, entregadas: 0, noEntregadas: 0, pendientes: 0, km: 0, tiempo: 0, gasto: 0, motivos: {} };
+  const total = { dias: 0, paradas: 0, entregadas: 0, noEntregadas: 0, pendientes: 0, km: 0, tiempo: 0, motivos: {} };
   const dias = [];
   const detalle = [];
 
@@ -122,14 +119,11 @@ function calcular() {
     const paradas = (v.paradas || []).filter((p) => uids.includes(p.fleteroUid));
     let km = 0;
     let tiempo = 0;
-    let gasto = 0;
     uids.forEach((uid) => {
       const r = v.rutas && v.rutas[uid];
       if (!r) return;
       km += r.distancia || 0;
       tiempo += r.duracion || 0;
-      const c = costoDeRuta(r.distancia, gastoDe(uid));
-      if (c) gasto += c.total;
     });
     if (!paradas.length && !km) return;
     const entregadas = paradas.filter((p) => p.estado === 'entregado').length;
@@ -142,7 +136,7 @@ function calcular() {
       const f = fleteros.find((x) => x.uid === p.fleteroUid);
       detalle.push({ fecha: v.fecha, fletero: f ? f.nombre : '', p });
     });
-    dias.push({ fecha: v.fecha, paradas: paradas.length, entregadas, noEntregadas, km, tiempo, gasto });
+    dias.push({ fecha: v.fecha, paradas: paradas.length, entregadas, noEntregadas, km, tiempo });
     total.dias++;
     total.paradas += paradas.length;
     total.entregadas += entregadas;
@@ -150,7 +144,6 @@ function calcular() {
     total.pendientes += paradas.length - entregadas - noEntregadas;
     total.km += km;
     total.tiempo += tiempo;
-    total.gasto += gasto;
   });
   datos = { total, dias, detalle };
 }
@@ -161,7 +154,7 @@ function pintar() {
   $('st-dias').textContent = t.dias;
   $('st-entregas').textContent = t.paradas ? `${t.entregadas}/${t.paradas}` : '0';
   $('st-km').textContent = formatoKm(t.km);
-  $('st-gasto').textContent = t.gasto ? formatoPlata(t.gasto) : '—';
+  $('st-tiempo').textContent = t.tiempo ? formatoDuracion(t.tiempo) : '—';
 
   const porcentaje = t.paradas ? Math.round((t.entregadas / t.paradas) * 100) : 0;
   const motivos = Object.entries(t.motivos)
@@ -173,7 +166,7 @@ function pintar() {
     ? `
       <span class="texto-tenue">Entregas con éxito</span>
       <strong class="subtitulo">${porcentaje}% · ${t.entregadas} de ${t.paradas}</strong>
-      <span class="texto-tenue">${t.noEntregadas} no entregadas${t.pendientes ? ` · ${t.pendientes} sin marcar` : ''} · ${formatoDuracion(t.tiempo)} en la calle</span>
+      <span class="texto-tenue">${t.noEntregadas} no entregadas${t.pendientes ? ` · ${t.pendientes} sin marcar` : ''}</span>
       ${motivos ? `<span class="texto-tenue">Motivos más comunes: ${esc(motivos)}</span>` : ''}`
     : '<span class="texto-tenue">Sin entregas en este período.</span>';
 
@@ -189,7 +182,6 @@ function pintar() {
           <span class="fila-titulo-texto">${esc(fechaCorta(d.fecha))}</span>
           <span class="fila-detalle">${d.entregadas} de ${d.paradas} entregadas · ${esc(formatoKm(d.km))} · ${esc(formatoDuracion(d.tiempo))}</span>
         </span>
-        <strong>${d.gasto ? esc(formatoPlata(d.gasto)) : ''}</strong>
       </div>`
     )
     .join('');
@@ -250,19 +242,18 @@ $('btn-pdf').addEventListener('click', () => {
       <tr><td>No entregadas</td><td class="num">${t.noEntregadas}</td></tr>
       <tr><td>Recorrido</td><td class="num">${esc(formatoKm(t.km))}</td></tr>
       <tr><td>Tiempo en la calle</td><td class="num">${esc(formatoDuracion(t.tiempo))}</td></tr>
-      <tr><td>Gasto estimado</td><td class="num">${esc(formatoPlata(t.gasto))}</td></tr>
     </table>
     <h2>Por día</h2>
     <table>
-      <tr><th>Día</th><th class="num">Entregadas</th><th class="num">Km</th><th class="num">Tiempo</th><th class="num">Gasto</th></tr>
+      <tr><th>Día</th><th class="num">Entregadas</th><th class="num">Km</th><th class="num">Tiempo</th></tr>
       ${datos.dias
         .map(
           (d) =>
-            `<tr><td>${esc(fechaCorta(d.fecha))}</td><td class="num">${d.entregadas}/${d.paradas}</td><td class="num">${esc(formatoKm(d.km))}</td><td class="num">${esc(formatoDuracion(d.tiempo))}</td><td class="num">${esc(formatoPlata(d.gasto))}</td></tr>`
+            `<tr><td>${esc(fechaCorta(d.fecha))}</td><td class="num">${d.entregadas}/${d.paradas}</td><td class="num">${esc(formatoKm(d.km))}</td><td class="num">${esc(formatoDuracion(d.tiempo))}</td></tr>`
         )
         .join('')}
     </table>
-    <p class="tenue-pdf">El gasto se estima con los datos actuales de cada vehículo.</p>`;
+    `;
   const titulo = document.title;
   document.title = `Vueltrack resumen ${desde} a ${hasta}`;
   window.print();
