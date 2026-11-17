@@ -1,4 +1,4 @@
-# Vueltrack v9.0
+# Vueltrack v9.1
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,9 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v9.1
+- **Bultos con su mercadería**: en cada cliente (bultos habituales) y en cada destino se carga cantidad y tipo (ej.: 2 Tubos de GNC + 3 General). De ahí salen solos el total de bultos (capacidad del vehículo) y la mercadería, que se cruza con lo que NO lleva cada fletero: la app no se lo asigna y, si nadie de los que salen puede, avisa. Se ve en las filas ("5 bultos: 2 Tubos de GNC, 3 general"), en el detalle, en Modo manejo y en la hoja de ruta.
 
 ### v9.0
 - **Fleteros** (menú lateral, solo quien organiza): lista de fleteros con su vehículo (moto, auto, utilitario, camioneta, furgón/combi, camión), modelo/patente, capacidad, mercadería que no lleva, punto de salida, frecuente o solo por hoy, invitar por WhatsApp y quitar. También los **tipos de mercadería** (agregar, cambiar nombre, borrar).

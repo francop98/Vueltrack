@@ -7,7 +7,7 @@ import { mapaConPin } from './mapa.js';
 import { recordarLugar } from './lugares.js';
 import { corregirUbicacionCliente } from './datos.js';
 import { ICONOS, esc, abrirHoja, aviso, confirmar } from './ui.js';
-import { selectorCargas, htmlMinimo, conectarMinimo } from './cargas.js';
+import { selectorBultos, htmlMinimo, conectarMinimo } from './cargas.js';
 
 /* Confirmación antes de quitar un destino */
 export async function confirmarQuitar(parada) {
@@ -30,11 +30,9 @@ export async function confirmarQuitar(parada) {
  */
 export function editarParada({ parada: p, equipo, guardar, quitar, ordenada = false, otras = [] }) {
   let ubicacion = { direccion: p.direccion, lat: p.lat, lng: p.lng };
-  // Tipo de carga: solo en equipos (para asignarla a un fletero que la pueda llevar)
+  // Bultos con su mercadería: en equipos se cruza con lo que no lleva cada fletero
   const conCargas = equipo.modo === 'equipo';
-  const cargasSel = conCargas
-    ? selectorCargas(equipo, p.cargas || [], { id: 'ep-cargas', titulo: 'Mercadería', ayuda: 'Va con un fletero que la lleve.' })
-    : null;
+  const bultosSel = selectorBultos(equipo, p, { id: 'ep-bultos', titulo: 'Bultos', ayuda: conCargas ? undefined : 'Cantidad y tipo de lo que llevás o retirás.' });
   const hoja = abrirHoja({
     titulo: 'Editar destino',
     html: `
@@ -60,23 +58,21 @@ export function editarParada({ parada: p, equipo, guardar, quitar, ordenada = fa
         </select>
         <span class="texto-tenue">El orden respeta que primero retirás y después entregás.</span>
       </div>
-      <div class="grilla-2 siempre">
-        <div class="campo"><label for="ep-tel">Teléfono</label><input id="ep-tel" type="tel" inputmode="tel" value="${esc(p.telefono)}" placeholder="Celular"></div>
-        <div class="campo"><label for="ep-bultos">Bultos</label><input id="ep-bultos" type="number" inputmode="numeric" min="0" step="1" value="${esc(p.bultos ?? 1)}"></div>
-      </div>
+      <div class="campo"><label for="ep-tel">Teléfono</label><input id="ep-tel" type="tel" inputmode="tel" value="${esc(p.telefono)}" placeholder="Celular"></div>
+      ${bultosSel.html}
       <div class="grilla-2 siempre">
         <div class="campo"><label for="ep-desde">Recibe desde</label><input id="ep-desde" type="time" value="${esc(p.desde || '')}"></div>
         <div class="campo"><label for="ep-hasta">Recibe hasta</label><input id="ep-hasta" type="time" value="${esc(p.hasta)}"></div>
       </div>
-      ${cargasSel ? cargasSel.html + htmlMinimo('ep-minimo', p.vehiculoMinimo) : ''}
+      ${conCargas ? htmlMinimo('ep-minimo', p.vehiculoMinimo) : ''}
       <div class="campo"><label for="ep-nota">Nota para el fletero</label><textarea id="ep-nota" placeholder="Indicaciones para la entrega">${esc(p.nota)}</textarea></div>
       <label class="interruptor tarjeta" for="ep-urgente"><span class="etiqueta-campo">Urgente (va primero)</span><input type="checkbox" id="ep-urgente" ${p.urgente ? 'checked' : ''}></label>
       <button type="button" class="btn btn-primario btn-grande" id="ep-guardar">Guardar cambios</button>
       <button type="button" class="btn btn-peligro" id="ep-quitar">${ICONOS.basura}Eliminar destino</button>`
   });
   const el = hoja.el;
-  const cargasElegidas = cargasSel ? cargasSel.conectar(el) : () => p.cargas || [];
-  const minimoElegido = cargasSel ? conectarMinimo(el, 'ep-minimo', p.vehiculoMinimo) : () => p.vehiculoMinimo || '';
+  const bultosElegidos = bultosSel.conectar(el);
+  const minimoElegido = conCargas ? conectarMinimo(el, 'ep-minimo', p.vehiculoMinimo) : () => p.vehiculoMinimo || '';
 
   el.querySelectorAll('input[name="ep-tipo"]').forEach((r) =>
     r.addEventListener('change', () => {
@@ -111,11 +107,10 @@ export function editarParada({ parada: p, equipo, guardar, quitar, ordenada = fa
       telefono: el.querySelector('#ep-tel').value.trim(),
       desde: el.querySelector('#ep-desde').value,
       hasta: el.querySelector('#ep-hasta').value,
-      bultos: Math.max(0, Number(el.querySelector('#ep-bultos').value) || 0),
       tipo: el.querySelector('input[name="ep-tipo"]:checked').value,
       nota: el.querySelector('#ep-nota').value.trim(),
       urgente: el.querySelector('#ep-urgente').checked,
-      cargas: cargasElegidas(),
+      ...bultosElegidos(),
       vehiculoMinimo: minimoElegido()
     };
     cambios.entregaId = cambios.tipo === 'retiro' ? el.querySelector('#ep-entrega').value || null : null;

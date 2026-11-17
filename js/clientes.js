@@ -3,7 +3,7 @@
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
 import { escucharClientes, escucharVuelta, guardarVuelta, guardarCliente, borrarCliente } from './datos.js';
-import { selectorCargas, htmlMinimo, conectarMinimo } from './cargas.js';
+import { selectorBultos, htmlMinimo, conectarMinimo, textoBultos, textoMinimo } from './cargas.js';
 import { crearBuscador, htmlBuscador } from './buscador.js';
 import { mapaConPin } from './mapa.js';
 import { paradaDesdeCliente, textoHorario, paradaHecha } from './vuelta.js';
@@ -104,7 +104,7 @@ function pintar() {
       <div class="lista">
         ${grupos[letra]
           .map((c) => {
-            const detalle = [c.direccion, textoDias(c.dias), textoHorario(c), c.nota ? 'con nota' : ''].filter(Boolean).join(' · ');
+            const detalle = [c.direccion, textoDias(c.dias), textoHorario(c), (c.bultosDetalle || []).some((b) => b.tipo) ? textoBultos(c) : '', textoMinimo(c.vehiculoMinimo), c.nota ? 'con nota' : ''].filter(Boolean).join(' · ');
             const esta = pendientesYa.has(c.id);
             return `
             <div class="fila">
@@ -170,11 +170,13 @@ function abrirEditor(cliente) {
   let ubicacion = cliente ? { direccion: c.direccion, lat: c.lat, lng: c.lng } : null;
   let pin = null;
   const orden = [1, 2, 3, 4, 5, 6, 0];
-  // Carga habitual: se copia a la parada al sumarlo (y se puede cambiar ese día)
-  const cargasSel =
-    ctx.equipo.modo === 'equipo'
-      ? selectorCargas(ctx.equipo, c.cargas || [], { id: 'c-cargas', titulo: 'Mercadería habitual', ayuda: 'Solo va con fleteros que la lleven. Se puede cambiar en cada vuelta.' })
-      : null;
+  // Bultos habituales con su mercadería: se copian a la parada al sumarlo (y se cambian ese día)
+  const enEquipo = ctx.equipo.modo === 'equipo';
+  const bultosSel = selectorBultos(ctx.equipo, c, {
+    id: 'c-bultos',
+    titulo: 'Bultos habituales',
+    ayuda: enEquipo ? 'Cantidad y mercadería. Si un fletero no lleva esa mercadería, no se le asigna. Se puede cambiar en cada vuelta.' : 'Cantidad y tipo habitual. Se puede cambiar en cada vuelta.'
+  });
 
   const hoja = abrirHoja({
     titulo: cliente ? 'Editar cliente' : 'Nuevo cliente',
@@ -199,15 +201,16 @@ function abrirEditor(cliente) {
             .join('')}
         </div>
       </fieldset>
-      ${cargasSel ? cargasSel.html + htmlMinimo('c-minimo', c.vehiculoMinimo) : ''}
+      ${bultosSel.html}
+      ${enEquipo ? htmlMinimo('c-minimo', c.vehiculoMinimo) : ''}
       <div class="campo"><label for="c-nota">Nota fija para el fletero</label><textarea id="c-nota" placeholder="Ej.: timbre 2B, dejar en portería, entrar por el portón lateral">${esc(c.nota)}</textarea></div>
       <p class="error-texto oculto" id="c-error" role="alert"></p>
       <button type="button" class="btn btn-primario btn-grande" id="c-guardar">Guardar cliente</button>
       ${cliente ? `<button type="button" class="btn btn-peligro" id="c-borrar">${ICONOS.basura}Eliminar cliente</button>` : ''}`
   });
   const el = hoja.el;
-  const cargasElegidas = cargasSel ? cargasSel.conectar(el) : () => c.cargas || [];
-  const minimoElegido = cargasSel ? conectarMinimo(el, 'c-minimo', c.vehiculoMinimo) : () => c.vehiculoMinimo || '';
+  const bultosElegidos = bultosSel.conectar(el);
+  const minimoElegido = enEquipo ? conectarMinimo(el, 'c-minimo', c.vehiculoMinimo) : () => c.vehiculoMinimo || '';
 
   // El nombre se escribe siempre en mayúsculas
   const campoNombre = el.querySelector('#c-nombre');
@@ -266,7 +269,7 @@ function abrirEditor(cliente) {
       return;
     }
     const dias = [...el.querySelectorAll('.casillas input:checked')].map((i) => Number(i.value));
-    const cargas = cargasElegidas();
+    const bultos = bultosElegidos();
     guardando = true;
     boton.disabled = true;
     error.classList.add('oculto');
@@ -282,7 +285,7 @@ function abrirEditor(cliente) {
       desde: el.querySelector('#c-desde').value,
       hasta: el.querySelector('#c-hasta').value,
       nota: el.querySelector('#c-nota').value.trim(),
-      cargas,
+      ...bultos,
       vehiculoMinimo: minimoElegido(),
       dias
     }).then(

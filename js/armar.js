@@ -23,7 +23,7 @@ import { editarParada, confirmarQuitar } from './editarParada.js';
 import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario, gruposDeVuelta } from './vuelta.js';
 import { buscarDirecciones } from './rutas.js';
 import { activosDelDia, asignarPendientes, redistribuirPorZona, incompatibles } from './asignar.js';
-import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorCargas, vehiculoDelDia, tipoVehiculo, motivoNoLleva, textoCargas } from './cargas.js';
+import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorCargas, vehiculoDelDia, tipoVehiculo, motivoNoLleva, textoBultos, textoMinimo } from './cargas.js';
 import { insertarEnRutas } from './agregarDestino.js';
 import { direccionesFrecuentes, agregarFrecuente, descartarFrecuente } from './frecuentes.js';
 import {
@@ -603,8 +603,8 @@ function pintarParadas() {
         p.urgente ? 'Urgente' : '',
         p.direccion,
         textoHorario(p),
-        Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
-        textoCargas(p),
+        textoBultos(p),
+        textoMinimo(p.vehiculoMinimo),
         entrega ? `se entrega en ${entrega.nombre}` : ''
       ]
         .filter(Boolean)

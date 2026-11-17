@@ -8,7 +8,7 @@
 import { cambiarParada, guardarVuelta, obtenerVuelta, fleterosDelEquipo } from './datos.js';
 import { paradaHecha } from './vuelta.js';
 import { activosDelDia } from './asignar.js';
-import { puedeLlevar, motivoNoLleva } from './cargas.js';
+import { puedeLlevar, motivoNoLleva, textoBultos, textoMinimo } from './cargas.js';
 import { reprogramar, htmlBotonesHecho, elegirNoEntregado } from './estados.js';
 import { reordenarFletero, mensajeError } from './ordenar.js';
 import { ordenConInsercion } from './agregarDestino.js';
@@ -23,8 +23,8 @@ export function abrirAccionesDestino({ ctx, fecha, vuelta, parada: p, puedeMarca
     p.tipo === 'retiro' ? 'Retiro' : 'Entrega',
     p.llegada != null ? `llegás ${horaDeSegundos(p.llegada)}` : '',
     textoHorario(p),
-    Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
-    (p.cargas || []).join(', '),
+    textoBultos(p),
+    textoMinimo(p.vehiculoMinimo),
     f && fleterosDelEquipo(ctx.equipo).length > 1 ? f.nombre : ''
   ].filter(Boolean);
   const reasignar = puedeGestionar && hayAQuienReasignar(ctx, vuelta, fecha);

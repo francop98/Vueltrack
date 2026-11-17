@@ -1,6 +1,7 @@
 /* =========================================================
    Vueltrack — Parada (modo fletero, en la calle)
    ========================================================= */
+import { textoBultos, textoMinimo } from './cargas.js';
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta, cambiarParada, corregirUbicacionCliente, fleterosDelEquipo } from './datos.js';
 import { paradasDe, paradaHecha, textoHorario } from './vuelta.js';
@@ -75,7 +76,8 @@ function pintar() {
   if (p.tipo === 'retiro') pastillas.push('Retiro');
   if (p.llegada != null && !paradaHecha(p)) pastillas.push(`Llegás ${horaDeSegundos(p.llegada)}`);
   if (textoHorario(p)) pastillas.push(textoHorario(p).replace(/^./, (c) => c.toUpperCase()));
-  if (Number(p.bultos) > 1) pastillas.push(`${p.bultos} bultos`);
+  if (textoBultos(p)) pastillas.push(textoBultos(p));
+  if (textoMinimo(p.vehiculoMinimo)) pastillas.push(textoMinimo(p.vehiculoMinimo));
   if (p.urgente) pastillas.push('Urgente');
   if (paradaHecha(p)) pastillas.push(textoResultado(p).replace(/^./, (c) => c.toUpperCase()));
   $('pastillas').innerHTML = pastillas.map((t) => `<span class="pastilla">${esc(t)}</span>`).join('');

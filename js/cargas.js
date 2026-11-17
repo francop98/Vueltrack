@@ -303,3 +303,131 @@ export function editarQueLleva({ equipo, fleteros, vuelta, guardar }) {
 export function textoCargas(p) {
   return [...(p.cargas || []), textoMinimo(p.vehiculoMinimo)].filter(Boolean).join(', ');
 }
+
+/* ---------- Bultos con su mercadería ----------
+   Cada destino (o cliente) dice cuántos bultos lleva y de qué tipo:
+   [{ cantidad: 2, tipo: 'Tubos de GNC' }, { cantidad: 3, tipo: '' }]  ('' = general)
+   De ahí sale solo: el total de bultos (capacidad del vehículo) y la
+   mercadería que pide (cargas), que se cruza con lo que NO lleva cada fletero. */
+
+export function detalleInicial(x = {}) {
+  if (Array.isArray(x.bultosDetalle) && x.bultosDetalle.length) return x.bultosDetalle.map((b) => ({ cantidad: Number(b.cantidad) || 0, tipo: b.tipo || '' }));
+  const cargas = x.cargas || [];
+  const total = Number.isFinite(Number(x.bultos)) && x.bultos !== '' && x.bultos != null ? Number(x.bultos) : 1;
+  if (!cargas.length) return [{ cantidad: total, tipo: '' }];
+  const filas = cargas.map((c) => ({ cantidad: 1, tipo: c }));
+  if (total > cargas.length) filas.push({ cantidad: total - cargas.length, tipo: '' });
+  return filas;
+}
+
+export function resumenBultos(detalle) {
+  const filas = detalle.filter((b) => Number(b.cantidad) > 0);
+  return {
+    bultosDetalle: filas.map((b) => ({ cantidad: Math.round(Number(b.cantidad)), tipo: b.tipo || '' })),
+    bultos: filas.reduce((s, b) => s + Math.round(Number(b.cantidad)), 0),
+    cargas: [...new Set(filas.map((b) => b.tipo).filter(Boolean))]
+  };
+}
+
+/* "3 bultos: 2 Tubos de GNC y 1 general" */
+export function textoBultos(p) {
+  const detalle = (p.bultosDetalle || []).filter((b) => Number(b.cantidad) > 0);
+  const total = Number(p.bultos) || detalle.reduce((s, b) => s + Number(b.cantidad), 0);
+  const conTipo = detalle.filter((b) => b.tipo);
+  if (!conTipo.length) {
+    const cargas = (p.cargas || []).join(', ');
+    return [total > 1 ? `${total} bultos` : '', cargas].filter(Boolean).join(' · ');
+  }
+  const partes = detalle.map((b) => `${b.cantidad} ${b.tipo || 'general'}`);
+  return `${total} ${total === 1 ? 'bulto' : 'bultos'}: ${partes.join(', ')}`;
+}
+
+export function selectorBultos(equipo, inicial, { id = 'bultos', titulo = 'Bultos', ayuda = '' } = {}) {
+  let filas = detalleInicial(inicial);
+  const opciones = (elegido) =>
+    ['', ...catalogoCargas(equipo)]
+      .map((c) => `<option value="${esc(c)}" ${c === elegido ? 'selected' : ''}>${c ? esc(c) : 'General'}</option>`)
+      .join('') + '<option value="__nuevo">+ Nuevo tipo de mercadería…</option>';
+  const htmlFilas = () =>
+    filas
+      .map(
+        (b, i) => `
+      <div class="fila-bulto" data-i="${i}">
+        <input type="number" inputmode="numeric" min="0" step="1" class="bulto-cantidad" value="${esc(String(b.cantidad))}" aria-label="Cantidad">
+        <select class="bulto-tipo" aria-label="Mercadería">${opciones(b.tipo)}</select>
+        ${filas.length > 1 ? `<button type="button" class="btn-icono sin-borde" data-quitar-bulto="${i}" aria-label="Quitar">${ICONOS.cruz}</button>` : ''}
+      </div>`
+      )
+      .join('');
+  const html = `
+    <div class="campo" id="${id}-caja">
+      <span class="etiqueta-campo">${esc(titulo)}</span>
+      <div class="bultos-filas" id="${id}-filas">${htmlFilas()}</div>
+      <button type="button" class="chip punteado" id="${id}-mas"><span class="mas" aria-hidden="true">+</span>Otro tipo de bulto</button>
+      <div class="fila-nueva-carga oculto" id="${id}-nueva">
+        <input id="${id}-texto" placeholder="Ej.: Tubos de GNC">
+        <button type="button" class="btn btn-primario" id="${id}-sumar">Agregar</button>
+      </div>
+      <span class="texto-tenue">${esc(ayuda || 'Si un tipo de mercadería no lo lleva un fletero, la app no se lo asigna.')}</span>
+    </div>`;
+
+  const conectar = (raiz, alCambiar = null) => {
+    const caja = raiz.querySelector(`#${id}-filas`);
+    const nueva = raiz.querySelector(`#${id}-nueva`);
+    const texto = raiz.querySelector(`#${id}-texto`);
+    let filaPendiente = null;
+    const repintar = () => {
+      caja.innerHTML = htmlFilas();
+      if (alCambiar) alCambiar();
+    };
+    caja.addEventListener('input', (e) => {
+      const f = e.target.closest('[data-i]');
+      if (!f || !e.target.classList.contains('bulto-cantidad')) return;
+      filas[Number(f.dataset.i)].cantidad = Math.max(0, Math.round(Number(e.target.value) || 0));
+      if (alCambiar) alCambiar();
+    });
+    caja.addEventListener('change', (e) => {
+      const f = e.target.closest('[data-i]');
+      if (!f || !e.target.classList.contains('bulto-tipo')) return;
+      const i = Number(f.dataset.i);
+      if (e.target.value === '__nuevo') {
+        filaPendiente = i;
+        e.target.value = filas[i].tipo;
+        nueva.classList.remove('oculto');
+        texto.focus();
+        return;
+      }
+      filas[i].tipo = e.target.value;
+      if (alCambiar) alCambiar();
+    });
+    caja.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-quitar-bulto]');
+      if (!b) return;
+      filas.splice(Number(b.dataset.quitarBulto), 1);
+      repintar();
+    });
+    raiz.querySelector(`#${id}-mas`).addEventListener('click', () => {
+      filas.push({ cantidad: 1, tipo: '' });
+      repintar();
+    });
+    const sumar = async () => {
+      const nombre = await sumarAlCatalogo(equipo, texto.value);
+      if (!nombre) return;
+      if (filaPendiente != null && filas[filaPendiente]) filas[filaPendiente].tipo = nombre;
+      else filas.push({ cantidad: 1, tipo: nombre });
+      filaPendiente = null;
+      texto.value = '';
+      nueva.classList.add('oculto');
+      repintar();
+    };
+    raiz.querySelector(`#${id}-sumar`).addEventListener('click', sumar);
+    texto.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sumar();
+      }
+    });
+    return () => resumenBultos(filas);
+  };
+  return { html, conectar };
+}

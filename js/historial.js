@@ -5,6 +5,7 @@
    cada destino, qué se hizo, a qué hora y quién lo marcó.
    Se imprime / baja en PDF, se exporta a Excel o se comparte.
    ========================================================= */
+import { textoBultos } from './cargas.js';
 import { iniciarPantalla } from './sesion.js';
 import { descargarPdf } from './pdfHojaRuta.js';
 import { vueltasEntre, escucharVuelta, fleterosDelEquipo } from './datos.js';
@@ -203,8 +204,7 @@ function detalleDe(p, uid) {
   return [
     p.tipo === 'retiro' ? 'Retiro' : 'Entrega',
     p.direccion,
-    Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
-    (p.cargas || []).join(', '),
+    textoBultos(p),
     p.motivo && p.estado !== 'entregado' ? p.motivo : '',
     p.marcadoPor && p.marcadoPor !== uid && nombreDe(p.marcadoPor) ? `marcó ${nombreDe(p.marcadoPor)}` : '',
     p.comprobante ? 'con comprobante' : ''

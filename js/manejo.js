@@ -3,6 +3,7 @@
    Una sola parada por vez, con botones grandes para usar
    rápido en la calle. La pantalla queda encendida.
    ========================================================= */
+import { textoBultos } from './cargas.js';
 import { iniciarPantalla } from './sesion.js';
 import { escucharVuelta } from './datos.js';
 import { paradasDe, paradaHecha, textoHorario } from './vuelta.js';
@@ -91,7 +92,7 @@ function pintar() {
   const datos = [
     p.llegada != null ? `${horaDeSegundos(p.llegada)}${faltan ? ` · en ${faltan} min` : ''}` : '',
     textoHorario(p).replace(/^./, (c) => c.toUpperCase()),
-    Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
+    textoBultos(p),
     p.urgente ? 'Urgente' : ''
   ].filter(Boolean);
 

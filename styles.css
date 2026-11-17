@@ -2404,3 +2404,27 @@ body:has(.velo) .ingreso {
 .btn-zona svg {
   color: var(--acento);
 }
+
+/* Bultos con su mercadería */
+.bultos-filas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fila-bulto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fila-bulto .bulto-cantidad {
+  width: 76px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.fila-bulto .bulto-tipo {
+  flex: 1;
+  min-width: 0;
+}

@@ -9,7 +9,7 @@ import { crearBuscador, htmlBuscador } from './buscador.js';
 import { escucharClientes, guardarVuelta, fleterosDelEquipo, obtenerVuelta } from './datos.js';
 import { paradaNueva, paradaDesdeCliente, paradaHecha } from './vuelta.js';
 import { activosDelDia, sugerirFletero } from './asignar.js';
-import { selectorCargas, puedeLlevar, motivoNoLleva, htmlMinimo, conectarMinimo } from './cargas.js';
+import { selectorBultos, puedeLlevar, motivoNoLleva, htmlMinimo, conectarMinimo } from './cargas.js';
 import { reordenarFletero, mensajeError, baseDeFletero } from './ordenar.js';
 import { esc, abrirHoja, aviso, confirmar } from './ui.js';
 
@@ -107,7 +107,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   let clientes = [];
   let elegido = null; // parada armada a partir de lo buscado
   let uidElegido = null;
-  let cargasElegidas = () => [];
+  let bultosElegidos = () => ({ bultos: 1, bultosDetalle: [], cargas: [] });
   let minimoElegido = () => (elegido && elegido.vehiculoMinimo) || '';
   let cortar = null;
 
@@ -144,7 +144,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
 
   const pintarFleteros = () => {
     if (!varios || !elegido) return;
-    const prueba = { ...elegido, cargas: cargasElegidas(), vehiculoMinimo: minimoElegido() };
+    const prueba = { ...elegido, ...bultosElegidos(), vehiculoMinimo: minimoElegido() };
     el.querySelector('#ad-fleteros').innerHTML = activos
       .map((f) => {
         const apto = puedeLlevar(prueba, f, vuelta);
@@ -155,10 +155,15 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   };
 
   const sugerir = () => {
-    const prueba = { ...elegido, cargas: cargasElegidas(), vehiculoMinimo: minimoElegido() };
+    const prueba = { ...elegido, ...bultosElegidos(), vehiculoMinimo: minimoElegido() };
     uidElegido = sugerirFletero(prueba, (vuelta && vuelta.paradas) || [], activos, vuelta);
     const f = activos.find((x) => x.uid === uidElegido);
-    el.querySelector('#ad-sugerido').textContent = f ? `Sugerido: ${f.nombre}, por la zona y lo que lleva.` : '';
+    const alguno = activos.some((x) => puedeLlevar(prueba, x, vuelta));
+    el.querySelector('#ad-sugerido').textContent = !alguno
+      ? 'Ninguno de los que salen puede llevar estos bultos o necesita otro vehículo. Elegí a mano o cambiá el vehículo del día en Armar.'
+      : f
+        ? `Sugerido: ${f.nombre}, por la zona, su vehículo y la mercadería que lleva.`
+        : '';
     pintarFleteros();
   };
 
@@ -167,12 +172,14 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
     el.querySelector('#ad-nombre').value = elegido.nombre;
     el.querySelector('#ad-desde').value = elegido.desde || '';
     el.querySelector('#ad-hasta').value = elegido.hasta || '';
-    if (equipo.modo === 'equipo') {
-      const sel = selectorCargas(equipo, elegido.cargas || [], { id: 'ad-c', titulo: 'Mercadería' });
-      el.querySelector('#ad-cargas').innerHTML = sel.html + htmlMinimo('ad-minimo', elegido.vehiculoMinimo);
-      cargasElegidas = sel.conectar(el.querySelector('#ad-cargas'));
+    // Bultos con su mercadería (y vehículo que necesita): con eso se sugiere el fletero
+    const enEquipo = equipo.modo === 'equipo';
+    const sel = selectorBultos(equipo, elegido, { id: 'ad-b', titulo: 'Bultos' });
+    el.querySelector('#ad-cargas').innerHTML = sel.html + (enEquipo ? htmlMinimo('ad-minimo', elegido.vehiculoMinimo) : '');
+    bultosElegidos = sel.conectar(el.querySelector('#ad-cargas'), () => setTimeout(sugerir, 0));
+    if (enEquipo) {
       minimoElegido = conectarMinimo(el.querySelector('#ad-cargas'), 'ad-minimo', elegido.vehiculoMinimo);
-      el.querySelector('#ad-cargas').addEventListener('click', () => setTimeout(sugerir, 0));
+      el.querySelector('#ad-minimo').addEventListener('click', () => setTimeout(sugerir, 0));
     }
     sugerir();
   };
@@ -227,7 +234,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
       tipo,
       desde,
       hasta,
-      cargas: cargasElegidas(),
+      ...bultosElegidos(),
       vehiculoMinimo: minimoElegido(),
       fleteroUid: uid
     };
