@@ -21,6 +21,7 @@ import {
   formatoDuracion,
   horaDeSegundos,
   aviso,
+  confirmar,
   botonCargando,
   ICONOS
 } from './ui.js';
@@ -86,7 +87,6 @@ function asignarPorZona() {
 
 function invalidar() {
   calculo = null;
-  $('btn-confirmar').disabled = true;
   $('aviso-sin-asignar').classList.add('oculto');
 }
 
@@ -282,11 +282,7 @@ async function calcular() {
   const lista = pendientes();
   if (!lista.length) {
     aviso('No hay paradas pendientes para repartir');
-    return;
-  }
-  if (!ctx.equipo.base) {
-    aviso('Primero elegí el punto de salida en Armar');
-    return;
+    return false;
   }
   const boton = $('btn-calcular');
   const original = boton.innerHTML;
@@ -308,31 +304,66 @@ async function calcular() {
     calculo.paradas.forEach((p) => {
       if (!paradaHecha(p) && p.fleteroUid) asignacion.set(p.id, p.fleteroUid);
     });
-    $('btn-confirmar').disabled = false;
     const aviso1 = $('aviso-sin-asignar');
     aviso1.textContent = calculo.sinAsignar
       ? `${calculo.sinAsignar} paradas no entran en el horario de nadie. Revisá los horarios de cierre o sumá otro fletero.`
       : '';
     aviso1.classList.toggle('oculto', !calculo.sinAsignar);
+    return true;
   } catch (e) {
+    console.error('No se pudo calcular el reparto', e);
+    ultimoError = e;
     aviso(mensajeError(e));
+    return false;
   } finally {
     botonCargando(boton, false, original);
     pintarTodo();
   }
 }
+let ultimoError = null;
 
 $('btn-calcular').addEventListener('click', calcular);
 
+/* Confirmar: si todavía no se calculó, calcula y manda en un solo toque.
+   Si el recorrido no se puede calcular, ofrece mandar igual las paradas
+   asignadas (cada fletero las ve, sin ordenar). */
+let mandando = false;
 $('btn-confirmar').addEventListener('click', async () => {
-  if (!calculo) return;
-  $('btn-confirmar').disabled = true;
+  if (mandando) return;
+  mandando = true;
+  const boton = $('btn-confirmar');
+  const original = boton.innerHTML;
+  botonCargando(boton, true);
   try {
-    await guardarCalculo(ctx.equipo, fecha, calculo);
-    aviso('Listo, cada fletero ya ve su vuelta');
-    location.href = fecha === fechaISO() ? '/' : `/pages/armar.html?fecha=${fecha}`;
+    if (!calculo) {
+      const ok = await calcular();
+      if (!ok) {
+        const igual = await confirmar({
+          titulo: 'No se pudo ordenar el recorrido',
+          texto: `${mensajeError(ultimoError || new Error('optimizacion'))} ¿Mandás igual las paradas a cada fletero, sin ordenar?`,
+          aceptar: 'Mandar sin ordenar'
+        });
+        if (!igual) return;
+        const paradas = (vuelta.paradas || []).map((p) => (paradaHecha(p) ? p : { ...p, fleteroUid: asignacion.get(p.id) || p.fleteroUid || seleccionados[0] }));
+        await guardarVuelta(ctx.equipo.id, fecha, { paradas, activos: seleccionados, ordenada: false });
+        terminar();
+        return;
+      }
+    }
+    await guardarCalculo(ctx.equipo, fecha, calculo, vuelta);
+    terminar();
   } catch (e) {
-    aviso('No se pudo guardar. Probá de nuevo.');
-    $('btn-confirmar').disabled = false;
+    console.error('No se pudo mandar la vuelta', e);
+    aviso(e && e.code === 'permission-denied' ? 'No tenés permiso para mandar la vuelta (solo quien organiza).' : 'No se pudo guardar. Revisá la conexión y probá de nuevo.');
+  } finally {
+    mandando = false;
+    botonCargando(boton, false, original);
   }
 });
+
+function terminar() {
+  aviso('Listo, cada fletero ya ve su vuelta');
+  setTimeout(() => {
+    location.href = fecha === fechaISO() ? '/' : `/pages/armar.html?fecha=${fecha}`;
+  }, 600);
+}

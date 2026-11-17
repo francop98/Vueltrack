@@ -168,8 +168,14 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
   return { paradas: [...hechas, ...ordenadas], rutas, sinAsignar, llegaTarde, salida: horaSalida, orden };
 }
 
-export async function guardarCalculo(equipo, fecha, calculo) {
+export async function guardarCalculo(equipo, fecha, calculo, vueltaActual = null) {
+  // Se conserva lo que no es del recorrido: quiénes salen, qué lleva cada uno, pausa y marcas
+  const conservar = {};
+  ['activos', 'noLleva', 'pausa', 'marcas'].forEach((k) => {
+    if (vueltaActual && vueltaActual[k] != null) conservar[k] = vueltaActual[k];
+  });
   await reemplazarVuelta(equipo.id, fecha, {
+    ...conservar,
     paradas: calculo.paradas,
     rutas: calculo.rutas,
     salida: calculo.salida,

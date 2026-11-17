@@ -1,4 +1,4 @@
-# Vueltrack v7.6
+# Vueltrack v7.7
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,10 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v7.7
+- **Repartir → "Confirmar y mandar las vueltas"** ya no queda bloqueado: si no se calculó el reparto, lo calcula y manda en un solo toque. Si el recorrido no se puede calcular, explica por qué y ofrece "Mandar sin ordenar" (cada fletero ve sus paradas igual).
+- Al mandar se conservan quiénes salen, qué lleva cada uno, la pausa y lo ya marcado.
 
 ### v7.6
 - **Lo marcado ya no vuelve a pendiente**: cómo le fue a cada parada se guarda aparte (`vuelta.marcas`), con un cambio chico que queda en el celular aunque se salga de la pantalla o no haya señal, y que no pisa lo que marcó otro. Si el servidor rechaza un guardado, aparece un aviso. **Hay que volver a publicar `firestore.rules`.**
