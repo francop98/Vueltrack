@@ -11,7 +11,7 @@ import { compartirSiCorresponde, puedeCompartir, estaCompartiendo, cambiarCompar
 import { reordenarFletero, mensajeError, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirOrden } from './salida.js';
 import { abrirAgregarDestino } from './agregarDestino.js';
-import { borrarDestino, reprogramarDestino, reasignarDestino, hayAQuienReasignar } from './accionesParada.js';
+import { borrarDestino, preguntarBorrar, abrirAccionesDestino } from './accionesParada.js';
 import { miUbicacion } from './rutas.js';
 import { abrirGuia, guiaVista } from './guia.js';
 import { instalarApp, sePuedeInstalar } from './instalar.js';
@@ -72,7 +72,7 @@ $('compartir-check').addEventListener('change', async (e) => {
 pintarCompartir();
 
 escucharVuelta(ctx.equipo.id, fecha, (v) => {
-  vuelta = v;
+  vuelta = conCambiosLocales(v);
   pintar();
 });
 
@@ -219,66 +219,154 @@ function pintarProxima(grupos) {
 }
 
 function filaParada(p) {
-  let icono = p.numero;
-  let claseNum = p.tipo === 'retiro' ? 'retiro' : '';
   const horario = textoHorario(p);
-  let detalle = `${esc(p.direccion)}${p.llegada != null ? ` · ${horaDeSegundos(p.llegada)}` : ''}${horario ? ` · ${esc(horario)}` : ''}`;
-  if (p.estado === 'entregado') {
-    icono = ICONOS.check;
-    claseNum = 'ok';
-    detalle = `${esc(p.direccion)} · ${esc(textoResultado(p))}`;
-  } else if (p.hecha) {
-    icono = '!';
-    claseNum = 'no';
-    detalle = `${esc(p.direccion)} · ${esc(textoResultado(p))}`;
-  }
+  const resumen = [p.llegada != null ? horaDeSegundos(p.llegada) : '', p.direccion, horario].filter(Boolean).join(' · ');
   const etiquetas = [
-    p.tipo === 'retiro' && !p.hecha ? '<span class="etiqueta etiqueta-azul">retiro</span>' : '',
-    p.urgente && !p.hecha ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''
+    `<span class="etiqueta ${p.tipo === 'retiro' ? 'etiqueta-azul' : 'etiqueta-verde'}">${p.tipo === 'retiro' ? 'retiro' : 'entrega'}</span>`,
+    p.urgente ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''
   ].join('');
   const frente = `
-    <div class="fila ${p.hecha ? 'hecha' : ''} ${p.actual ? 'actual' : ''} ${deslizable(p) ? 'fila-frente' : ''}">
-      <a class="fila enlace-plano sin-padding" href="/pages/parada.html?id=${encodeURIComponent(p.id)}">
-        <span class="numero ${claseNum}">${icono}</span>
+    <div class="fila fila-destino ${p.actual ? 'actual' : ''} ${deslizable(p) ? 'fila-frente' : ''}" data-fila="${esc(p.id)}">
+      <button type="button" class="fila enlace-plano sin-padding" data-abrir="${esc(p.id)}" aria-label="Opciones de ${esc(p.nombre)}">
+        <span class="numero ${p.tipo === 'retiro' ? 'retiro' : ''}">${p.numero}</span>
         <span class="fila-cuerpo">
           <span class="fila-titulo-texto">${esc(p.nombre)}</span>
-          <span class="fila-detalle">${detalle}</span>
+          <span class="fila-detalle">${esc(resumen)}</span>
+          <span class="fila-etiquetas">${etiquetas}</span>
         </span>
-        ${etiquetas}
-      </a>
+      </button>
       ${
-        p.hecha
-          ? ''
-          : `<a class="btn-icono sin-borde mas-acento" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener" aria-label="Navegar solo a ${esc(p.nombre)}">${ICONOS.navegar}</a>`
-      }
-      ${
-        !p.hecha && puedoMarcar(p)
-          ? `<button type="button" class="btn-icono sin-borde btn-hecho-rapido" data-hecho="${esc(p.id)}" aria-label="Marcar ${esc(p.nombre)} como ${p.tipo === 'retiro' ? 'retirado' : 'entregado'}">${ICONOS.check}</button>`
+        puedoMarcar(p)
+          ? `<button type="button" class="btn-tilde" data-hecho="${esc(p.id)}" aria-label="Marcar ${esc(p.nombre)} como ${p.tipo === 'retiro' ? 'retirado' : 'entregado'}">${ICONOS.check}</button>`
           : ''
       }
     </div>`;
   if (!deslizable(p)) return frente;
-  // Deslizando a la izquierda aparecen: reasignar, pasar a otro día y borrar
+  // Deslizando a la izquierda aparece Borrar
   return `
     <div class="fila-deslizable" data-desliza="${esc(p.id)}">
       <div class="fila-acciones">
-        ${hayAQuienReasignar(ctx, vuelta, fecha) ? `<button type="button" class="accion-fila accion-reasignar" data-reasignar="${esc(p.id)}">${ICONOS.equipo}<span>Reasignar</span></button>` : ''}
-        <button type="button" class="accion-fila accion-otro-dia" data-otro-dia="${esc(p.id)}">${ICONOS.historial}<span>Otro día</span></button>
         <button type="button" class="accion-fila accion-borrar" data-borrar="${esc(p.id)}">${ICONOS.basura}<span>Borrar</span></button>
       </div>
       ${frente}
     </div>`;
 }
 
-/* Deslizar para gestionar: quien organiza o el independiente (no el fletero de equipo) */
+/* Gestionar (borrar, reasignar, otro día): quien organiza o el independiente, no el fletero de equipo */
+const puedoGestionar = () => !ctx.fleteroDeEquipo && (ctx.organizador || ctx.equipo.modo === 'solo');
 function deslizable(p) {
-  return !p.hecha && !ctx.fleteroDeEquipo && (ctx.organizador || ctx.equipo.modo === 'solo');
+  return !p.hecha && puedoGestionar();
 }
 
-/* ---------- Deslizar una fila a la izquierda ---------- */
+/* ---------- Cambios que se ven al instante ----------
+   Al tocar el tilde o borrar, la fila sale de la lista en el momento, sin esperar
+   a que confirme el servidor. Si llega una versión vieja de la vuelta mientras
+   tanto, el cambio se sigue mostrando hasta que el servidor lo confirme. */
+const cambiosLocales = new Map();
+
+function conCambiosLocales(v) {
+  if (!v || !cambiosLocales.size) return v;
+  const ahora = Date.now();
+  let paradas = v.paradas || [];
+  cambiosLocales.forEach((c, id) => {
+    const servidor = paradas.find((x) => x.id === id);
+    const confirmado = c.borrar ? !servidor : servidor && servidor.estado === c.datos.estado;
+    if (confirmado || ahora > c.vence) {
+      cambiosLocales.delete(id);
+      return;
+    }
+    paradas = c.borrar ? paradas.filter((x) => x.id !== id) : paradas.map((x) => (x.id === id ? { ...x, ...c.datos } : x));
+  });
+  return { ...v, paradas };
+}
+
+function aplicarLocal(id, cambio) {
+  cambiosLocales.set(id, { ...cambio, vence: Date.now() + 20000 });
+  vuelta = conCambiosLocales(vuelta);
+}
+
+/* La fila se pinta de verde (o rojo) y se va; después se repinta todo */
+function animarSalida(id, clase, despues) {
+  const fila = document.querySelector(`#listas [data-fila="${CSS.escape(id)}"]`);
+  const caja = fila && (fila.closest('.fila-deslizable') || fila);
+  if (!caja) {
+    despues();
+    return;
+  }
+  caja.classList.add(clase);
+  setTimeout(() => {
+    caja.classList.add('saliendo');
+    setTimeout(despues, 220);
+  }, 260);
+}
+
+/* Marcar hecha con un toque (con "Deshacer" por si fue sin querer) */
+async function marcarRapido(id, realizado) {
+  const p = ((vuelta && vuelta.paradas) || []).find((x) => x.id === id);
+  if (!p || paradaHecha(p)) return;
+  const que = realizado || (p.tipo === 'retiro' ? 'retirado' : 'entregado');
+  if (navigator.vibrate) navigator.vibrate(40);
+  const hora = horaDeSegundos(segundosAhora());
+  animarSalida(id, 'marcada', () => {
+    aplicarLocal(id, { datos: { estado: 'entregado', realizado: que, horaEstado: hora, marcadoPor: ctx.user.uid } });
+    pintar();
+  });
+  aviso(`${p.nombre}: ${que}`, {
+    accion: 'Deshacer',
+    alTocar: () => {
+      aplicarLocal(id, { datos: { estado: 'pendiente', realizado: '', horaEstado: '' } });
+      pintar();
+      marcarEstado(ctx, fecha, id, 'pendiente', { motivo: '', realizado: '', horaEstado: '' }).catch(() => {});
+    }
+  });
+  try {
+    await marcarHecho(ctx, fecha, id, que);
+  } catch (err) {
+    console.error('No se pudo marcar', err);
+    cambiosLocales.delete(id);
+    aviso(err && err.code === 'permission-denied' ? 'No tenés permiso para marcar esta parada.' : 'No se pudo guardar. Revisá la conexión y probá de nuevo.');
+    pintar();
+  }
+}
+
+async function borrarRapido(id, preguntar = true) {
+  const p = ((vuelta && vuelta.paradas) || []).find((x) => x.id === id);
+  if (!p) return;
+  if (preguntar && !(await preguntarBorrar(p))) {
+    cerrarAbierta();
+    return;
+  }
+  animarSalida(id, 'borrada', () => {
+    aplicarLocal(id, { borrar: true });
+    pintar();
+  });
+  const ok = await borrarDestino({ ctx, fecha, parada: p, sinPreguntar: true });
+  if (!ok) {
+    cambiosLocales.delete(id);
+    pintar();
+  }
+}
+
+function abrirDestino(id) {
+  const p = ((vuelta && vuelta.paradas) || []).find((x) => x.id === id);
+  if (!p) return;
+  abrirAccionesDestino({
+    ctx,
+    fecha,
+    vuelta,
+    parada: p,
+    puedeMarcar: puedoMarcar(p) && !paradaHecha(p),
+    puedeGestionar: puedoGestionar() && !paradaHecha(p),
+    alHecho: (pid, que) => marcarRapido(pid, que),
+    alBorrar: (pid) => borrarRapido(pid, true)
+  });
+}
+
+/* ---------- Deslizar una fila a la izquierda (Borrar) ---------- */
 function cerrarAbierta() {
   if (!abierta) return;
-  abierta.querySelector('.fila-frente').style.transform = '';
+  const frente = abierta.querySelector('.fila-frente');
+  if (frente) frente.style.transform = '';
   abierta.classList.remove('abierta');
   abierta = null;
 }
@@ -296,6 +384,7 @@ function cerrarAbierta() {
 
   cont.addEventListener('pointerdown', (e) => {
     const f = e.target.closest('.fila-deslizable');
+    movio = false;
     if (!f || e.target.closest('.fila-acciones')) return;
     if (abierta && abierta !== f) cerrarAbierta();
     fila = f;
@@ -303,7 +392,6 @@ function cerrarAbierta() {
     y0 = e.clientY;
     dx = 0;
     base = f.classList.contains('abierta') ? -ancho() : 0;
-    movio = false;
     horizontal = null;
   });
   cont.addEventListener('pointermove', (e) => {
@@ -339,7 +427,7 @@ function cerrarAbierta() {
   };
   cont.addEventListener('pointerup', soltar);
   cont.addEventListener('pointercancel', soltar);
-  // Si se deslizó, el toque no abre la parada
+  // Si se deslizó, el toque no abre nada; con la fila abierta, tocarla la cierra
   cont.addEventListener(
     'click',
     (e) => {
@@ -364,15 +452,19 @@ function cerrarAbierta() {
 })();
 
 $('listas').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-reasignar], [data-otro-dia], [data-borrar]');
-  if (!b) return;
-  const id = b.dataset.reasignar || b.dataset.otroDia || b.dataset.borrar;
-  const p = ((vuelta && vuelta.paradas) || []).find((x) => x.id === id);
-  cerrarAbierta();
-  if (!p) return;
-  if (b.dataset.reasignar) reasignarDestino({ ctx, fecha, vuelta, parada: p });
-  else if (b.dataset.otroDia) reprogramarDestino({ ctx, fecha, vuelta, parada: p });
-  else borrarDestino({ ctx, fecha, parada: p });
+  const tilde = e.target.closest('[data-hecho]');
+  if (tilde) {
+    tilde.disabled = true;
+    marcarRapido(tilde.dataset.hecho);
+    return;
+  }
+  const borrar = e.target.closest('[data-borrar]');
+  if (borrar) {
+    borrarRapido(borrar.dataset.borrar, true);
+    return;
+  }
+  const abrir = e.target.closest('[data-abrir]');
+  if (abrir) abrirDestino(abrir.dataset.abrir);
 });
 
 function uidDeLaLista(grupos) {
@@ -587,31 +679,6 @@ function pintarHechas(grupos) {
     })
     .join('');
 }
-
-/* Marcar hecha con un toque (con "Deshacer" por si fue sin querer) */
-async function marcarRapido(id, realizado) {
-  const p = ((vuelta && vuelta.paradas) || []).find((x) => x.id === id);
-  if (!p || paradaHecha(p)) return;
-  const que = realizado || (p.tipo === 'retiro' ? 'retirado' : 'entregado');
-  try {
-    await marcarHecho(ctx, fecha, id, que);
-    if (navigator.vibrate) navigator.vibrate(40);
-    aviso(`${p.nombre}: ${que}`, {
-      accion: 'Deshacer',
-      alTocar: () => marcarEstado(ctx, fecha, id, 'pendiente', { motivo: '', realizado: '', horaEstado: '' }).catch(() => {})
-    });
-  } catch (err) {
-    aviso('No se pudo guardar. Se reintenta cuando vuelva la señal.');
-  }
-}
-
-$('listas').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-hecho]');
-  if (!b) return;
-  e.preventDefault();
-  b.disabled = true;
-  marcarRapido(b.dataset.hecho);
-});
 
 $('proxima').addEventListener('click', (e) => {
   const b = e.target.closest('[data-accion="entregado"], [data-accion="retirado"]');

@@ -1,29 +1,79 @@
 /* =========================================================
    Vueltrack — acciones rápidas sobre un destino (desde Inicio)
-   Se abren deslizando la fila hacia la izquierda:
-   - Reasignar a otro fletero (respeta lo que lleva cada uno)
-   - Pasar a otro día (reprogramar)
-   - Borrar (con confirmación)
+   Tocando un destino se abre una sola hoja con todo:
+   - Entregado / Retirado y No se pudo
+   - GPS: Google Maps, Waze, Llamar
+   - Reasignar a otro fletero, Pasar a otro día y Borrar (quien organiza)
    ========================================================= */
 import { cambiarParada, guardarVuelta, obtenerVuelta, fleterosDelEquipo } from './datos.js';
 import { paradaHecha } from './vuelta.js';
 import { activosDelDia } from './asignar.js';
 import { puedeLlevar } from './cargas.js';
-import { reprogramar } from './estados.js';
+import { reprogramar, htmlBotonesHecho, elegirNoEntregado } from './estados.js';
 import { reordenarFletero, mensajeError } from './ordenar.js';
 import { ordenConInsercion } from './agregarDestino.js';
-import { ICONOS, esc, abrirHoja, aviso, confirmar, fechaISO, fechaLarga, sumarDias } from './ui.js';
+import { ICONOS, esc, abrirHoja, aviso, confirmar, fechaISO, fechaLarga, sumarDias, linkGoogleMaps, linkWaze, linkTel, horaDeSegundos } from './ui.js';
+import { textoHorario } from './vuelta.js';
+
+/* ---------- Hoja con todas las acciones de un destino ----------
+   alHecho(id, realizado) y alBorrar(id) los maneja Inicio (para sacarlo de la lista al instante) */
+export function abrirAccionesDestino({ ctx, fecha, vuelta, parada: p, puedeMarcar, puedeGestionar, alHecho, alBorrar }) {
+  const f = fleterosDelEquipo(ctx.equipo).find((x) => x.uid === p.fleteroUid);
+  const resumen = [
+    p.tipo === 'retiro' ? 'Retiro' : 'Entrega',
+    p.llegada != null ? `llegás ${horaDeSegundos(p.llegada)}` : '',
+    textoHorario(p),
+    Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
+    (p.cargas || []).join(', '),
+    f && fleterosDelEquipo(ctx.equipo).length > 1 ? f.nombre : ''
+  ].filter(Boolean);
+  const reasignar = puedeGestionar && hayAQuienReasignar(ctx, vuelta, fecha);
+  const hoja = abrirHoja({
+    titulo: p.nombre,
+    html: `
+      <div class="resumen-destino">
+        <span>${esc(p.direccion)}</span>
+        <span class="texto-tenue">${esc(resumen.join(' · '))}</span>
+        ${p.nota ? `<span class="nota-destino">${esc(p.nota)}</span>` : ''}
+      </div>
+      ${puedeMarcar ? htmlBotonesHecho(p) : ''}
+      ${puedeMarcar ? '<button type="button" class="btn" data-a="no">No se pudo</button>' : ''}
+      <div class="acciones-destino">
+        <a class="accion-destino" href="${linkGoogleMaps(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}<span>Maps</span></a>
+        <a class="accion-destino" href="${linkWaze(p.lat, p.lng)}" target="_blank" rel="noopener">${ICONOS.navegar}<span>Waze</span></a>
+        ${p.telefono ? `<a class="accion-destino" href="${linkTel(p.telefono)}">${ICONOS.telefono}<span>Llamar</span></a>` : ''}
+        ${reasignar ? `<button type="button" class="accion-destino" data-a="reasignar">${ICONOS.equipo}<span>Reasignar</span></button>` : ''}
+        ${puedeGestionar ? `<button type="button" class="accion-destino" data-a="otro-dia">${ICONOS.historial}<span>Otro día</span></button>` : ''}
+        ${puedeGestionar ? `<button type="button" class="accion-destino peligro" data-a="borrar">${ICONOS.basura}<span>Borrar</span></button>` : ''}
+      </div>
+      <a class="link centrado-texto" href="/pages/parada.html?id=${encodeURIComponent(p.id)}">Ver todo el detalle (foto, firma, editar)</a>`
+  });
+  hoja.el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-accion], [data-a]');
+    if (!b) return;
+    const accion = b.dataset.accion || b.dataset.a;
+    hoja.cerrar();
+    if (accion === 'entregado' || accion === 'retirado') alHecho(p.id, accion);
+    else if (accion === 'no') elegirNoEntregado(ctx, fecha, vuelta, p);
+    else if (accion === 'reasignar') reasignarDestino({ ctx, fecha, vuelta, parada: p });
+    else if (accion === 'otro-dia') reprogramarDestino({ ctx, fecha, vuelta, parada: p });
+    else if (accion === 'borrar') alBorrar(p.id);
+  });
+}
 
 /* ---------- Borrar ---------- */
 
-export async function borrarDestino({ ctx, fecha, parada: p }) {
-  const ok = await confirmar({
+export async function preguntarBorrar(p) {
+  return confirmar({
     titulo: `¿Borrar ${p.nombre}?`,
     texto: 'Se saca de la vuelta de hoy. No se puede deshacer.',
     aceptar: 'Borrar',
     peligro: true
   });
-  if (!ok) return false;
+}
+
+export async function borrarDestino({ ctx, fecha, parada: p, sinPreguntar = false }) {
+  if (!sinPreguntar && !(await preguntarBorrar(p))) return false;
   try {
     await cambiarParada(ctx.equipo.id, fecha, p.id, (lista) =>
       lista.filter((x) => x.id !== p.id).map((x) => (x.entregaId === p.id ? { ...x, entregaId: null } : x))

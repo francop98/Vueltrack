@@ -2119,13 +2119,6 @@ body:has(.velo) .ingreso {
   padding-inline: 8px;
 }
 
-/* Marcar hecha desde la lista de Inicio */
-.btn-icono.btn-hecho-rapido {
-  color: var(--ok-suave-texto);
-  background: var(--ok-suave);
-  border-radius: 50%;
-}
-
 .barra-agregar {
   width: 100%;
   justify-content: center;
@@ -2213,7 +2206,7 @@ body:has(.velo) .ingreso {
 }
 
 .accion-fila {
-  width: 76px;
+  width: 92px;
   border: 0;
   display: flex;
   flex-direction: column;
@@ -2232,14 +2225,126 @@ body:has(.velo) .ingreso {
   height: 20px;
 }
 
-.accion-reasignar {
-  background: #2563EB;
-}
-
-.accion-otro-dia {
-  background: #A16207;
-}
-
 .accion-borrar {
   background: #DC2626;
+}
+
+.etiqueta-verde {
+  background: var(--ok-suave);
+  color: var(--ok-suave-texto);
+}
+
+/* ---------- Fila de destino en Inicio: tocar abre las opciones, el tilde la marca ---------- */
+.fila-destino {
+  padding-right: 10px;
+}
+
+.fila-etiquetas {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.btn-tilde {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--ok);
+  background: transparent;
+  color: var(--ok);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.btn-tilde svg {
+  width: 24px;
+  height: 24px;
+}
+
+.btn-tilde:active {
+  background: var(--ok);
+  color: var(--sobre-ok);
+}
+
+/* Al marcar: la fila se pinta de verde y se va (al borrar, de rojo) */
+.marcada,
+.marcada .fila-frente,
+.marcada.fila {
+  background: var(--ok) !important;
+  transition: background 0.15s ease;
+}
+
+.marcada .fila-titulo-texto,
+.marcada .fila-detalle {
+  color: var(--sobre-ok) !important;
+}
+
+.marcada .btn-tilde {
+  background: var(--sobre-ok);
+  color: var(--ok);
+  border-color: var(--sobre-ok);
+}
+
+.borrada,
+.borrada .fila-frente,
+.borrada.fila {
+  background: #7F1D1D !important;
+}
+
+.saliendo {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* ---------- Hoja de opciones de un destino ---------- */
+.resumen-destino {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nota-destino {
+  background: var(--acento-suave);
+  color: var(--acento-suave-texto);
+  border-radius: var(--radio-chico);
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.acciones-destino {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.accion-destino {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 72px;
+  border-radius: var(--radio-chico);
+  background: var(--superficie-2);
+  border: 1px solid var(--linea);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.accion-destino svg {
+  width: 22px;
+  height: 22px;
+  color: var(--acento);
+}
+
+.accion-destino.peligro svg,
+.accion-destino.peligro {
+  color: var(--error);
 }

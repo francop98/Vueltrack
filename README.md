@@ -1,4 +1,4 @@
-# Vueltrack v7.4
+# Vueltrack v7.5
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,11 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v7.5
+- **Arreglo del tilde verde**: al tocarlo, la fila se pinta de verde y sale de la ruta en el momento (pasa a "Hechas hoy"), sin esperar al servidor. Si el guardado falla, vuelve a su lugar y avisa el motivo. Además, un dato vacío ya no puede hacer fallar un guardado.
+- **Inicio más simple**: arriba "Agregar destino", después la próxima parada, la ruta y "Hechas hoy". Los números del día, compartir ubicación y los avisos quedan al final.
+- **Cada destino**: el tilde para marcarlo, y tocando la fila se abre una sola hoja con todo: Entregado / Retirado, No se pudo, Maps, Waze, Llamar, Reasignar, Otro día y Borrar. Deslizando a la izquierda, Borrar.
 
 ### v7.4
 - **Inicio: deslizar un destino a la izquierda** muestra tres acciones: **Reasignar** a otro fletero (respeta lo que lleva cada uno y lo mete en su ruta donde menos desvío agrega, recalculando los horarios de los dos), **Otro día** (mañana, pasado o una fecha, con motivo opcional) y **Borrar** (con confirmación). Solo para quien organiza o el independiente.

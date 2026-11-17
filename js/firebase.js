@@ -16,11 +16,13 @@ export const auth = getAuth(app);
 let baseDeDatos;
 try {
   // Guarda una copia local: la app sigue mostrando la vuelta si se corta la señal.
+  // ignoreUndefinedProperties: un dato vacío (undefined) no hace fallar el guardado
   baseDeDatos = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    ignoreUndefinedProperties: true
   });
 } catch (e) {
-  baseDeDatos = initializeFirestore(app, {});
+  baseDeDatos = initializeFirestore(app, { ignoreUndefinedProperties: true });
 }
 
 export const db = baseDeDatos;

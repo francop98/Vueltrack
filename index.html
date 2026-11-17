@@ -56,6 +56,56 @@
         <span class="texto-tenue" id="titulo">Tu vuelta de hoy</span>
       </div>
 
+      <button type="button" class="btn btn-primario btn-grande barra-agregar oculto" id="btn-agregar-destino">
+        <span class="mas" aria-hidden="true">+</span>Agregar destino
+      </button>
+
+      <div class="chips desplazable oculto" id="filtro" role="group" aria-label="Ver la vuelta de"></div>
+
+      <div class="cargando" id="cargando" aria-label="Cargando"></div>
+
+      <div class="vacio oculto" id="vacio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/></svg>
+        <strong id="vacio-titulo">Todavía no hay vuelta para hoy</strong>
+        <p id="vacio-texto"></p>
+        <a class="btn btn-primario oculto" id="vacio-boton" href="/pages/armar.html">Armar la vuelta</a>
+      </div>
+
+      <section class="tarjeta-destacada oculto" id="proxima" aria-labelledby="proxima-nombre"></section>
+
+      <section class="seccion oculto" id="bloque-lista">
+        <div class="fila-titulo">
+          <h2 class="subtitulo" id="lista-titulo">Paradas</h2>
+          <span class="fila-boton">
+            <button type="button" class="chip oculto" id="btn-reordenar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>
+              Reordenar
+            </button>
+            <a class="chip oculto" id="link-editar" href="/pages/armar.html">Editar</a>
+          </span>
+        </div>
+        <div id="listas" class="seccion"></div>
+      </section>
+
+      <section class="seccion oculto" id="bloque-hechas">
+        <h2 class="subtitulo" id="hechas-titulo">Hechas hoy</h2>
+        <div class="lista lista-hechas" id="lista-hechas"></div>
+        <a class="btn btn-contorno" href="/pages/historial.html">Ver la hoja de ruta</a>
+      </section>
+
+      <div class="grilla-stats oculto" id="stats">
+        <div class="stat"><span class="stat-valor" id="st-paradas">—</span><span class="stat-nombre">paradas</span></div>
+        <div class="stat"><span class="stat-valor" id="st-km">—</span><span class="stat-nombre">recorrido</span></div>
+        <div class="stat"><span class="stat-valor" id="st-tiempo">—</span><span class="stat-nombre">estimado</span></div>
+        <div class="stat"><span class="stat-valor" id="st-fin">—</span><span class="stat-nombre">terminás</span></div>
+      </div>
+
+
+      <label class="interruptor tarjeta oculto" for="compartir-check" id="compartir">
+        <span><strong>Compartir mi ubicación con el equipo</strong><br><span class="texto-tenue">Solo mientras tengas la app abierta</span></span>
+        <input type="checkbox" id="compartir-check">
+      </label>
+
       <div class="aviso-instalar oculto" id="aviso-instalar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
         <span class="titulo-bloque">
@@ -78,55 +128,6 @@
 
       <a class="alertas oculto" id="alertas" href="/pages/vehiculo.html"></a>
 
-      <div class="chips desplazable oculto" id="filtro" role="group" aria-label="Ver la vuelta de"></div>
-
-      <div class="cargando" id="cargando" aria-label="Cargando"></div>
-
-      <div class="vacio oculto" id="vacio">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7"/></svg>
-        <strong id="vacio-titulo">Todavía no hay vuelta para hoy</strong>
-        <p id="vacio-texto"></p>
-        <a class="btn btn-primario oculto" id="vacio-boton" href="/pages/armar.html">Armar la vuelta</a>
-      </div>
-
-      <div class="grilla-stats oculto" id="stats">
-        <div class="stat"><span class="stat-valor" id="st-paradas">—</span><span class="stat-nombre">paradas</span></div>
-        <div class="stat"><span class="stat-valor" id="st-km">—</span><span class="stat-nombre">recorrido</span></div>
-        <div class="stat"><span class="stat-valor" id="st-tiempo">—</span><span class="stat-nombre">estimado</span></div>
-        <div class="stat"><span class="stat-valor" id="st-fin">—</span><span class="stat-nombre">terminás</span></div>
-      </div>
-
-
-      <label class="interruptor tarjeta oculto" for="compartir-check" id="compartir">
-        <span><strong>Compartir mi ubicación con el equipo</strong><br><span class="texto-tenue">Solo mientras tengas la app abierta</span></span>
-        <input type="checkbox" id="compartir-check">
-      </label>
-
-      <section class="tarjeta-destacada oculto" id="proxima" aria-labelledby="proxima-nombre"></section>
-
-      <button type="button" class="btn btn-primario btn-grande barra-agregar oculto" id="btn-agregar-destino">
-        <span class="mas" aria-hidden="true">+</span>Agregar destino
-      </button>
-
-      <section class="seccion oculto" id="bloque-lista">
-        <div class="fila-titulo">
-          <h2 class="subtitulo" id="lista-titulo">Paradas</h2>
-          <span class="fila-boton">
-            <button type="button" class="chip oculto" id="btn-reordenar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>
-              Reordenar
-            </button>
-            <a class="chip oculto" id="link-editar" href="/pages/armar.html">Editar</a>
-          </span>
-        </div>
-        <div id="listas" class="seccion"></div>
-      </section>
-
-      <section class="seccion oculto" id="bloque-hechas">
-        <h2 class="subtitulo" id="hechas-titulo">Hechas hoy</h2>
-        <div class="lista lista-hechas" id="lista-hechas"></div>
-        <a class="btn btn-contorno" href="/pages/historial.html">Ver la hoja de ruta</a>
-      </section>
     </main>
   </div>
 
