@@ -25,11 +25,18 @@ function km(a, b) {
 
 const conUbicacion = (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng);
 
-/* Fleteros que salen ese día (si no se eligió, todos) */
+/* Fleteros que salen ese día. Si no se eligió, salen todos menos quien organiza
+   (el organizador que también reparte se suma a mano; si es el único, sale él). */
 export function activosDelDia(vuelta, fleteros) {
   const elegidos = vuelta && Array.isArray(vuelta.activos) ? vuelta.activos : null;
-  const lista = elegidos ? fleteros.filter((f) => elegidos.includes(f.uid)) : fleteros;
-  return lista.length ? lista : fleteros;
+  if (elegidos) {
+    const lista = fleteros.filter((f) => elegidos.includes(f.uid));
+    if (lista.length) return lista;
+  }
+  // Quien organiza solo cuenta si ya tiene paradas asignadas ese día
+  const conParadas = new Set(((vuelta && vuelta.paradas) || []).map((p) => p.fleteroUid).filter(Boolean));
+  const sinOrganizar = fleteros.filter((f) => !(f.roles || []).includes('organizador') || conParadas.has(f.uid));
+  return sinOrganizar.length ? sinOrganizar : fleteros;
 }
 
 /* Sugiere el fletero para una parada según las que ya tiene cada uno */

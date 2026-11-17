@@ -1,4 +1,4 @@
-# Vueltrack v7.3
+# Vueltrack v7.4
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,10 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v7.4
+- **Inicio: deslizar un destino a la izquierda** muestra tres acciones: **Reasignar** a otro fletero (respeta lo que lleva cada uno y lo mete en su ruta donde menos desvío agrega, recalculando los horarios de los dos), **Otro día** (mañana, pasado o una fecha, con motivo opcional) y **Borrar** (con confirmación). Solo para quien organiza o el independiente.
+- **Quien organiza ya no sale por defecto**: si también es fletero, no se lo cuenta entre los que salen ni se le asignan paradas, salvo que se lo elija en "¿Quiénes salen?", ya tenga paradas ese día o sea el único fletero. En Inicio, la próxima parada ya no muestra la suya primero.
 
 ### v7.3
 - Cada destino nuevo arranca como **Retiro** (en Armar, "+ Agregar destino", clientes, listas pegadas y editar destino). Se cambia a Entrega con un toque.

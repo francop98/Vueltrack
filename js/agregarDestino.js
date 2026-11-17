@@ -22,7 +22,7 @@ function km(a, b) {
 }
 
 /* Posición (dentro de las pendientes del fletero) que menos desvío agrega */
-function mejorLugar(nueva, pendientes, inicio, fin) {
+export function mejorLugar(nueva, pendientes, inicio, fin) {
   if (!Number.isFinite(nueva.lat) || !pendientes.length) return pendientes.length;
   const puntos = [inicio, ...pendientes, fin];
   let mejor = { i: pendientes.length, costo: Infinity };
@@ -34,6 +34,19 @@ function mejorLugar(nueva, pendientes, inicio, fin) {
     if (costo < mejor.costo) mejor = { i, costo };
   }
   return mejor.i;
+}
+
+/* Orden del fletero con la parada metida donde menos desvío agrega (ids, hechas primero) */
+export function ordenConInsercion(equipo, vuelta, parada, uid) {
+  const suyas = (vuelta.paradas || [])
+    .filter((p) => p.fleteroUid === uid && p.id !== parada.id)
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  const hechas = suyas.filter(paradaHecha);
+  const pendientes = suyas.filter((p) => !paradaHecha(p));
+  const inicio = hechas.length ? hechas[hechas.length - 1] : equipo.base;
+  const fin = (equipo.ajustes || {}).volver === false ? null : equipo.base;
+  const lugar = mejorLugar(parada, pendientes, inicio, fin);
+  return [...hechas, ...pendientes.slice(0, lugar), parada, ...pendientes.slice(lugar)].map((p) => p.id);
 }
 
 export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
@@ -174,14 +187,8 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
     }
 
     // Vuelta ordenada: entra donde menos desvío agrega y se recalculan los horarios
-    const suyas = todas.filter((p) => p.fleteroUid === uid).sort((a, b) => (a.orden || 0) - (b.orden || 0));
-    const hechas = suyas.filter(paradaHecha);
-    const pendientes = suyas.filter((p) => !paradaHecha(p));
-    const inicio = hechas.length ? hechas[hechas.length - 1] : equipo.base;
-    const fin = (equipo.ajustes || {}).volver === false ? null : equipo.base;
-    const lugar = mejorLugar(nueva, pendientes, inicio, fin);
-    const ordenManual = [...hechas, ...pendientes.slice(0, lugar), nueva, ...pendientes.slice(lugar)].map((p) => p.id);
     const vueltaNueva = { ...vuelta, paradas: [...todas, nueva] };
+    const ordenManual = ordenConInsercion(equipo, vueltaNueva, nueva, uid);
     try {
       await guardarVuelta(equipo.id, fecha, { paradas: vueltaNueva.paradas });
       aviso(`${nueva.nombre} sumado. Recalculando horarios…`);

@@ -11,6 +11,7 @@ import { compartirSiCorresponde, puedeCompartir, estaCompartiendo, cambiarCompar
 import { reordenarFletero, mensajeError, nombreOrden, ORDENES } from './ordenar.js';
 import { elegirOrden } from './salida.js';
 import { abrirAgregarDestino } from './agregarDestino.js';
+import { borrarDestino, reprogramarDestino, reasignarDestino, hayAQuienReasignar } from './accionesParada.js';
 import { miUbicacion } from './rutas.js';
 import { abrirGuia, guiaVista } from './guia.js';
 import { instalarApp, sePuedeInstalar } from './instalar.js';
@@ -38,6 +39,8 @@ const $ = (id) => document.getElementById(id);
 const fecha = fechaISO();
 // Quién puede marcar: quien organiza o el fletero de esa parada
 const puedoMarcar = (p) => ctx.organizador || p.fleteroUid === ctx.user.uid;
+// Fila deslizada que muestra sus acciones
+let abierta = null;
 let ctx;
 let vuelta = null;
 let filtro = null;
@@ -156,7 +159,8 @@ function pintarVacio() {
 
 function uidParaProxima(grupos) {
   if (filtro !== 'todos') return filtro;
-  if (grupos.some((g) => g.uid === ctx.user.uid)) return ctx.user.uid;
+  // Quien organiza no queda "primero": solo se muestra la suya si es el único que sale
+  if (!ctx.organizador && grupos.some((g) => g.uid === ctx.user.uid)) return ctx.user.uid;
   return grupos.length === 1 ? grupos[0].uid : null;
 }
 
@@ -232,8 +236,8 @@ function filaParada(p) {
     p.tipo === 'retiro' && !p.hecha ? '<span class="etiqueta etiqueta-azul">retiro</span>' : '',
     p.urgente && !p.hecha ? '<span class="etiqueta etiqueta-acento">urgente</span>' : ''
   ].join('');
-  return `
-    <div class="fila ${p.hecha ? 'hecha' : ''} ${p.actual ? 'actual' : ''}">
+  const frente = `
+    <div class="fila ${p.hecha ? 'hecha' : ''} ${p.actual ? 'actual' : ''} ${deslizable(p) ? 'fila-frente' : ''}">
       <a class="fila enlace-plano sin-padding" href="/pages/parada.html?id=${encodeURIComponent(p.id)}">
         <span class="numero ${claseNum}">${icono}</span>
         <span class="fila-cuerpo">
@@ -253,7 +257,123 @@ function filaParada(p) {
           : ''
       }
     </div>`;
+  if (!deslizable(p)) return frente;
+  // Deslizando a la izquierda aparecen: reasignar, pasar a otro día y borrar
+  return `
+    <div class="fila-deslizable" data-desliza="${esc(p.id)}">
+      <div class="fila-acciones">
+        ${hayAQuienReasignar(ctx, vuelta, fecha) ? `<button type="button" class="accion-fila accion-reasignar" data-reasignar="${esc(p.id)}">${ICONOS.equipo}<span>Reasignar</span></button>` : ''}
+        <button type="button" class="accion-fila accion-otro-dia" data-otro-dia="${esc(p.id)}">${ICONOS.historial}<span>Otro día</span></button>
+        <button type="button" class="accion-fila accion-borrar" data-borrar="${esc(p.id)}">${ICONOS.basura}<span>Borrar</span></button>
+      </div>
+      ${frente}
+    </div>`;
 }
+
+/* Deslizar para gestionar: quien organiza o el independiente (no el fletero de equipo) */
+function deslizable(p) {
+  return !p.hecha && !ctx.fleteroDeEquipo && (ctx.organizador || ctx.equipo.modo === 'solo');
+}
+
+/* ---------- Deslizar una fila a la izquierda ---------- */
+function cerrarAbierta() {
+  if (!abierta) return;
+  abierta.querySelector('.fila-frente').style.transform = '';
+  abierta.classList.remove('abierta');
+  abierta = null;
+}
+
+(function conectarDeslizar() {
+  const cont = $('listas');
+  let fila = null;
+  let x0 = 0;
+  let y0 = 0;
+  let dx = 0;
+  let base = 0;
+  let movio = false;
+  let horizontal = null;
+  const ancho = () => (fila ? fila.querySelector('.fila-acciones').offsetWidth : 0);
+
+  cont.addEventListener('pointerdown', (e) => {
+    const f = e.target.closest('.fila-deslizable');
+    if (!f || e.target.closest('.fila-acciones')) return;
+    if (abierta && abierta !== f) cerrarAbierta();
+    fila = f;
+    x0 = e.clientX;
+    y0 = e.clientY;
+    dx = 0;
+    base = f.classList.contains('abierta') ? -ancho() : 0;
+    movio = false;
+    horizontal = null;
+  });
+  cont.addEventListener('pointermove', (e) => {
+    if (!fila) return;
+    const mx = e.clientX - x0;
+    const my = e.clientY - y0;
+    if (horizontal === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) horizontal = Math.abs(mx) > Math.abs(my);
+    if (!horizontal) return;
+    movio = true;
+    fila.classList.add('deslizando');
+    dx = Math.max(-ancho() - 30, Math.min(0, base + mx));
+    const frente = fila.querySelector('.fila-frente');
+    frente.style.transition = 'none';
+    frente.style.transform = `translateX(${dx}px)`;
+  });
+  const soltar = () => {
+    if (!fila) return;
+    const frente = fila.querySelector('.fila-frente');
+    frente.style.transition = '';
+    fila.classList.remove('deslizando');
+    if (movio) {
+      if (dx < -ancho() / 2) {
+        frente.style.transform = `translateX(${-ancho()}px)`;
+        fila.classList.add('abierta');
+        abierta = fila;
+      } else {
+        frente.style.transform = '';
+        fila.classList.remove('abierta');
+        if (abierta === fila) abierta = null;
+      }
+    }
+    fila = null;
+  };
+  cont.addEventListener('pointerup', soltar);
+  cont.addEventListener('pointercancel', soltar);
+  // Si se deslizó, el toque no abre la parada
+  cont.addEventListener(
+    'click',
+    (e) => {
+      if (movio) {
+        e.preventDefault();
+        e.stopPropagation();
+        movio = false;
+        return;
+      }
+      const f = e.target.closest('.fila-deslizable');
+      if (f && f.classList.contains('abierta') && !e.target.closest('.fila-acciones')) {
+        e.preventDefault();
+        e.stopPropagation();
+        cerrarAbierta();
+      }
+    },
+    true
+  );
+  document.addEventListener('pointerdown', (e) => {
+    if (abierta && !abierta.contains(e.target)) cerrarAbierta();
+  });
+})();
+
+$('listas').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-reasignar], [data-otro-dia], [data-borrar]');
+  if (!b) return;
+  const id = b.dataset.reasignar || b.dataset.otroDia || b.dataset.borrar;
+  const p = ((vuelta && vuelta.paradas) || []).find((x) => x.id === id);
+  cerrarAbierta();
+  if (!p) return;
+  if (b.dataset.reasignar) reasignarDestino({ ctx, fecha, vuelta, parada: p });
+  else if (b.dataset.otroDia) reprogramarDestino({ ctx, fecha, vuelta, parada: p });
+  else borrarDestino({ ctx, fecha, parada: p });
+});
 
 function uidDeLaLista(grupos) {
   if (grupos.length !== 1) return null;
@@ -403,6 +523,7 @@ function conectarArrastre() {
 
 
 function pintarListas(grupos) {
+  abierta = null;
   if (arrastre) {
     const grupo = grupos.find((g) => g.uid === arrastre.uid);
     // Mientras se arrastra, un cambio de la vuelta no desarma lo que se está ordenando

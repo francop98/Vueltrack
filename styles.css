@@ -2181,3 +2181,65 @@ body:has(.velo) .ingreso {
   font-weight: 800;
   cursor: pointer;
 }
+
+/* ---------- Deslizar un destino a la izquierda (Inicio) ---------- */
+.fila-deslizable {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--linea-suave);
+}
+
+.fila-deslizable > .fila-frente {
+  position: relative;
+  z-index: 1;
+  background: var(--superficie);
+  border-bottom: 0;
+  touch-action: pan-y;
+  transition: transform 0.2s ease;
+}
+
+.fila-acciones {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  visibility: hidden;
+}
+
+.fila-deslizable.abierta .fila-acciones,
+.fila-deslizable.deslizando .fila-acciones {
+  visibility: visible;
+}
+
+.accion-fila {
+  width: 76px;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #FFFFFF;
+  cursor: pointer;
+}
+
+.accion-fila svg {
+  width: 20px;
+  height: 20px;
+}
+
+.accion-reasignar {
+  background: #2563EB;
+}
+
+.accion-otro-dia {
+  background: #A16207;
+}
+
+.accion-borrar {
+  background: #DC2626;
+}
