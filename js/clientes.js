@@ -3,7 +3,7 @@
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
 import { escucharClientes, escucharVuelta, guardarVuelta, guardarCliente, borrarCliente } from './datos.js';
-import { selectorCargas } from './cargas.js';
+import { selectorCargas, htmlMinimo, conectarMinimo } from './cargas.js';
 import { crearBuscador, htmlBuscador } from './buscador.js';
 import { mapaConPin } from './mapa.js';
 import { paradaDesdeCliente, textoHorario, paradaHecha } from './vuelta.js';
@@ -173,7 +173,7 @@ function abrirEditor(cliente) {
   // Carga habitual: se copia a la parada al sumarlo (y se puede cambiar ese día)
   const cargasSel =
     ctx.equipo.modo === 'equipo'
-      ? selectorCargas(ctx.equipo, c.cargas || [], { id: 'c-cargas', titulo: 'Carga habitual', ayuda: 'Se puede cambiar en cada vuelta.' })
+      ? selectorCargas(ctx.equipo, c.cargas || [], { id: 'c-cargas', titulo: 'Mercadería habitual', ayuda: 'Solo va con fleteros que la lleven. Se puede cambiar en cada vuelta.' })
       : null;
 
   const hoja = abrirHoja({
@@ -199,7 +199,7 @@ function abrirEditor(cliente) {
             .join('')}
         </div>
       </fieldset>
-      ${cargasSel ? cargasSel.html : ''}
+      ${cargasSel ? cargasSel.html + htmlMinimo('c-minimo', c.vehiculoMinimo) : ''}
       <div class="campo"><label for="c-nota">Nota fija para el fletero</label><textarea id="c-nota" placeholder="Ej.: timbre 2B, dejar en portería, entrar por el portón lateral">${esc(c.nota)}</textarea></div>
       <p class="error-texto oculto" id="c-error" role="alert"></p>
       <button type="button" class="btn btn-primario btn-grande" id="c-guardar">Guardar cliente</button>
@@ -207,6 +207,7 @@ function abrirEditor(cliente) {
   });
   const el = hoja.el;
   const cargasElegidas = cargasSel ? cargasSel.conectar(el) : () => c.cargas || [];
+  const minimoElegido = cargasSel ? conectarMinimo(el, 'c-minimo', c.vehiculoMinimo) : () => c.vehiculoMinimo || '';
 
   // El nombre se escribe siempre en mayúsculas
   const campoNombre = el.querySelector('#c-nombre');
@@ -282,6 +283,7 @@ function abrirEditor(cliente) {
       hasta: el.querySelector('#c-hasta').value,
       nota: el.querySelector('#c-nota').value.trim(),
       cargas,
+      vehiculoMinimo: minimoElegido(),
       dias
     }).then(
       () => aviso(cliente ? 'Cliente actualizado' : 'Cliente guardado'),

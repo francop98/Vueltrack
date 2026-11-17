@@ -8,16 +8,14 @@ import {
   onAuthStateChanged,
   signOut,
   sendPasswordResetEmail,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword
+  sendEmailVerification
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { obtenerUsuario, guardarUsuario, escucharEquipo } from './datos.js';
 import { VERSION_APP } from './firebase-config.js';
 import { abrirGuia } from './guia.js';
 import { instalarApp, estaInstalada } from './instalar.js';
 import { definirZonaBusqueda } from './rutas.js';
-import { ICONOS, esc, iniciales, abrirHoja, pintarNav, aviso, confirmar, activarVerClave } from './ui.js';
+import { ICONOS, esc, iniciales, abrirHoja, pintarNav, aviso, confirmar } from './ui.js';
 
 function esperarUsuario() {
   return new Promise((resolver) => {
@@ -277,9 +275,11 @@ export function abrirMenu(ctx) {
       ${ctx.fletero ? item('', ICONOS.auto, 'Mi vehículo', '/pages/vehiculo.html') : ''}
       ${item('seguridad', ICONO_CANDADO, 'Seguridad')}
       <span class="menu-grupo">Tu trabajo</span>
+      ${ctx.organizador ? item('', ICONOS.auto, 'Fleteros', '/pages/fleteros.html') : ''}
       ${item('', ICONOS.equipo, ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', '/pages/equipo.html')}
       <span class="menu-grupo">Ayuda</span>
       ${item('guia', ICONOS.ayuda, 'Guía de uso')}
+      <a class="menu-item" href="mailto:${CORREO_CONTACTO}?subject=${encodeURIComponent('Consulta sobre Vueltrack')}">${ICONOS.mensaje}<span>Escribinos: ${CORREO_CONTACTO}</span></a>
       ${estaInstalada() ? '' : item('instalar', ICONOS.descargar, 'Instalar la app')}
       <div class="cajon-pie">
         ${item('salir', ICONO_SALIR, 'Cerrar sesión')}
@@ -371,9 +371,12 @@ export function abrirMenu(ctx) {
   velo.querySelector('[data-accion="cerrar"]').focus();
 }
 
+export const CORREO_CONTACTO = 'vueltrack@gmail.com';
+
 export function abrirSeguridad(ctx) {
   const conClave = (ctx.user.providerData || []).some((p) => p.providerId === 'password');
   const conGoogle = (ctx.user.providerData || []).some((p) => p.providerId === 'google.com');
+  const verificado = ctx.user.emailVerified || conGoogle;
   const hoja = abrirHoja({
     titulo: 'Seguridad',
     html: `
@@ -381,59 +384,43 @@ export function abrirSeguridad(ctx) {
         <div class="fila"><span>Forma de ingreso</span><strong>${[conClave ? 'Correo y contraseña' : '', conGoogle ? 'Google' : '']
           .filter(Boolean)
           .join(' y ')}</strong></div>
+        <div class="fila"><span>Correo</span><strong>${esc(ctx.user.email || '')}</strong></div>
+        <div class="fila"><span>Correo confirmado</span><strong>${verificado ? 'Sí' : 'Todavía no'}</strong></div>
       </div>
       ${
         conClave
           ? `
-      <form class="seccion" id="form-clave" novalidate>
-        <span class="subtitulo">Cambiar contraseña</span>
-        <div class="campo"><label for="clave-actual">Contraseña actual</label><input id="clave-actual" type="password" autocomplete="current-password"></div>
-        <div class="campo"><label for="clave-nueva">Nueva contraseña</label><input id="clave-nueva" type="password" autocomplete="new-password" minlength="6"></div>
-        <div class="campo"><label for="clave-repetir">Repetir nueva contraseña</label><input id="clave-repetir" type="password" autocomplete="new-password"></div>
-        <p class="error-texto oculto" id="clave-error" role="alert"></p>
-        <button type="submit" class="btn btn-primario btn-grande">Cambiar contraseña</button>
-        <button type="button" class="link" id="clave-mail">Prefiero recibir un correo para cambiarla</button>
-      </form>`
+      <p class="texto-tenue">Para cambiar la contraseña te mandamos un correo a <strong>${esc(ctx.user.email || '')}</strong> con un link. Ahí elegís la nueva.</p>
+      <button type="button" class="btn btn-primario btn-grande" id="clave-mail">Cambiar contraseña</button>`
           : '<p class="texto-tenue">Ingresás con tu cuenta de Google. La contraseña se administra desde Google.</p>'
       }
+      ${verificado ? '' : '<button type="button" class="btn" id="verificar-mail">Mandarme el correo para confirmar mi cuenta</button>'}
+      <p class="texto-tenue">Los correos llegan de Vueltrack (${CORREO_CONTACTO}). Si no lo ves, revisá Spam o Promociones.</p>
       <p class="texto-tenue">Tus datos se guardan en Firebase (Google) y solo los ven los integrantes de tu equipo.</p>`
   });
-
-  const form = hoja.el.querySelector('#form-clave');
-  if (!form) return;
-  activarVerClave(form);
-  const error = hoja.el.querySelector('#clave-error');
-  const mostrarError = (t) => {
-    error.textContent = t;
-    error.classList.toggle('oculto', !t);
-  };
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const actual = hoja.el.querySelector('#clave-actual').value;
-    const nueva = hoja.el.querySelector('#clave-nueva').value;
-    const repetir = hoja.el.querySelector('#clave-repetir').value;
-    if (nueva.length < 6) return mostrarError('La nueva contraseña tiene que tener al menos 6 caracteres.');
-    if (nueva !== repetir) return mostrarError('Las contraseñas nuevas no coinciden.');
+  const mandar = async (boton, accion, textoOk) => {
+    boton.disabled = true;
     try {
-      const cred = EmailAuthProvider.credential(ctx.user.email, actual);
-      await reauthenticateWithCredential(auth.currentUser, cred);
-      await updatePassword(auth.currentUser, nueva);
-      hoja.cerrar();
-      aviso('Contraseña actualizada');
-    } catch (err) {
-      mostrarError(
-        err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password'
-          ? 'La contraseña actual no es correcta.'
-          : 'No se pudo cambiar. Probá de nuevo.'
-      );
+      await accion();
+      aviso(textoOk);
+      boton.textContent = 'Correo enviado ✓';
+    } catch (e) {
+      boton.disabled = false;
+      aviso(e && e.code === 'auth/too-many-requests' ? 'Ya te mandamos uno hace poco. Esperá unos minutos.' : 'No se pudo mandar el correo. Probá de nuevo.');
     }
-  });
-
-  hoja.el.querySelector('#clave-mail').addEventListener('click', async () => {
-    await sendPasswordResetEmail(auth, ctx.user.email);
-    aviso('Te enviamos un correo para cambiar la contraseña');
-  });
+  };
+  const botonClave = hoja.el.querySelector('#clave-mail');
+  if (botonClave) {
+    botonClave.addEventListener('click', () =>
+      mandar(botonClave, () => sendPasswordResetEmail(auth, ctx.user.email), `Te mandamos un correo a ${ctx.user.email} para cambiar la contraseña`)
+    );
+  }
+  const botonVerificar = hoja.el.querySelector('#verificar-mail');
+  if (botonVerificar) {
+    botonVerificar.addEventListener('click', () =>
+      mandar(botonVerificar, () => sendEmailVerification(auth.currentUser), `Te mandamos un correo a ${ctx.user.email} para confirmar tu cuenta`)
+    );
+  }
 }
 
 export async function tokenActual() {

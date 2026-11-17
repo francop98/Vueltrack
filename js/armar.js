@@ -23,7 +23,8 @@ import { editarParada, confirmarQuitar } from './editarParada.js';
 import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario, gruposDeVuelta } from './vuelta.js';
 import { buscarDirecciones } from './rutas.js';
 import { activosDelDia, asignarPendientes, redistribuirPorZona, incompatibles } from './asignar.js';
-import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorCargas } from './cargas.js';
+import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorCargas, vehiculoDelDia, tipoVehiculo, motivoNoLleva, textoCargas } from './cargas.js';
+import { insertarEnRutas } from './agregarDestino.js';
 import { direccionesFrecuentes, agregarFrecuente, descartarFrecuente } from './frecuentes.js';
 import {
   ICONOS,
@@ -147,6 +148,21 @@ const activos = () => activosDelDia(vuelta, fleterosEquipo());
 
 async function guardarParadas(nuevas) {
   const lista = hayVarios() ? asignarPendientes(nuevas, activos(), vuelta).paradas : nuevas;
+  // Vuelta ya ordenada y solo se sumaron destinos: entran en la ruta sin desarmarla
+  const antes = new Set(paradas().map((p) => p.id));
+  const sumadas = lista.filter((p) => !antes.has(p.id));
+  const sinCambiosEnLoDemas = lista.length === antes.size + sumadas.length;
+  if (vuelta && vuelta.ordenada && sumadas.length && sinCambiosEnLoDemas) {
+    const uno = activos()[0];
+    const conFletero = sumadas.map((p) => ({ ...p, fleteroUid: p.fleteroUid || (uno && uno.uid) || ctx.user.uid }));
+    const viejas = lista.filter((p) => antes.has(p.id));
+    const r = await insertarEnRutas({ equipo: ctx.equipo, fecha, vuelta: { ...vuelta, paradas: viejas }, nuevas: conFletero });
+    if (r.error) aviso(r.error);
+    else if (sumadas.length === 1) aviso(`${sumadas[0].nombre} entró en la ruta como parada ${r.posiciones[sumadas[0].id]}`);
+    else aviso(`${sumadas.length} destinos entraron en la ruta`);
+    avisarIncompatibles(lista);
+    return;
+  }
   await guardarVuelta(ctx.equipo.id, fecha, { paradas: lista, ordenada: false });
   avisarIncompatibles(lista);
 }
@@ -175,11 +191,12 @@ function pintarSalen() {
         const sale = uids.includes(f.uid);
         const cant = paradas().filter((p) => p.fleteroUid === f.uid && !paradaHecha(p)).length;
         const no = noLlevaDelDia(vuelta, f);
-        return `<button type="button" class="chip ${sale ? 'activo' : ''}" data-sale="${esc(f.uid)}" aria-pressed="${sale}" title="${no.length ? `No lleva: ${esc(no.join(', '))}` : ''}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre)}${f.externo ? ' (sin app)' : ''}${sale && cant ? ` · ${cant}` : ''}${sale && no.length ? ' · <span class="aviso-carga">no lleva ' + esc(no.join(', ')) + '</span>' : ''}</button>`;
+        const enQue = tipoVehiculo(vehiculoDelDia(vuelta, f));
+        return `<button type="button" class="chip ${sale ? 'activo' : ''}" data-sale="${esc(f.uid)}" aria-pressed="${sale}" title="${no.length ? `No lleva: ${esc(no.join(', '))}` : ''}"><i class="punto" style="background:${esc(f.color)}"></i>${esc(f.nombre)}${f.externo ? ' (sin app)' : ''}${sale && enQue ? ` · ${esc(enQue.corto)}` : ''}${sale && cant ? ` · ${cant}` : ''}${sale && no.length ? ' · <span class="aviso-carga">no lleva ' + esc(no.join(', ')) + '</span>' : ''}</button>`;
       })
       .join('') +
     '<button type="button" class="chip punteado" id="btn-agregar-fletero"><span class="mas" aria-hidden="true">+</span>Agregar fletero</button>' +
-    (hayVarios() ? '<button type="button" class="chip punteado" id="btn-que-lleva">Qué lleva cada uno</button>' : '');
+    (hayVarios() ? '<button type="button" class="chip punteado" id="btn-que-lleva">Vehículo y carga de cada uno</button>' : '');
 }
 
 /* ---------- Qué lleva cada uno ese día ---------- */
@@ -189,15 +206,19 @@ $('chips-salen').addEventListener('click', (e) => {
     equipo: ctx.equipo,
     fleteros: activos(),
     vuelta,
-    guardar: async (noLleva, habitual) => {
+    guardar: async (noLleva, habitual, vehiculos) => {
       const delDia = { ...((vuelta && vuelta.noLleva) || {}), ...noLleva };
-      const vueltaNueva = { ...(vuelta || {}), noLleva: delDia };
+      const vehiculoDia = { ...((vuelta && vuelta.vehiculoDia) || {}), ...vehiculos };
+      const vueltaNueva = { ...(vuelta || {}), noLleva: delDia, vehiculoDia };
       const lista = asignarPendientes(paradas(), activos(), vueltaNueva).paradas;
-      await guardarVuelta(ctx.equipo.id, fecha, { noLleva: delDia, paradas: lista, ordenada: false });
+      await guardarVuelta(ctx.equipo.id, fecha, { noLleva: delDia, vehiculoDia, paradas: lista, ordenada: false });
       if (habitual) {
         const cambios = {};
         Object.entries(noLleva).forEach(([uid, lista2]) => {
           cambios[`miembros.${uid}.noLleva`] = lista2;
+        });
+        Object.entries(vehiculos).forEach(([uid, tipo]) => {
+          if (tipo) cambios[`miembros.${uid}.gasto.tipo`] = tipo;
         });
         await actualizarEquipo(ctx.equipo.id, cambios);
       }
@@ -353,7 +374,7 @@ function elegirFletero(paradaId) {
         <button type="button" class="fila" data-uid="${esc(f.uid)}">
           <span class="fila-cuerpo"><span class="fila-titulo-texto"><i class="punto" style="background:${esc(f.color)}"></i> ${esc(f.nombre)}</span>
           <span class="fila-detalle">${paradas().filter((x) => x.fleteroUid === f.uid && !paradaHecha(x)).length} paradas${
-            puedeLlevar(p, f, vuelta) ? '' : ` · <span class="aviso-carga">no lleva ${esc((p.cargas || []).join(', '))}</span>`
+            puedeLlevar(p, f, vuelta) ? '' : ` · <span class="aviso-carga">${esc(motivoNoLleva(p, f, vuelta))}</span>`
           }</span></span>
           ${p.fleteroUid === f.uid ? ICONOS.check : ''}
         </button>`
@@ -367,7 +388,7 @@ function elegirFletero(paradaId) {
     const apto = puedeLlevar(p, f, vuelta);
     if (!apto) {
       const ok = await confirmar({
-        titulo: `${f.nombre} no lleva ${(p.cargas || []).join(', ')}`,
+        titulo: `${f.nombre}: ${motivoNoLleva(p, f, vuelta)}`,
         texto: '¿Se la asignás igual? Queda fija con él aunque la app reparta de nuevo.',
         aceptar: 'Asignar igual'
       });
@@ -583,7 +604,7 @@ function pintarParadas() {
         p.direccion,
         textoHorario(p),
         Number(p.bultos) > 1 ? `${p.bultos} bultos` : '',
-        (p.cargas || []).length ? p.cargas.join(', ') : '',
+        textoCargas(p),
         entrega ? `se entrega en ${entrega.nombre}` : ''
       ]
         .filter(Boolean)

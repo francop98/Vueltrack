@@ -8,7 +8,7 @@
 import { cambiarParada, guardarVuelta, obtenerVuelta, fleterosDelEquipo } from './datos.js';
 import { paradaHecha } from './vuelta.js';
 import { activosDelDia } from './asignar.js';
-import { puedeLlevar } from './cargas.js';
+import { puedeLlevar, motivoNoLleva } from './cargas.js';
 import { reprogramar, htmlBotonesHecho, elegirNoEntregado } from './estados.js';
 import { reordenarFletero, mensajeError } from './ordenar.js';
 import { ordenConInsercion } from './agregarDestino.js';
@@ -136,7 +136,7 @@ export function reasignarDestino({ ctx, fecha, vuelta, parada: p }) {
         return `
         <button type="button" class="fila" data-uid="${esc(f.uid)}">
           <span class="fila-cuerpo"><span class="fila-titulo-texto"><i class="punto" style="background:${esc(f.color)}"></i> ${esc(f.nombre)}</span>
-          <span class="fila-detalle">${cant} pendientes${apto ? '' : ` · <span class="aviso-carga">no lleva ${esc((p.cargas || []).join(', '))}</span>`}</span></span>
+          <span class="fila-detalle">${cant} pendientes${apto ? '' : ` · <span class="aviso-carga">${esc(motivoNoLleva(p, f, vuelta))}</span>`}</span></span>
           ${p.fleteroUid === f.uid ? ICONOS.check : ''}
         </button>`;
       })
@@ -154,7 +154,7 @@ export function reasignarDestino({ ctx, fecha, vuelta, parada: p }) {
     const apto = puedeLlevar(p, f, vuelta);
     if (!apto) {
       const ok = await confirmar({
-        titulo: `${f.nombre} no lleva ${(p.cargas || []).join(', ')}`,
+        titulo: `${f.nombre}: ${motivoNoLleva(p, f, vuelta)}`,
         texto: '¿Se la asignás igual?',
         aceptar: 'Asignar igual'
       });

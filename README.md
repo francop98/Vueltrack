@@ -1,4 +1,4 @@
-# Vueltrack v8.1
+# Vueltrack v9.0
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,13 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v9.0
+- **Fleteros** (menú lateral, solo quien organiza): lista de fleteros con su vehículo (moto, auto, utilitario, camioneta, furgón/combi, camión), modelo/patente, capacidad, mercadería que no lleva, punto de salida, frecuente o solo por hoy, invitar por WhatsApp y quitar. También los **tipos de mercadería** (agregar, cambiar nombre, borrar).
+- **Vehículo que necesita** cada cliente o destino (cualquiera, utilitario o más, furgón/combi o más, camión). La app solo le asigna esas paradas a quien sale con un vehículo que alcanza; en Armar → "Vehículo y carga de cada uno" se elige en qué sale cada uno ese día.
+- **Destinos nuevos en una vuelta ya ordenada** (desde Armar o "+ Agregar destino" en Inicio): entran en la ruta del fletero donde menos desvío agregan; el orden queda guardado al instante y después se recalculan los horarios.
+- **Cambiar contraseña solo por correo**; botón para mandar el correo de confirmación de cuenta; al crear la cuenta se manda solo. Correos de Firebase en español.
+- **Contacto**: "Escribinos: vueltrack@gmail.com" en el menú.
 
 ### v8.1
 - **Rutas sin depender de OpenRouteService**: el diagnóstico mostró que desde Vercel no responde ninguno de sus servicios (optimizador, trazado ni matriz: todos sin respuesta a los 9 s). Ahora:

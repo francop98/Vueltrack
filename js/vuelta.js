@@ -22,6 +22,7 @@ export function paradaDesdeCliente(c) {
     tipo: 'retiro',
     urgente: false,
     cargas: [...(c.cargas || [])],
+    vehiculoMinimo: c.vehiculoMinimo || '',
     estado: 'pendiente',
     fleteroUid: null
   };

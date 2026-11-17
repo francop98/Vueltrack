@@ -8,6 +8,7 @@
      lejos   de la más lejana a la más cercana
      cierre  por horario de cierre (las que no tienen horario van al final)
    ========================================================= */
+import { requisitosDe } from './cargas.js';
 import { optimizar, aplicarResultado, dividirPorZona } from './rutas.js';
 import { reemplazarVuelta, guardarVuelta } from './datos.js';
 import { paradaHecha, paradasDe } from './vuelta.js';
@@ -45,7 +46,8 @@ function pendientesParaEnviar(pendientes, modo) {
     tipo: p.tipo === 'retiro' ? 'retiro' : 'entrega',
     entregaId: p.tipo === 'retiro' && ids.has(p.entregaId) ? p.entregaId : null,
     bultos: Number(p.bultos) >= 0 ? Number(p.bultos) : 1,
-    cargas: Array.isArray(p.cargas) ? p.cargas.slice(0, 10).map(String) : [],
+    // Mercadería que pide + tamaño mínimo de vehículo (como requisito)
+    cargas: [...(Array.isArray(p.cargas) ? p.cargas.slice(0, 10).map(String) : []), ...requisitosDe(p)],
     vehiculo: modo === 'grupos' ? p.fleteroUid : null
   }));
 }

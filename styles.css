@@ -701,7 +701,8 @@ h3 {
 .input,
 .campo input,
 .campo select,
-.campo textarea {
+.campo textarea,
+.fila-nueva-carga input {
   width: 100%;
   min-height: 48px;
   border: 1px solid var(--linea);
@@ -719,6 +720,7 @@ h3 {
 }
 
 .input:focus,
+.fila-nueva-carga input:focus,
 .campo input:focus,
 .campo select:focus,
 .campo textarea:focus {

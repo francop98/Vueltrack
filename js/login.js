@@ -8,6 +8,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   sendPasswordResetEmail,
+  sendEmailVerification,
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
@@ -109,6 +110,8 @@ $('form').addEventListener('submit', async (ev) => {
       const cred = await createUserWithEmailAndPassword(auth, email, clave);
       await updateProfile(cred.user, { displayName: nombre });
       await guardarUsuario(cred.user.uid, { nombre, email, equipoId: null });
+      // Correo para confirmar la cuenta (no hace esperar)
+      sendEmailVerification(cred.user).catch(() => {});
       location.replace('/pages/bienvenida.html');
     } else {
       await signInWithEmailAndPassword(auth, email, clave);

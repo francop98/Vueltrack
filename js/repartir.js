@@ -11,7 +11,7 @@ import { calcularVuelta, guardarCalculo, mensajeError, horaDeSalida, nombreOrden
 import { elegirOrden } from './salida.js';
 import { gruposDeVuelta, paradaHecha } from './vuelta.js';
 import { activosDelDia, redistribuirPorZona } from './asignar.js';
-import { noLlevaDelDia } from './cargas.js';
+import { noLlevaParaOptimizar } from './cargas.js';
 import {
   esc,
   fechaISO,
@@ -299,7 +299,7 @@ async function calcular() {
       modo: modo === 'parejo' ? 'parejo' : 'grupos',
       salida: horaDeSalida(vuelta, ctx.equipo, fecha),
       orden: (ctx.equipo.ajustes || {}).orden || 'optimo',
-      noLleva: Object.fromEntries(fleterosDelEquipo(ctx.equipo).map((f) => [f.uid, noLlevaDelDia(vuelta, f)]))
+      noLleva: Object.fromEntries(fleterosDelEquipo(ctx.equipo).map((f) => [f.uid, noLlevaParaOptimizar(vuelta, f)]))
     });
     calculo.paradas.forEach((p) => {
       if (!paradaHecha(p) && p.fleteroUid) asignacion.set(p.id, p.fleteroUid);

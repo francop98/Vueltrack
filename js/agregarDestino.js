@@ -6,10 +6,10 @@
       que menos desvío agrega y se recalculan los horarios de ese fletero.
    ========================================================= */
 import { crearBuscador, htmlBuscador } from './buscador.js';
-import { escucharClientes, guardarVuelta, fleterosDelEquipo } from './datos.js';
+import { escucharClientes, guardarVuelta, fleterosDelEquipo, obtenerVuelta } from './datos.js';
 import { paradaNueva, paradaDesdeCliente, paradaHecha } from './vuelta.js';
 import { activosDelDia, sugerirFletero } from './asignar.js';
-import { selectorCargas, puedeLlevar } from './cargas.js';
+import { selectorCargas, puedeLlevar, motivoNoLleva, htmlMinimo, conectarMinimo } from './cargas.js';
 import { reordenarFletero, mensajeError, baseDeFletero } from './ordenar.js';
 import { esc, abrirHoja, aviso, confirmar } from './ui.js';
 
@@ -50,6 +50,55 @@ export function ordenConInsercion(equipo, vuelta, parada, uid) {
   return [...hechas, ...pendientes.slice(0, lugar), parada, ...pendientes.slice(lugar)].map((p) => p.id);
 }
 
+/**
+ * Suma destinos a una vuelta (ya con su fletero asignado en fleteroUid).
+ * Si la vuelta estaba ordenada, cada uno entra en la ruta de su fletero donde
+ * menos desvío agrega: el orden queda guardado al instante (aunque no haya
+ * servicio de mapas) y después se recalculan los horarios de cada fletero tocado.
+ * Devuelve { ordenada, posiciones: {id: número}, error }.
+ */
+export async function insertarEnRutas({ equipo, fecha, vuelta, nuevas }) {
+  const todas = [...((vuelta && vuelta.paradas) || []), ...nuevas];
+  if (!(vuelta && vuelta.ordenada)) {
+    try {
+      await guardarVuelta(equipo.id, fecha, { paradas: todas });
+      return { ordenada: false, posiciones: {} };
+    } catch (e) {
+      return { ordenada: false, posiciones: {}, error: 'No se pudo agregar. Revisá la conexión.' };
+    }
+  }
+  // Orden nuevo de cada fletero, metiendo los destinos de a uno
+  let estado = { ...vuelta, paradas: todas };
+  const ordenes = new Map();
+  nuevas.forEach((n) => {
+    const ids = ordenConInsercion(equipo, estado, n, n.fleteroUid);
+    ordenes.set(n.fleteroUid, ids);
+    const pos = new Map(ids.map((id, i) => [id, i + 1]));
+    estado = { ...estado, paradas: estado.paradas.map((p) => (pos.has(p.id) && p.fleteroUid === n.fleteroUid ? { ...p, orden: pos.get(p.id) } : p)) };
+  });
+  const posiciones = {};
+  nuevas.forEach((n) => {
+    posiciones[n.id] = (ordenes.get(n.fleteroUid) || []).indexOf(n.id) + 1;
+  });
+  try {
+    // El orden queda guardado ya; los horarios se recalculan después
+    await guardarVuelta(equipo.id, fecha, { paradas: estado.paradas, ordenada: true });
+  } catch (e) {
+    return { ordenada: true, posiciones, error: 'No se pudo agregar. Revisá la conexión.' };
+  }
+  aviso('Recalculando horarios…');
+  let error = '';
+  for (const [uid, ordenManual] of ordenes) {
+    try {
+      const actual = (await obtenerVuelta(equipo.id, fecha).catch(() => null)) || estado;
+      await reordenarFletero({ equipo, fecha, vuelta: actual, uid, orden: 'manual', ordenManual });
+    } catch (e) {
+      error = `Quedó en su lugar de la ruta, pero no se pudieron recalcular los horarios. ${mensajeError(e)}`;
+    }
+  }
+  return { ordenada: true, posiciones, error };
+}
+
 export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   const equipo = ctx.equipo;
   const fleteros = fleterosDelEquipo(equipo).filter((f) => !f.temporal || f.temporal === fecha);
@@ -59,6 +108,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   let elegido = null; // parada armada a partir de lo buscado
   let uidElegido = null;
   let cargasElegidas = () => [];
+  let minimoElegido = () => (elegido && elegido.vehiculoMinimo) || '';
   let cortar = null;
 
   const hoja = abrirHoja({
@@ -94,7 +144,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
 
   const pintarFleteros = () => {
     if (!varios || !elegido) return;
-    const prueba = { ...elegido, cargas: cargasElegidas() };
+    const prueba = { ...elegido, cargas: cargasElegidas(), vehiculoMinimo: minimoElegido() };
     el.querySelector('#ad-fleteros').innerHTML = activos
       .map((f) => {
         const apto = puedeLlevar(prueba, f, vuelta);
@@ -105,7 +155,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   };
 
   const sugerir = () => {
-    const prueba = { ...elegido, cargas: cargasElegidas() };
+    const prueba = { ...elegido, cargas: cargasElegidas(), vehiculoMinimo: minimoElegido() };
     uidElegido = sugerirFletero(prueba, (vuelta && vuelta.paradas) || [], activos, vuelta);
     const f = activos.find((x) => x.uid === uidElegido);
     el.querySelector('#ad-sugerido').textContent = f ? `Sugerido: ${f.nombre}, por la zona y lo que lleva.` : '';
@@ -118,9 +168,10 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
     el.querySelector('#ad-desde').value = elegido.desde || '';
     el.querySelector('#ad-hasta').value = elegido.hasta || '';
     if (equipo.modo === 'equipo') {
-      const sel = selectorCargas(equipo, elegido.cargas || [], { id: 'ad-c', titulo: 'Tipo de carga' });
-      el.querySelector('#ad-cargas').innerHTML = sel.html;
+      const sel = selectorCargas(equipo, elegido.cargas || [], { id: 'ad-c', titulo: 'Mercadería' });
+      el.querySelector('#ad-cargas').innerHTML = sel.html + htmlMinimo('ad-minimo', elegido.vehiculoMinimo);
       cargasElegidas = sel.conectar(el.querySelector('#ad-cargas'));
+      minimoElegido = conectarMinimo(el.querySelector('#ad-cargas'), 'ad-minimo', elegido.vehiculoMinimo);
       el.querySelector('#ad-cargas').addEventListener('click', () => setTimeout(sugerir, 0));
     }
     sugerir();
@@ -177,11 +228,12 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
       desde,
       hasta,
       cargas: cargasElegidas(),
+      vehiculoMinimo: minimoElegido(),
       fleteroUid: uid
     };
     if (f && !puedeLlevar(nueva, f, vuelta)) {
       const ok = await confirmar({
-        titulo: `${f.nombre} no lleva ${nueva.cargas.join(', ')}`,
+        titulo: `${f.nombre}: ${motivoNoLleva(nueva, f, vuelta)}`,
         texto: '¿Se lo asignás igual?',
         aceptar: 'Asignar igual'
       });
@@ -191,27 +243,9 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
     agregando = true;
     hoja.cerrar();
 
-    const todas = (vuelta && vuelta.paradas) || [];
-    const ordenada = !!(vuelta && vuelta.ordenada);
-    if (!ordenada) {
-      await guardarVuelta(equipo.id, fecha, { paradas: [...todas, nueva] }).then(
-        () => aviso(`${nueva.nombre} sumado a la vuelta`),
-        () => aviso('No se pudo agregar. Revisá la conexión.')
-      );
-      return;
-    }
-
-    // Vuelta ordenada: entra donde menos desvío agrega y se recalculan los horarios
-    const vueltaNueva = { ...vuelta, paradas: [...todas, nueva] };
-    const ordenManual = ordenConInsercion(equipo, vueltaNueva, nueva, uid);
-    try {
-      await guardarVuelta(equipo.id, fecha, { paradas: vueltaNueva.paradas });
-      aviso(`${nueva.nombre} sumado. Recalculando horarios…`);
-      await reordenarFletero({ equipo, fecha, vuelta: vueltaNueva, uid, orden: 'manual', ordenManual });
-      aviso(`${nueva.nombre} quedó en la parada ${ordenManual.indexOf(nueva.id) + 1}${f && varios ? ` de ${f.nombre}` : ''}`);
-    } catch (err) {
-      aviso(`${nueva.nombre} quedó sumado, pero no se pudieron recalcular los horarios. ${mensajeError(err)}`);
-    }
+    const r = await insertarEnRutas({ equipo, fecha, vuelta, nuevas: [nueva] });
+    if (r.error) aviso(r.error);
+    else aviso(r.ordenada ? `${nueva.nombre} quedó en la parada ${r.posiciones[nueva.id]}${f && varios ? ` de ${f.nombre}` : ''}` : `${nueva.nombre} sumado a la vuelta`);
   });
 
   el.querySelector('#ad-dir').focus();

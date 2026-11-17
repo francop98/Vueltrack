@@ -12,6 +12,8 @@ import { firebaseConfig } from './firebase-config.js';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Correos de Firebase (contraseña, confirmar cuenta) en español
+auth.languageCode = 'es';
 
 let baseDeDatos;
 try {

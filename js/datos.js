@@ -450,11 +450,11 @@ export async function borrarVuelta(equipoId, fecha) {
 
 /* Fletero que no usa la app: el organizador le asigna paradas y le manda el recorrido por WhatsApp.
    frecuente = queda guardado para los próximos días; si no, es solo para ese día (temporal: fecha). */
-export async function agregarFleteroSinApp(equipo, { nombre, telefono = '', vehiculo = '', noLleva = [], frecuente = true, fecha = '' }) {
+export async function agregarFleteroSinApp(equipo, { nombre, telefono = '', vehiculo = '', noLleva = [], frecuente = true, fecha = '', gasto = null }) {
   const uid = `ext_${idNuevo()}`;
   const usados = new Set(Object.values(equipo.miembros || {}).map((m) => m.color).filter(Boolean));
   const color = COLORES_FLETERO.find((c) => !usados.has(c)) || COLORES_FLETERO[Object.keys(equipo.miembros || {}).length % COLORES_FLETERO.length];
-  const datos = { nombre, telefono, roles: ['fletero'], externo: true, vehiculo, gasto: null, color, noLleva };
+  const datos = { nombre, telefono, roles: ['fletero'], externo: true, vehiculo, gasto, color, noLleva };
   if (!frecuente && fecha) datos.temporal = fecha;
   await alInstante(updateDoc(doc(db, 'equipos', equipo.id), { [`miembros.${uid}`]: datos }));
   return uid;
