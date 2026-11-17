@@ -13,7 +13,7 @@
    cliente/parada.vehiculoMinimo   lo que necesita como mínimo (ej.: furgón o camión)
    ========================================================= */
 import { actualizarEquipo } from './datos.js';
-import { esc, ordenarAlfa, abrirHoja, aviso, ICONOS } from './ui.js';
+import { esc, abrirHoja, aviso, ICONOS } from './ui.js';
 
 /* ---------- Tamaño de vehículo ---------- */
 export const TIPOS_VEHICULO = [
@@ -141,67 +141,46 @@ export async function sumarAlCatalogo(equipo, nombre) {
   return limpio;
 }
 
-/**
- * Selector de tipos de carga con chips y "+ Nuevo tipo".
- * Devuelve { html, conectar(contenedor) → () => elegidas }
- */
-export function selectorCargas(equipo, elegidas = [], { id = 'cargas', titulo = 'Tipo de carga', ayuda = '' } = {}) {
-  const pintarChips = (lista, marcadas) =>
-    lista
-      .map(
-        (c) =>
-          `<button type="button" class="chip ${marcadas.includes(c) ? 'activo' : ''}" data-carga="${esc(c)}" aria-pressed="${marcadas.includes(c)}">${esc(c)}</button>`
-      )
-      .join('') + `<button type="button" class="chip punteado" data-nueva-carga><span class="mas" aria-hidden="true">+</span>Nuevo tipo</button>`;
+/* Aviso cuando todavía no hay tipos cargados (se crean en un solo lugar) */
+const SIN_TIPOS = 'Todavía no cargaste tipos de bultos. Se crean en el menú → Tipos de bultos.';
 
+/**
+ * Qué lleva un fletero: un chip por tipo de bulto, todos marcados de entrada;
+ * se destilda lo que NO lleva. "General" lo lleva siempre.
+ * Devuelve { html, conectar(raiz) → () => noLleva[] }
+ */
+export function selectorQueLleva(equipo, noLleva = [], { id = 'quelleva', titulo = 'Qué tipos de bultos lleva' } = {}) {
+  const tipos = catalogoCargas(equipo);
+  let no = noLleva.filter((c) => tipos.includes(c));
+  const chips = () =>
+    tipos
+      .map((c) => {
+        const lleva = !no.includes(c);
+        return `<button type="button" class="chip ${lleva ? 'activo' : 'tachado'}" data-lleva="${esc(c)}" aria-pressed="${lleva}">${lleva ? ICONOS.check : ''}${esc(c)}</button>`;
+      })
+      .join('');
   const html = `
     <div class="campo" id="${id}-caja">
       <span class="etiqueta-campo">${esc(titulo)}</span>
-      <div class="chips" id="${id}-chips">${pintarChips(catalogoCargas(equipo), elegidas)}</div>
-      <div class="fila-nueva-carga oculto" id="${id}-nueva">
-        <input id="${id}-texto" placeholder="Ej.: Tubos de GNC, Vehículo grande">
-        <button type="button" class="btn btn-primario" id="${id}-sumar">Agregar</button>
-      </div>
-      ${ayuda ? `<span class="texto-tenue">${esc(ayuda)}</span>` : ''}
+      ${
+        tipos.length
+          ? `<div class="chips" id="${id}-chips">${chips()}</div>
+      <span class="texto-tenue">Tocá para destildar lo que <strong>no</strong> lleva. General lo lleva siempre.</span>`
+          : `<span class="texto-tenue">${SIN_TIPOS}</span>`
+      }
     </div>`;
-
   const conectar = (raiz) => {
-    let marcadas = [...elegidas];
-    const chips = raiz.querySelector(`#${id}-chips`);
-    const nueva = raiz.querySelector(`#${id}-nueva`);
-    const texto = raiz.querySelector(`#${id}-texto`);
-    const repintar = () => {
-      chips.innerHTML = pintarChips(catalogoCargas(equipo), marcadas);
-    };
-    chips.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-carga]');
-      if (b) {
-        const c = b.dataset.carga;
-        marcadas = marcadas.includes(c) ? marcadas.filter((x) => x !== c) : [...marcadas, c];
-        repintar();
-        return;
-      }
-      if (e.target.closest('[data-nueva-carga]')) {
-        nueva.classList.remove('oculto');
-        texto.focus();
-      }
-    });
-    const sumar = async () => {
-      const nombre = await sumarAlCatalogo(equipo, texto.value);
-      if (!nombre) return;
-      if (!marcadas.includes(nombre)) marcadas.push(nombre);
-      texto.value = '';
-      nueva.classList.add('oculto');
-      repintar();
-    };
-    raiz.querySelector(`#${id}-sumar`).addEventListener('click', sumar);
-    texto.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        sumar();
-      }
-    });
-    return () => ordenarAlfa(marcadas.map((nombre) => ({ nombre }))).map((x) => x.nombre);
+    const caja = raiz.querySelector(`#${id}-chips`);
+    if (caja) {
+      caja.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-lleva]');
+        if (!b) return;
+        const c = b.dataset.lleva;
+        no = no.includes(c) ? no.filter((x) => x !== c) : [...no, c];
+        caja.innerHTML = chips();
+      });
+    }
+    return () => [...no];
   };
   return { html, conectar };
 }
@@ -216,10 +195,6 @@ export function editarQueLleva({ equipo, fleteros, vuelta, guardar }) {
     html: `
       <p class="texto-tenue">Para este día: en qué sale cada fletero y qué mercadería <strong>no</strong> lleva. Las paradas que necesiten otro vehículo o esa mercadería se le asignan a otro.</p>
       <div class="lista" id="ql-lista"></div>
-      <div class="fila-nueva-carga">
-        <input id="ql-nuevo" placeholder="Nuevo tipo de mercadería: ej. Tubos de GNC">
-        <button type="button" class="btn" id="ql-sumar">Agregar</button>
-      </div>
       <label class="interruptor tarjeta" for="ql-habitual">
         <span><strong>Guardar como habitual</strong><br><span class="texto-tenue">Se usa también los próximos días</span></span>
         <input type="checkbox" id="ql-habitual">
@@ -244,7 +219,7 @@ export function editarQueLleva({ equipo, fleteros, vuelta, guardar }) {
             }).join('')}</span>
             ${
               lista.length
-                ? `<span class="etiqueta-campo">Mercadería (tocá la que no lleva)</span>
+                ? `<span class="etiqueta-campo">Tipos de bultos (tocá lo que no lleva)</span>
             <span class="chips">${lista
               .map((c) => {
                 const lleva = !estado.get(f.uid).includes(c);
@@ -273,17 +248,6 @@ export function editarQueLleva({ equipo, fleteros, vuelta, guardar }) {
     estado.set(b.dataset.uid, lista.includes(tipo) ? lista.filter((x) => x !== tipo) : [...lista, tipo]);
     pintar();
   });
-  const sumar = async () => {
-    const campo = el.querySelector('#ql-nuevo');
-    const nombre = await sumarAlCatalogo(equipo, campo.value);
-    if (!nombre) return;
-    campo.value = '';
-    pintar();
-  };
-  el.querySelector('#ql-sumar').addEventListener('click', sumar);
-  el.querySelector('#ql-nuevo').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sumar();
-  });
   let guardando = false;
   el.querySelector('#ql-guardar').addEventListener('click', async () => {
     if (guardando) return;
@@ -304,130 +268,90 @@ export function textoCargas(p) {
   return [...(p.cargas || []), textoMinimo(p.vehiculoMinimo)].filter(Boolean).join(', ');
 }
 
-/* ---------- Bultos con su mercadería ----------
-   Cada destino (o cliente) dice cuántos bultos lleva y de qué tipo:
-   [{ cantidad: 2, tipo: 'Tubos de GNC' }, { cantidad: 3, tipo: '' }]  ('' = general)
-   De ahí sale solo: el total de bultos (capacidad del vehículo) y la
-   mercadería que pide (cargas), que se cruza con lo que NO lleva cada fletero. */
+/* ---------- Tipo de bulto de un cliente o destino ----------
+   cargas: tipos que pide (sin "General"); bultos: cantidad total (solo destinos).
+   Los tipos se eligen de la lista: no se escriben acá (así no hay "tubos" y
+   "Tubos GNC" como si fueran cosas distintas). */
 
-export function detalleInicial(x = {}) {
-  if (Array.isArray(x.bultosDetalle) && x.bultosDetalle.length) return x.bultosDetalle.map((b) => ({ cantidad: Number(b.cantidad) || 0, tipo: b.tipo || '' }));
-  const cargas = x.cargas || [];
-  const total = Number.isFinite(Number(x.bultos)) && x.bultos !== '' && x.bultos != null ? Number(x.bultos) : 1;
-  if (!cargas.length) return [{ cantidad: total, tipo: '' }];
-  const filas = cargas.map((c) => ({ cantidad: 1, tipo: c }));
-  if (total > cargas.length) filas.push({ cantidad: total - cargas.length, tipo: '' });
-  return filas;
-}
-
-export function resumenBultos(detalle) {
-  const filas = detalle.filter((b) => Number(b.cantidad) > 0);
-  return {
-    bultosDetalle: filas.map((b) => ({ cantidad: Math.round(Number(b.cantidad)), tipo: b.tipo || '' })),
-    bultos: filas.reduce((s, b) => s + Math.round(Number(b.cantidad)), 0),
-    cargas: [...new Set(filas.map((b) => b.tipo).filter(Boolean))]
-  };
-}
-
-/* "3 bultos: 2 Tubos de GNC y 1 general" */
 export function textoBultos(p) {
-  const detalle = (p.bultosDetalle || []).filter((b) => Number(b.cantidad) > 0);
-  const total = Number(p.bultos) || detalle.reduce((s, b) => s + Number(b.cantidad), 0);
-  const conTipo = detalle.filter((b) => b.tipo);
-  if (!conTipo.length) {
-    const cargas = (p.cargas || []).join(', ');
-    return [total > 1 ? `${total} bultos` : '', cargas].filter(Boolean).join(' · ');
-  }
-  const partes = detalle.map((b) => `${b.cantidad} ${b.tipo || 'general'}`);
-  return `${total} ${total === 1 ? 'bulto' : 'bultos'}: ${partes.join(', ')}`;
+  const total = Number(p.bultos) || 0;
+  const tipos = (p.cargas || []).join(', ');
+  return [total > 1 ? `${total} bultos` : '', tipos].filter(Boolean).join(' · ');
 }
 
-export function selectorBultos(equipo, inicial, { id = 'bultos', titulo = 'Bultos', ayuda = '' } = {}) {
-  let filas = detalleInicial(inicial);
-  const opciones = (elegido) =>
-    ['', ...catalogoCargas(equipo)]
-      .map((c) => `<option value="${esc(c)}" ${c === elegido ? 'selected' : ''}>${c ? esc(c) : 'General'}</option>`)
-      .join('') + '<option value="__nuevo">+ Nuevo tipo de mercadería…</option>';
-  const htmlFilas = () =>
-    filas
+function tiposIniciales(x) {
+  const desdeDetalle = (x.bultosDetalle || []).map((b) => b.tipo).filter(Boolean);
+  const lista = [...new Set([...(x.cargas || []), ...desdeDetalle])];
+  return lista.length ? lista : [''];
+}
+
+/**
+ * Desplegable "Tipo de bulto" (General de entrada) y, si hace falta, "+ Otro tipo".
+ * conCantidad: muestra también la cantidad de bultos (en destinos).
+ * conectar(raiz, alCambiar) → () => ({ cargas, bultos? })
+ */
+export function selectorBultos(equipo, inicial = {}, { id = 'bultos', titulo = 'Tipo de bulto', conCantidad = false } = {}) {
+  const catalogo = catalogoCargas(equipo);
+  let tipos = tiposIniciales(inicial).filter((t) => !t || catalogo.includes(t));
+  if (!tipos.length) tipos = [''];
+  const opciones = (elegido) => ['', ...catalogo].map((c) => `<option value="${esc(c)}" ${c === elegido ? 'selected' : ''}>${c ? esc(c) : 'General'}</option>`).join('');
+  const filas = () =>
+    tipos
       .map(
-        (b, i) => `
+        (t, i) => `
       <div class="fila-bulto" data-i="${i}">
-        <input type="number" inputmode="numeric" min="0" step="1" class="bulto-cantidad" value="${esc(String(b.cantidad))}" aria-label="Cantidad">
-        <select class="bulto-tipo" aria-label="Mercadería">${opciones(b.tipo)}</select>
-        ${filas.length > 1 ? `<button type="button" class="btn-icono sin-borde" data-quitar-bulto="${i}" aria-label="Quitar">${ICONOS.cruz}</button>` : ''}
+        <select class="bulto-tipo" aria-label="Tipo de bulto">${opciones(t)}</select>
+        ${tipos.length > 1 ? `<button type="button" class="btn-icono sin-borde" data-quitar-bulto="${i}" aria-label="Quitar">${ICONOS.cruz}</button>` : ''}
       </div>`
       )
       .join('');
+  const total = Number(inicial.bultos) > 0 ? Number(inicial.bultos) : 1;
   const html = `
+    ${conCantidad ? `<div class="campo"><label for="${id}-cantidad">Cantidad de bultos</label><input id="${id}-cantidad" type="number" inputmode="numeric" min="0" step="1" value="${total}"></div>` : ''}
     <div class="campo" id="${id}-caja">
       <span class="etiqueta-campo">${esc(titulo)}</span>
-      <div class="bultos-filas" id="${id}-filas">${htmlFilas()}</div>
-      <button type="button" class="chip punteado" id="${id}-mas"><span class="mas" aria-hidden="true">+</span>Otro tipo de bulto</button>
-      <div class="fila-nueva-carga oculto" id="${id}-nueva">
-        <input id="${id}-texto" placeholder="Ej.: Tubos de GNC">
-        <button type="button" class="btn btn-primario" id="${id}-sumar">Agregar</button>
-      </div>
-      <span class="texto-tenue">${esc(ayuda || 'Si un tipo de mercadería no lo lleva un fletero, la app no se lo asigna.')}</span>
+      <div class="bultos-filas" id="${id}-filas">${filas()}</div>
+      ${
+        catalogo.length
+          ? `<button type="button" class="chip punteado" id="${id}-mas"><span class="mas" aria-hidden="true">+</span>Otro tipo</button>`
+          : `<span class="texto-tenue">${SIN_TIPOS}</span>`
+      }
     </div>`;
-
   const conectar = (raiz, alCambiar = null) => {
     const caja = raiz.querySelector(`#${id}-filas`);
-    const nueva = raiz.querySelector(`#${id}-nueva`);
-    const texto = raiz.querySelector(`#${id}-texto`);
-    let filaPendiente = null;
+    const avisar = () => alCambiar && alCambiar();
     const repintar = () => {
-      caja.innerHTML = htmlFilas();
-      if (alCambiar) alCambiar();
+      caja.innerHTML = filas();
+      avisar();
     };
-    caja.addEventListener('input', (e) => {
-      const f = e.target.closest('[data-i]');
-      if (!f || !e.target.classList.contains('bulto-cantidad')) return;
-      filas[Number(f.dataset.i)].cantidad = Math.max(0, Math.round(Number(e.target.value) || 0));
-      if (alCambiar) alCambiar();
-    });
     caja.addEventListener('change', (e) => {
       const f = e.target.closest('[data-i]');
-      if (!f || !e.target.classList.contains('bulto-tipo')) return;
-      const i = Number(f.dataset.i);
-      if (e.target.value === '__nuevo') {
-        filaPendiente = i;
-        e.target.value = filas[i].tipo;
-        nueva.classList.remove('oculto');
-        texto.focus();
-        return;
-      }
-      filas[i].tipo = e.target.value;
-      if (alCambiar) alCambiar();
+      if (!f) return;
+      tipos[Number(f.dataset.i)] = e.target.value;
+      avisar();
     });
     caja.addEventListener('click', (e) => {
       const b = e.target.closest('[data-quitar-bulto]');
       if (!b) return;
-      filas.splice(Number(b.dataset.quitarBulto), 1);
+      tipos.splice(Number(b.dataset.quitarBulto), 1);
       repintar();
     });
-    raiz.querySelector(`#${id}-mas`).addEventListener('click', () => {
-      filas.push({ cantidad: 1, tipo: '' });
-      repintar();
-    });
-    const sumar = async () => {
-      const nombre = await sumarAlCatalogo(equipo, texto.value);
-      if (!nombre) return;
-      if (filaPendiente != null && filas[filaPendiente]) filas[filaPendiente].tipo = nombre;
-      else filas.push({ cantidad: 1, tipo: nombre });
-      filaPendiente = null;
-      texto.value = '';
-      nueva.classList.add('oculto');
-      repintar();
+    const mas = raiz.querySelector(`#${id}-mas`);
+    if (mas) {
+      mas.addEventListener('click', () => {
+        const libre = catalogo.find((c) => !tipos.includes(c));
+        if (!libre) return;
+        tipos.push(libre);
+        repintar();
+      });
+    }
+    const cantidad = raiz.querySelector(`#${id}-cantidad`);
+    if (cantidad) cantidad.addEventListener('input', avisar);
+    return () => {
+      const resultado = { cargas: [...new Set(tipos.filter(Boolean))], bultosDetalle: [] };
+      if (cantidad) resultado.bultos = Math.max(0, Math.round(Number(cantidad.value) || 0));
+      return resultado;
     };
-    raiz.querySelector(`#${id}-sumar`).addEventListener('click', sumar);
-    texto.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        sumar();
-      }
-    });
-    return () => resumenBultos(filas);
   };
   return { html, conectar };
 }

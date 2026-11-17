@@ -3,7 +3,7 @@
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
 import { escucharClientes, escucharVuelta, guardarVuelta, guardarCliente, borrarCliente } from './datos.js';
-import { selectorBultos, htmlMinimo, conectarMinimo, textoBultos, textoMinimo } from './cargas.js';
+import { selectorBultos, htmlMinimo, conectarMinimo, textoMinimo } from './cargas.js';
 import { crearBuscador, htmlBuscador } from './buscador.js';
 import { mapaConPin } from './mapa.js';
 import { paradaDesdeCliente, textoHorario, paradaHecha } from './vuelta.js';
@@ -104,7 +104,7 @@ function pintar() {
       <div class="lista">
         ${grupos[letra]
           .map((c) => {
-            const detalle = [c.direccion, textoDias(c.dias), textoHorario(c), (c.bultosDetalle || []).some((b) => b.tipo) ? textoBultos(c) : '', textoMinimo(c.vehiculoMinimo), c.nota ? 'con nota' : ''].filter(Boolean).join(' · ');
+            const detalle = [c.direccion, textoDias(c.dias), textoHorario(c), (c.cargas || []).join(', '), textoMinimo(c.vehiculoMinimo), c.nota ? 'con nota' : ''].filter(Boolean).join(' · ');
             const esta = pendientesYa.has(c.id);
             return `
             <div class="fila">
@@ -172,11 +172,7 @@ function abrirEditor(cliente) {
   const orden = [1, 2, 3, 4, 5, 6, 0];
   // Bultos habituales con su mercadería: se copian a la parada al sumarlo (y se cambian ese día)
   const enEquipo = ctx.equipo.modo === 'equipo';
-  const bultosSel = selectorBultos(ctx.equipo, c, {
-    id: 'c-bultos',
-    titulo: 'Bultos habituales',
-    ayuda: enEquipo ? 'Cantidad y mercadería. Si un fletero no lleva esa mercadería, no se le asigna. Se puede cambiar en cada vuelta.' : 'Cantidad y tipo habitual. Se puede cambiar en cada vuelta.'
-  });
+  const bultosSel = selectorBultos(ctx.equipo, c, { id: 'c-bultos', titulo: 'Tipo de bulto habitual' });
 
   const hoja = abrirHoja({
     titulo: cliente ? 'Editar cliente' : 'Nuevo cliente',

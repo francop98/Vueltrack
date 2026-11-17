@@ -11,7 +11,7 @@ import { calcularVuelta, guardarCalculo, mensajeError, horaDeSalida, nombreOrden
 import { elegirOrden } from './salida.js';
 import { gruposDeVuelta, paradaHecha } from './vuelta.js';
 import { activosDelDia, redistribuirPorZona } from './asignar.js';
-import { noLlevaParaOptimizar } from './cargas.js';
+import { noLlevaParaOptimizar, puedeLlevar, motivoNoLleva } from './cargas.js';
 import {
   esc,
   fechaISO,
@@ -349,11 +349,13 @@ $('btn-confirmar').addEventListener('click', async () => {
         });
         if (!igual) return;
         const paradas = (vuelta.paradas || []).map((p) => (paradaHecha(p) ? p : { ...p, fleteroUid: asignacion.get(p.id) || p.fleteroUid || seleccionados[0] }));
+        if (!(await pasaElCandado(paradas))) return;
         await guardarVuelta(ctx.equipo.id, fecha, { paradas, activos: seleccionados, ordenada: false });
         terminar();
         return;
       }
     }
+    if (!(await pasaElCandado(calculo.paradas))) return;
     await guardarCalculo(ctx.equipo, fecha, calculo, vuelta);
     terminar();
   } catch (e) {
@@ -364,6 +366,38 @@ $('btn-confirmar').addEventListener('click', async () => {
     botonCargando(boton, false, original);
   }
 });
+
+/* Candado: no se manda una vuelta con paradas que su fletero no puede llevar
+   (tipo de bulto que no lleva o vehículo chico), ni paradas sin fletero.
+   Solo se puede seguir si se elige "Mandar igual" a conciencia. */
+async function pasaElCandado(paradas) {
+  const fleteros = fleterosDelEquipo(ctx.equipo);
+  const problemas = [];
+  paradas.forEach((p) => {
+    if (paradaHecha(p)) return;
+    const f = fleteros.find((x) => x.uid === p.fleteroUid);
+    if (!f) problemas.push(`${p.nombre}: sin fletero`);
+    else if (!puedeLlevar(p, f, vuelta)) problemas.push(`${p.nombre} (${f.nombre}): ${motivoNoLleva(p, f, vuelta)}`);
+  });
+  if (!problemas.length) return true;
+  const lista = problemas.slice(0, 6).join('\n• ');
+  const ir = await confirmar({
+    titulo: problemas.length === 1 ? 'Hay 1 parada que no se puede mandar así' : `Hay ${problemas.length} paradas que no se pueden mandar así`,
+    texto: `• ${lista}${problemas.length > 6 ? `\n…y ${problemas.length - 6} más` : ''}\n\nResolvelo en Armar: asignala a otro, cambiá el vehículo del día o pasala a otro día.`,
+    aceptar: 'Resolver en Armar',
+    cancelar: 'Mandar igual'
+  });
+  if (ir) {
+    location.href = `/pages/armar.html?fecha=${fecha}`;
+    return false;
+  }
+  return confirmar({
+    titulo: '¿Mandar igual?',
+    texto: 'Esas paradas le llegan a un fletero que no puede hacerlas. Solo si ya lo arreglaste por fuera de la app.',
+    aceptar: 'Sí, mandar igual',
+    peligro: true
+  });
+}
 
 function terminar() {
   aviso('Listo, cada fletero ya ve su vuelta');

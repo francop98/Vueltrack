@@ -6,7 +6,7 @@
    por detrás, se activa y la app se recarga sola una vez.
    Firebase, el mapa y las fuentes (archivos con versión fija) también se guardan.
    ========================================================= */
-const VERSION = 'vueltrack-v9.1';
+const VERSION = 'vueltrack-v9.2';
 
 const ARCHIVOS = [
   '/',
@@ -18,6 +18,8 @@ const ARCHIVOS = [
   '/pages/equipo.html',
   '/pages/fleteros.html',
   '/js/fleteros.js',
+  '/pages/bultos.html',
+  '/js/bultos.js',
   '/pages/historial.html',
   '/pages/login.html',
   '/pages/manejo.html',

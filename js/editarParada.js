@@ -32,7 +32,7 @@ export function editarParada({ parada: p, equipo, guardar, quitar, ordenada = fa
   let ubicacion = { direccion: p.direccion, lat: p.lat, lng: p.lng };
   // Bultos con su mercadería: en equipos se cruza con lo que no lleva cada fletero
   const conCargas = equipo.modo === 'equipo';
-  const bultosSel = selectorBultos(equipo, p, { id: 'ep-bultos', titulo: 'Bultos', ayuda: conCargas ? undefined : 'Cantidad y tipo de lo que llevás o retirás.' });
+  const bultosSel = selectorBultos(equipo, p, { id: 'ep-bultos', titulo: 'Tipo de bulto', conCantidad: true });
   const hoja = abrirHoja({
     titulo: 'Editar destino',
     html: `

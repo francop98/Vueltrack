@@ -2428,3 +2428,34 @@ body:has(.velo) .ingreso {
   flex: 1;
   min-width: 0;
 }
+
+/* Paradas que el fletero asignado no puede hacer (Armar) */
+.fila.fila-conflicto {
+  background: #3A1D1F;
+  border-radius: var(--radio-chico);
+}
+
+.texto-conflicto {
+  color: #F8B4AE;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.aviso-rojo {
+  background: #3A1D1F;
+  color: #F8B4AE;
+  border: 1px solid #7F1D1D;
+  border-radius: var(--radio-chico);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dialogo p {
+  white-space: pre-line;
+}
+
+.lista-separada {
+  margin-top: 14px;
+}

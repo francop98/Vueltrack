@@ -1,4 +1,4 @@
-# Vueltrack v9.1
+# Vueltrack v9.2
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,12 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v9.2
+- **Tipos de bultos** (menú lateral): el único lugar donde se crean, renombran o borran (ej.: Tubos de GNC). "General" está siempre. Al renombrar o borrar se actualizan fleteros y clientes. Ya no se pueden escribir tipos sueltos en otras pantallas (evita "tubos" y "Tubos GNC" como cosas distintas).
+- **Fletero**: "Qué tipos de bultos lleva", todos tildados de entrada; se destilda lo que no lleva.
+- **Cliente**: desplegable "Tipo de bulto habitual" (General de entrada) y "+ Otro tipo" si mezcla. **Destino**: cantidad de bultos + tipo.
+- **Candado**: en Armar, las paradas que su fletero no puede hacer quedan en rojo con el motivo y un aviso arriba. Al "Confirmar y mandar", si hay alguna, la app frena y ofrece "Resolver en Armar"; mandarla igual pide una segunda confirmación.
 
 ### v9.1
 - **Bultos con su mercadería**: en cada cliente (bultos habituales) y en cada destino se carga cantidad y tipo (ej.: 2 Tubos de GNC + 3 General). De ahí salen solos el total de bultos (capacidad del vehículo) y la mercadería, que se cruza con lo que NO lleva cada fletero: la app no se lo asigna y, si nadie de los que salen puede, avisa. Se ve en las filas ("5 bultos: 2 Tubos de GNC, 3 general"), en el detalle, en Modo manejo y en la hoja de ruta.

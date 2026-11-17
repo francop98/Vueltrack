@@ -23,7 +23,7 @@ import { editarParada, confirmarQuitar } from './editarParada.js';
 import { paradaHecha, paradaDesdeCliente, paradaNueva, copiaParaOtroDia, textoHorario, gruposDeVuelta } from './vuelta.js';
 import { buscarDirecciones } from './rutas.js';
 import { activosDelDia, asignarPendientes, redistribuirPorZona, incompatibles } from './asignar.js';
-import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorCargas, vehiculoDelDia, tipoVehiculo, motivoNoLleva, textoBultos, textoMinimo } from './cargas.js';
+import { editarQueLleva, puedeLlevar, noLlevaDelDia, selectorQueLleva, vehiculoDelDia, tipoVehiculo, motivoNoLleva, textoBultos, textoMinimo } from './cargas.js';
 import { insertarEnRutas } from './agregarDestino.js';
 import { direccionesFrecuentes, agregarFrecuente, descartarFrecuente } from './frecuentes.js';
 import {
@@ -234,10 +234,9 @@ $('chips-salen').addEventListener('click', (e) => {
 $('chips-salen').addEventListener('click', (e) => {
   if (!e.target.closest('#btn-agregar-fletero')) return;
   const solo = ctx.equipo.modo === 'solo';
-  const noLlevaSel = selectorCargas(ctx.equipo, [], {
+  const noLlevaSel = selectorQueLleva(ctx.equipo, [], {
     id: 'af-nolleva',
-    titulo: 'No lleva (opcional)',
-    ayuda: 'Marcá lo que no carga. Esas paradas se le asignan a otro.'
+    titulo: 'Qué tipos de bultos lleva'
   });
   const hoja = abrirHoja({
     titulo: 'Agregar fletero',
@@ -609,13 +608,15 @@ function pintarParadas() {
       ]
         .filter(Boolean)
         .join(' · ');
+      const problema = conflictoDe(p);
       return `
-      <div class="fila">
+      <div class="fila ${problema ? 'fila-conflicto' : ''}">
         <button type="button" class="fila enlace-plano sin-padding" data-editar="${esc(p.id)}">
           <span class="numero ${paradaHecha(p) ? 'ok' : p.tipo === 'retiro' ? 'retiro' : ''}">${paradaHecha(p) ? ICONOS.check : ordenada && p.orden ? p.orden : ICONOS.pin}</span>
           <span class="fila-cuerpo">
             <span class="fila-titulo-texto">${esc(p.nombre)}</span>
             <span class="fila-detalle">${esc(detalle)}</span>
+            ${problema ? `<span class="texto-conflicto">⚠ ${esc(problema)}</span>` : ''}
           </span>
         </button>
         ${filaFletero(p)}
@@ -623,8 +624,25 @@ function pintarParadas() {
       </div>`;
     })
     .join('');
+  // Aviso arriba de la lista: cuántas paradas no se pueden mandar así
+  const conProblema = visibles.filter((p) => conflictoDe(p)).length;
+  $('aviso-conflictos').classList.toggle('oculto', !conProblema);
+  $('aviso-conflictos').textContent = conProblema
+    ? `${conProblema === 1 ? '1 parada no la puede' : `${conProblema} paradas no las puede`} hacer el fletero asignado. Tocá su fletero para cambiarlo o cambiá el vehículo del día en "Vehículo y carga de cada uno".`
+    : '';
   pintarBotones();
   pintarMapa();
+}
+
+/* Problema de una parada pendiente: nadie de los que salen la puede llevar,
+   o el fletero asignado no puede (tipo de bulto o vehículo) */
+function conflictoDe(p) {
+  if (paradaHecha(p) || !ctx.organizador) return '';
+  const salen = activos();
+  if (salen.length && !salen.some((f) => puedeLlevar(p, f, vuelta))) return 'Ninguno de los que salen puede llevarla';
+  const f = fleterosEquipo().find((x) => x.uid === p.fleteroUid);
+  if (f && !puedeLlevar(p, f, vuelta)) return `${f.nombre}: ${motivoNoLleva(p, f, vuelta)}`;
+  return '';
 }
 
 function filaFletero(p) {

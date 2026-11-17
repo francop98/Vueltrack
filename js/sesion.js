@@ -248,6 +248,8 @@ function prepararMenu(ctx) {
 }
 let ctxActual = null;
 
+const ICONO_CAJA =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>';
 const ICONO_CANDADO =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 const ICONO_SALIR =
@@ -275,7 +277,8 @@ export function abrirMenu(ctx) {
       ${ctx.fletero ? item('', ICONOS.auto, 'Mi vehículo', '/pages/vehiculo.html') : ''}
       ${item('seguridad', ICONO_CANDADO, 'Seguridad')}
       <span class="menu-grupo">Tu trabajo</span>
-      ${ctx.organizador ? item('', ICONOS.auto, 'Fleteros', '/pages/fleteros.html') : ''}
+      ${ctx.organizador && ctx.equipo.modo === 'equipo' ? item('', ICONOS.auto, 'Fleteros', '/pages/fleteros.html') : ''}
+      ${ctx.organizador && ctx.equipo.modo === 'equipo' ? item('', ICONO_CAJA, 'Tipos de bultos', '/pages/bultos.html') : ''}
       ${item('', ICONOS.equipo, ctx.equipo.modo === 'solo' ? 'Modo de trabajo' : 'Equipo', '/pages/equipo.html')}
       <span class="menu-grupo">Ayuda</span>
       ${item('guia', ICONOS.ayuda, 'Guía de uso')}

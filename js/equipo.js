@@ -6,7 +6,7 @@ import { actualizarEquipo, actualizarMiembro, quitarMiembro, salirDelEquipo, fle
 import { ICONOS, COLORES_FLETERO, esc, iniciales, ordenarAlfa, aviso, confirmar, abrirHoja } from './ui.js';
 import { elegirZona, textoZona } from './zona.js';
 import { elegirPuntoDeSalida } from './salida.js';
-import { selectorCargas } from './cargas.js';
+import { selectorQueLleva } from './cargas.js';
 
 const $ = (id) => document.getElementById(id);
 let ctx;
@@ -144,10 +144,9 @@ function editarMiembro(uid) {
   if (!m) return;
   const roles = m.roles || [];
   const yo = uid === ctx.user.uid;
-  const noLlevaSel = selectorCargas(ctx.equipo, m.noLleva || [], {
+  const noLlevaSel = selectorQueLleva(ctx.equipo, m.noLleva || [], {
     id: 'r-nolleva',
-    titulo: 'No lleva habitualmente',
-    ayuda: 'Se puede cambiar por día en Armar → Qué lleva cada uno.'
+    titulo: 'Qué tipos de bultos lleva'
   });
   const hoja = abrirHoja({
     titulo: m.nombre + (yo ? ' (vos)' : ''),

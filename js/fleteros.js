@@ -3,13 +3,12 @@
    Todos los fleteros del equipo en un lugar: datos, vehículo
    (tipo y capacidad), mercadería que no lleva y punto de salida.
    Con esto la app le asigna a cada uno solo lo que puede hacer.
-   También se administran los tipos de mercadería.
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
-import { fleterosDelEquipo, actualizarMiembro, quitarMiembro, agregarFleteroSinApp, actualizarEquipo } from './datos.js';
-import { TIPOS_VEHICULO, tipoVehiculo, selectorCargas, catalogoCargas, sumarAlCatalogo } from './cargas.js';
+import { fleterosDelEquipo, actualizarMiembro, quitarMiembro, agregarFleteroSinApp } from './datos.js';
+import { TIPOS_VEHICULO, tipoVehiculo, selectorQueLleva } from './cargas.js';
 import { elegirPuntoDeSalida } from './salida.js';
-import { esc, fechaISO, abrirHoja, aviso, confirmar, ICONOS, linkWhatsApp } from './ui.js';
+import { esc, fechaISO, abrirHoja, aviso, confirmar, linkWhatsApp } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -28,7 +27,6 @@ function pintar() {
   $('contenido-fleteros').classList.toggle('oculto', solo);
   if (solo) return;
   pintarFleteros();
-  pintarCargas();
 }
 
 /* ---------- Lista ---------- */
@@ -84,11 +82,7 @@ function editarFletero(f) {
   const nuevo = !f;
   const gasto = (f && f.gasto) || {};
   let tipo = gasto.tipo || '';
-  const noLlevaSel = selectorCargas(ctx.equipo, (f && f.noLleva) || [], {
-    id: 'fl-nolleva',
-    titulo: 'Mercadería que NO lleva',
-    ayuda: 'Esas paradas se le asignan a otro.'
-  });
+  const noLlevaSel = selectorQueLleva(ctx.equipo, (f && f.noLleva) || [], { id: 'fl-nolleva' });
   const hoja = abrirHoja({
     titulo: nuevo ? 'Agregar fletero' : f.nombre,
     html: `
@@ -205,96 +199,5 @@ function editarFletero(f) {
     });
   }
 }
-
-/* ---------- Tipos de mercadería ---------- */
-
-function pintarCargas() {
-  const lista = catalogoCargas(ctx.equipo);
-  $('lista-cargas').innerHTML = lista.length
-    ? lista
-        .map(
-          (c) => `
-      <div class="fila">
-        <span class="fila-cuerpo"><span class="fila-titulo-texto">${esc(c)}</span>
-          <span class="fila-detalle">${fleterosDelEquipo(ctx.equipo).filter((f) => (f.noLleva || []).includes(c)).length} fleteros no la llevan</span></span>
-        <button type="button" class="btn-icono sin-borde" data-renombrar="${esc(c)}" aria-label="Cambiar nombre de ${esc(c)}">${ICONOS.lapiz}</button>
-        <button type="button" class="btn-icono sin-borde" data-borrar="${esc(c)}" aria-label="Borrar ${esc(c)}">${ICONOS.basura}</button>
-      </div>`
-        )
-        .join('')
-    : '<p class="texto-tenue">Todavía no cargaste tipos de mercadería.</p>';
-}
-
-$('lista-cargas').addEventListener('click', async (e) => {
-  const renombrar = e.target.closest('[data-renombrar]');
-  const borrar = e.target.closest('[data-borrar]');
-  if (!renombrar && !borrar) return;
-  const viejo = (renombrar || borrar).dataset.renombrar || (renombrar || borrar).dataset.borrar;
-  let nuevo = null;
-  if (renombrar) {
-    nuevo = await pedirTexto(`Nuevo nombre para "${viejo}"`, viejo);
-    if (!nuevo || nuevo === viejo) return;
-  } else {
-    const ok = await confirmar({
-      titulo: `¿Borrar "${viejo}"?`,
-      texto: 'Se saca de la lista y de los fleteros que no la llevaban. Los destinos ya cargados la conservan.',
-      aceptar: 'Borrar',
-      peligro: true
-    });
-    if (!ok) return;
-  }
-  // Catálogo + "no lleva" de cada fletero
-  const catalogo = catalogoCargas(ctx.equipo)
-    .map((c) => (c === viejo ? nuevo : c))
-    .filter(Boolean);
-  const cambios = { 'ajustes.cargas': [...new Set(catalogo)] };
-  fleterosDelEquipo(ctx.equipo).forEach((f) => {
-    if ((f.noLleva || []).includes(viejo)) {
-      cambios[`miembros.${f.uid}.noLleva`] = f.noLleva.map((c) => (c === viejo ? nuevo : c)).filter(Boolean);
-    }
-  });
-  await actualizarEquipo(ctx.equipo.id, cambios).then(
-    () => aviso(nuevo ? 'Nombre cambiado' : 'Borrado'),
-    () => aviso('No se pudo guardar. Revisá la conexión.')
-  );
-});
-
-function pedirTexto(titulo, valor) {
-  return new Promise((ok) => {
-    let listo = false;
-    const hoja = abrirHoja({
-      titulo,
-      html: `<div class="campo"><input id="pt-texto" value="${esc(valor)}" autocomplete="off"></div>
-        <button type="button" class="btn btn-primario btn-grande" id="pt-ok">Guardar</button>`,
-      alCerrar: () => {
-        if (!listo) ok(null);
-      }
-    });
-    const campo = hoja.el.querySelector('#pt-texto');
-    campo.focus();
-    campo.select();
-    const aceptar = () => {
-      listo = true;
-      const t = campo.value.trim().replace(/\s+/g, ' ');
-      hoja.cerrar();
-      ok(t || null);
-    };
-    hoja.el.querySelector('#pt-ok').addEventListener('click', aceptar);
-    campo.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') aceptar();
-    });
-  });
-}
-
-const sumarCarga = async () => {
-  const nombre = await sumarAlCatalogo(ctx.equipo, $('nueva-carga').value);
-  if (!nombre) return;
-  $('nueva-carga').value = '';
-  aviso(`"${nombre}" agregada`);
-};
-$('btn-nueva-carga').addEventListener('click', sumarCarga);
-$('nueva-carga').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sumarCarga();
-});
 
 pintar();

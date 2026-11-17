@@ -174,7 +174,7 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
     el.querySelector('#ad-hasta').value = elegido.hasta || '';
     // Bultos con su mercadería (y vehículo que necesita): con eso se sugiere el fletero
     const enEquipo = equipo.modo === 'equipo';
-    const sel = selectorBultos(equipo, elegido, { id: 'ad-b', titulo: 'Bultos' });
+    const sel = selectorBultos(equipo, elegido, { id: 'ad-b', titulo: 'Tipo de bulto', conCantidad: true });
     el.querySelector('#ad-cargas').innerHTML = sel.html + (enEquipo ? htmlMinimo('ad-minimo', elegido.vehiculoMinimo) : '');
     bultosElegidos = sel.conectar(el.querySelector('#ad-cargas'), () => setTimeout(sugerir, 0));
     if (enEquipo) {
