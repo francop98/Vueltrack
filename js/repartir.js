@@ -308,11 +308,11 @@ async function calcular() {
     aviso1.textContent = [
       calculo.sinAsignar ? `${calculo.sinAsignar} paradas no entran en el horario de nadie. Revisá los horarios de cierre o sumá otro fletero.` : '',
       calculo.sinUbicacion ? `${calculo.sinUbicacion} destinos no tienen ubicación en el mapa: quedan al final, sin ordenar. Abrilos y marcá dónde quedan.` : '',
-      calculo.aproximado ? 'El servicio de rutas no respondió: el orden y los horarios se calcularon con un método propio, aproximado.' : ''
+      calculo.aproximado === 'estimado' ? 'Los servicios de mapas no respondieron: el orden y los horarios son aproximados (por distancia).' : ''
     ]
       .filter(Boolean)
       .join(' ');
-    aviso1.classList.toggle('oculto', !calculo.sinAsignar && !calculo.sinUbicacion && !calculo.aproximado);
+    aviso1.classList.toggle('oculto', !calculo.sinAsignar && !calculo.sinUbicacion && calculo.aproximado !== 'estimado');
     return true;
   } catch (e) {
     console.error('No se pudo calcular el reparto', e);

@@ -162,7 +162,8 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
     ordenadas = aplicado.paradas;
     sinAsignar = (resultado.sinAsignar || []).length;
     llegaTarde = (resultado.llegaTarde || []).length;
-    aproximado = !!resultado.aproximado;
+    // Orden propio: 'calle' (con tiempos reales por calle) o 'estimado'
+    aproximado = resultado.aproximado ? (resultado.porCalle ? 'calle' : 'estimado') : false;
   } else {
     ordenadas = pendientes;
   }

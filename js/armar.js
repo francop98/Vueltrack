@@ -908,7 +908,7 @@ $('btn-ordenar').addEventListener('click', async () => {
     });
     if (sinAsignar) aviso(`${sinAsignar} paradas no entran en el horario o en la capacidad del vehículo. Revisá horarios y bultos.`);
     else if (llegaTarde) aviso(`Con este orden, ${llegaTarde} paradas llegan después de su horario de cierre.`);
-    else if (aproximado) aviso('El servicio de rutas no respondió: se ordenó con un método propio, aproximado.');
+    else if (aproximado === 'estimado') aviso('Los servicios de mapas no respondieron: el orden y los horarios son aproximados.');
     location.href = fecha === fechaISO() ? '/' : `/pages/armar.html?fecha=${fecha}`;
   } catch (e) {
     aviso(mensajeError(e));

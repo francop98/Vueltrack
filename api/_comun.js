@@ -30,9 +30,20 @@ export async function verificarUsuario(req) {
   }
 }
 
+/* Si OpenRouteService no respondió hace poco, no se lo espera de nuevo durante 10 minutos
+   (mientras la función de Vercel siga activa) */
+let orsCaidoHasta = 0;
+export const orsCaido = () => Date.now() < orsCaidoHasta;
+
 /* tiempo: milisegundos máximos de espera (si OpenRouteService se cuelga, no se espera de más) */
-export async function pedirORS(ruta, { method = 'GET', body, tiempo = 8000 } = {}) {
+export async function pedirORS(ruta, { method = 'GET', body, tiempo = 8000, aunqueCaido = false } = {}) {
   if (!process.env.ORS_API_KEY) throw new Error('falta-ORS_API_KEY');
+  if (!aunqueCaido && orsCaido()) {
+    const error = new Error('ors');
+    error.estado = 503;
+    error.detalle = { error: 'OpenRouteService no respondió hace un momento' };
+    throw error;
+  }
   // En los GET (búsqueda de direcciones) la clave también va en la dirección
   let url = `${ORS}${ruta}`;
   if (method === 'GET') url += `${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(process.env.ORS_API_KEY)}`;
@@ -52,6 +63,7 @@ export async function pedirORS(ruta, { method = 'GET', body, tiempo = 8000 } = {
     });
   } catch (e) {
     clearTimeout(reloj);
+    orsCaidoHasta = Date.now() + 10 * 60 * 1000;
     const error = new Error('ors');
     error.estado = 504;
     error.detalle = { error: corte.signal.aborted ? 'no respondió a tiempo' : 'sin conexión con el servicio' };
@@ -66,12 +78,47 @@ export async function pedirORS(ruta, { method = 'GET', body, tiempo = 8000 } = {
     datos = { error: texto };
   }
   if (!resp.ok) {
+    if (resp.status >= 500) orsCaidoHasta = Date.now() + 10 * 60 * 1000;
     const error = new Error('ors');
     error.estado = resp.status;
     error.detalle = datos;
     throw error;
   }
   return datos;
+}
+
+/* ---------- OSRM (servidor público del proyecto OSRM) ----------
+   Gratis y sin clave. Da tiempos y trazados por calle sobre OpenStreetMap.
+   Se usa cuando OpenRouteService no responde. servicio: "table" o "route". */
+const OSRM = 'https://router.project-osrm.org';
+
+export async function pedirOSRM(servicio, puntos, parametros = {}, tiempo = 6000) {
+  const coords = puntos.map((p) => `${Number(p.lng).toFixed(6)},${Number(p.lat).toFixed(6)}`).join(';');
+  const q = new URLSearchParams(parametros);
+  const corte = new AbortController();
+  const reloj = setTimeout(() => corte.abort(), tiempo);
+  try {
+    const resp = await fetch(`${OSRM}/${servicio}/v1/driving/${coords}?${q.toString()}`, {
+      signal: corte.signal,
+      headers: { Accept: 'application/json', 'User-Agent': 'Vueltrack/1.0 (vueltrack.vercel.app)' }
+    });
+    const datos = await resp.json().catch(() => null);
+    if (!resp.ok || !datos || datos.code !== 'Ok') {
+      const error = new Error('osrm');
+      error.estado = resp.status;
+      error.detalle = datos;
+      throw error;
+    }
+    return datos;
+  } catch (e) {
+    if (e.message === 'osrm') throw e;
+    const error = new Error('osrm');
+    error.estado = 504;
+    error.detalle = { error: corte.signal.aborted ? 'no respondió a tiempo' : 'sin conexión' };
+    throw error;
+  } finally {
+    clearTimeout(reloj);
+  }
 }
 
 /* Georef (datos.gob.ar): servicio oficial de direcciones de Argentina.

@@ -1,4 +1,4 @@
-# Vueltrack v8.0
+# Vueltrack v8.1
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,14 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v8.1
+- **Rutas sin depender de OpenRouteService**: el diagnóstico mostró que desde Vercel no responde ninguno de sus servicios (optimizador, trazado ni matriz: todos sin respuesta a los 9 s). Ahora:
+  - Mientras se espera al optimizador (7 s como máximo), se piden en paralelo los tiempos por calle a **OSRM** (servidor público gratuito, sin clave).
+  - Si el optimizador no responde, la app ordena con esos tiempos reales por calle y pide el trazado a OSRM (y, si no, a OpenRouteService).
+  - Si OpenRouteService falla, no se lo vuelve a esperar por 10 minutos (también en la búsqueda de direcciones).
+  - Solo si ningún servicio de mapas responde, el orden es aproximado por distancia (y la app lo avisa).
+- /api/diagnostico también prueba OSRM.
 
 ### v8.0
 - **Hoja de ruta en PDF que funciona en el celular**: el PDF se arma en el teléfono (jsPDF, se descarga la primera vez) con el diseño de la app y se comparte (WhatsApp, Archivos, Imprimir) o se descarga. Antes usaba "imprimir", que no existe en la app instalada en iPhone.

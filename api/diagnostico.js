@@ -1,11 +1,11 @@
 /* =========================================================
    GET /api/diagnostico
-   Prueba, con un pedido mínimo en Bahía Blanca, cada servicio de
-   OpenRouteService que usa la app y muestra qué responde cada uno.
+   Prueba, con un pedido mínimo en Bahía Blanca, cada servicio de rutas
+   que usa la app (OpenRouteService y OSRM) y muestra qué responde cada uno.
    Sirve para saber por qué falla el orden óptimo (VROOM).
    No muestra la clave ni datos de nadie. Como máximo una prueba por minuto.
    ========================================================= */
-import { pedirORS, responder } from './_comun.js';
+import { pedirORS, pedirOSRM, responder } from './_comun.js';
 
 let ultima = null;
 
@@ -65,10 +65,26 @@ const PRUEBAS = {
   }
 };
 
+const P = (c) => ({ lng: c[0], lat: c[1] });
+const OSRM_PRUEBAS = {
+  osrm_tabla: { servicio: 'table', puntos: [BASE, A, B, C].map(P), parametros: { annotations: 'duration,distance' } },
+  osrm_trazado: { servicio: 'route', puntos: [BASE, A, B, BASE].map(P), parametros: { overview: 'full', geometries: 'polyline' } }
+};
+
+async function probarOSRM(nombre, { servicio, puntos, parametros }) {
+  const t0 = Date.now();
+  try {
+    const datos = await pedirOSRM(servicio, puntos, parametros, 8000);
+    return { ok: true, ms: Date.now() - t0, resumen: servicio === 'table' ? `filas: ${(datos.durations || []).length}` : `rutas: ${(datos.routes || []).length}` };
+  } catch (e) {
+    return { ok: false, ms: Date.now() - t0, estado: e.estado || null, error: JSON.stringify(e.detalle || e.message).slice(0, 200) };
+  }
+}
+
 async function probar(nombre, { ruta, cuerpo }) {
   const t0 = Date.now();
   try {
-    const datos = await pedirORS(ruta, { method: 'POST', body: cuerpo, tiempo: 9000 });
+    const datos = await pedirORS(ruta, { method: 'POST', body: cuerpo, tiempo: 9000, aunqueCaido: true });
     const resumen =
       nombre.startsWith('vroom')
         ? `rutas: ${(datos.routes || []).length}, sin asignar: ${(datos.unassigned || []).length}`
@@ -94,11 +110,17 @@ export default async function handler(req, res) {
     clave_ors_cargada: !!process.env.ORS_API_KEY,
     clave_firebase_cargada: !!process.env.FIREBASE_API_KEY
   };
-  if (!process.env.ORS_API_KEY) return responder(res, 200, resultado);
   const nombres = Object.keys(PRUEBAS);
-  const hechos = await Promise.all(nombres.map((n) => probar(n, PRUEBAS[n])));
+  const nombresOSRM = Object.keys(OSRM_PRUEBAS);
+  const [hechos, hechosOSRM] = await Promise.all([
+    Promise.all(nombres.map((n) => probar(n, PRUEBAS[n]))),
+    Promise.all(nombresOSRM.map((n) => probarOSRM(n, OSRM_PRUEBAS[n])))
+  ]);
   nombres.forEach((n, i) => {
     resultado[n] = hechos[i];
+  });
+  nombresOSRM.forEach((n, i) => {
+    resultado[n] = hechosOSRM[i];
   });
   ultima = { cuando: Date.now(), resultado };
   return responder(res, 200, resultado);

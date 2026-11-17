@@ -534,10 +534,10 @@ export default async function handler(req, res) {
     resultado = await probar(
       [
         () => deGeoref(texto, foco),
-        async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`)),
-        async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(texto, foco)}`)),
+        async () => desdePelias(await pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`, { tiempo: 4000 })),
+        async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(texto, foco)}`, { tiempo: 4000 })),
         async () => desdeNominatim(await pedirNominatim(conZona, foco)),
-        async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(calle, foco)}`))
+        async () => desdePelias(await pedirORS(`/pelias/v1/search?${parametrosPelias(calle, foco)}`, { tiempo: 4000 }))
       ],
       (lista) => lista.some((r) => r.tipo === 'direccion' && (!localidad || coincide(r.ciudad, localidad) || distanciaKm(foco, r) < 30))
     );
@@ -551,7 +551,7 @@ export default async function handler(req, res) {
         async () => {
           const [photon, pelias] = await Promise.allSettled([
             pedirPhoton(texto, foco).then(desdePhoton),
-            pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`).then(desdePelias)
+            pedirORS(`/pelias/v1/autocomplete?${parametrosPelias(texto, foco)}`, { tiempo: 4000 }).then(desdePelias)
           ]);
           if (photon.status === 'rejected' && pelias.status === 'rejected') throw photon.reason;
           return [...(photon.value || []), ...(pelias.value || [])];
