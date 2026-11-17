@@ -6,6 +6,7 @@
    Se imprime / baja en PDF, se exporta a Excel o se comparte.
    ========================================================= */
 import { iniciarPantalla } from './sesion.js';
+import { descargarPdf } from './pdfHojaRuta.js';
 import { vueltasEntre, escucharVuelta, fleterosDelEquipo } from './datos.js';
 import { paradaHecha, queSeHizo } from './vuelta.js';
 import { esc, fechaISO, fechaDesdeISO, fechaCorta, fechaLarga, sumarDias, formatoKm, formatoDuracion, horaDeSegundos, linkWhatsApp, aviso } from './ui.js';
@@ -396,82 +397,75 @@ $('btn-whatsapp').addEventListener('click', () => {
   window.open(linkWhatsApp('', lineas.join('\n')), '_blank', 'noopener');
 });
 
-$('btn-pdf').addEventListener('click', () => {
+$('btn-pdf').addEventListener('click', async () => {
+  const boton = $('btn-pdf');
+  if (boton.disabled) return;
   const [desde, hasta] = fechasDelRango();
   const t = datos.total;
   const equipo = ctx.equipo.modo !== 'solo' && ctx.equipo.nombre ? ctx.equipo.nombre : '';
-  const stat = (valor, nombre) => `<div class="pdf-stat"><strong>${esc(String(valor))}</strong><span>${esc(nombre)}</span></div>`;
-  // Con el mismo diseño de la app: fondo oscuro, tarjetas y estados en color
-  $('presupuesto').innerHTML = `
-    <header class="pdf-cabecera">
-      <div class="pdf-marca">
-        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#172033"/><path d="M9 22c0-6 3-11 7-11s7 5 7 9-3 5-5 5-3.5-2-3.5-4" fill="none" stroke="#F07A2B" stroke-width="2.6" stroke-linecap="round"/><circle cx="9" cy="22" r="2.4" fill="#FFFFFF"/></svg>
-        <span class="pdf-marca-texto">vuel<span>track</span></span>
-      </div>
-      ${equipo ? `<span class="pdf-equipo">${esc(equipo)}</span>` : ''}
-    </header>
-    <div class="pdf-titulo">
-      <span class="pdf-sobre">${esc(textoRango(desde, hasta))} · ${esc(nombreDelFiltro())}</span>
-      <h1>Hoja de ruta</h1>
-    </div>
-    <div class="pdf-stats">
-      ${stat(t.paradas, 'destinos')}
-      ${stat(t.hechas, 'hechos')}
-      ${stat(t.noHechas, 'no se pudo')}
-      ${stat(t.pendientes, 'pendientes')}
-      ${stat(formatoKm(t.km), 'recorrido')}
-      ${stat(t.tiempo ? formatoDuracion(t.tiempo) : '—', 'en la calle')}
-    </div>
-    ${datos.dias
-      .map(
-        (d) => `
-      <section class="pdf-dia">
-        <h2>${esc(fechaLarga(d.fecha))} <span>${d.hechas} de ${d.paradas} hechos</span></h2>
-        ${d.grupos
-          .map((g) => {
-            const hechas = g.paradas.filter((p) => p.estado === 'entregado').length;
-            const r = g.ruta;
-            return `
-          <div class="pdf-fletero">
-            <div class="pdf-fletero-cab">
-              <span><i class="pdf-punto" style="background:${esc(g.color)}"></i>${esc(g.nombre)}${g.vehiculo ? ` · ${esc(g.vehiculo)}` : ''}</span>
-              <span class="pdf-tenue">${hechas} de ${g.paradas.length} hechos${r && r.distancia ? ` · ${esc(formatoKm(r.distancia))}` : ''}${
-                r && r.duracion ? ` · ${esc(formatoDuracion(r.duracion))}` : ''
-              }</span>
-            </div>
-            ${g.paradas
-              .map((p, i) => {
-                const res = resultado(p);
-                const extra = [
-                  p.tipo === 'retiro' ? 'Retiro' : 'Entrega',
-                  p.direccion,
-                  (p.cargas || []).join(', '),
-                  p.motivo && p.estado !== 'entregado' ? p.motivo : '',
-                  p.marcadoPor && p.marcadoPor !== g.uid && nombreDe(p.marcadoPor) ? `marcó ${nombreDe(p.marcadoPor)}` : ''
-                ]
-                  .filter(Boolean)
-                  .join(' · ');
-                return `
-            <div class="pdf-fila">
-              <span class="pdf-num ${res.clase}">${i + 1}</span>
-              <span class="pdf-cuerpo"><strong>${esc(p.nombre)}</strong><span>${esc(extra)}</span></span>
-              <span class="pdf-res"><span class="pdf-pill ${res.clase}">${esc(res.texto)}</span><span class="pdf-tenue">${esc(horaDe(p))}</span></span>
-            </div>`;
-              })
-              .join('')}
-          </div>`;
+  // Mismo contenido que la pantalla, con el diseño de la app
+  const hoja = {
+    equipo,
+    sobre: `${textoRango(desde, hasta)} · ${nombreDelFiltro()}`,
+    titulo: 'Hoja de ruta',
+    stats: [
+      [t.paradas, 'destinos'],
+      [t.hechas, 'hechos'],
+      [t.noHechas, 'no se pudo'],
+      [t.pendientes, 'pendientes'],
+      [formatoKm(t.km), 'recorrido'],
+      [t.tiempo ? formatoDuracion(t.tiempo) : '—', 'en la calle']
+    ],
+    dias: datos.dias.map((d) => ({
+      titulo: fechaLarga(d.fecha),
+      resumen: `${d.hechas} de ${d.paradas} hechos`,
+      grupos: d.grupos.map((g) => {
+        const hechas = g.paradas.filter((p) => p.estado === 'entregado').length;
+        const r = g.ruta;
+        return {
+          nombre: `${g.nombre}${g.vehiculo ? ` · ${g.vehiculo}` : ''}`,
+          color: g.color,
+          resumen: [`${hechas} de ${g.paradas.length} hechos`, r && r.distancia ? formatoKm(r.distancia) : '', r && r.duracion ? formatoDuracion(r.duracion) : '']
+            .filter(Boolean)
+            .join(' · '),
+          filas: g.paradas.map((p, i) => {
+            const res = resultado(p);
+            return {
+              num: String(i + 1),
+              nombre: p.nombre,
+              detalle: [
+                p.tipo === 'retiro' ? 'Retiro' : 'Entrega',
+                p.direccion,
+                (p.cargas || []).join(', '),
+                p.motivo && p.estado !== 'entregado' ? p.motivo : '',
+                p.marcadoPor && p.marcadoPor !== g.uid && nombreDe(p.marcadoPor) ? `marcó ${nombreDe(p.marcadoPor)}` : ''
+              ]
+                .filter(Boolean)
+                .join(' · '),
+              resultado: res.texto,
+              clase: res.clase,
+              hora: horaDe(p)
+            };
           })
-          .join('')}
-      </section>`
-      )
-      .join('')}
-    <footer class="pdf-pie">Generado con Vueltrack · ${esc(fechaLarga(fechaISO()))}</footer>`;
-  const titulo = document.title;
-  document.title = `Vueltrack hoja de ruta ${desde === hasta ? desde : `${desde} a ${hasta}`}`;
-  window.print();
-  setTimeout(() => {
-    document.title = titulo;
-  }, 1000);
+        };
+      })
+    })),
+    pie: `Generado con Vueltrack · ${fechaLarga(fechaISO())}`,
+    archivo: `Hoja de ruta ${rango === 'todos' ? 'completa' : desde === hasta ? desde : `${desde} a ${hasta}`}.pdf`
+  };
+  const original = boton.innerHTML;
+  boton.disabled = true;
+  boton.textContent = 'Armando el PDF…';
+  try {
+    const como = await descargarPdf(hoja);
+    if (como === 'descargado') aviso('Hoja de ruta descargada');
+  } catch (e) {
+    console.error('No se pudo armar el PDF', e);
+    aviso('No se pudo armar el PDF. Revisá la conexión (la primera vez se descarga una herramienta) y probá de nuevo.');
+  } finally {
+    boton.disabled = false;
+    boton.innerHTML = original;
+  }
 });
 
 pintarFiltro();

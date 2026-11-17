@@ -161,7 +161,10 @@ function avisarIncompatibles(lista) {
 function pintarSalen() {
   $('bloque-salen').classList.toggle('oculto', !ctx.organizador);
   if (!ctx.organizador) return;
-  $('btn-redistribuir').classList.toggle('oculto', !hayVarios());
+  // Botón grande: dividir las paradas por zona entre los que salen
+  const pendientesHoy = paradas().filter((p) => !paradaHecha(p)).length;
+  $('btn-redistribuir').classList.toggle('oculto', !hayVarios() || !pendientesHoy);
+  $('btn-redistribuir').innerHTML = `${ICONOS.pin}Dividir por zona entre ${activos().length} fleteros`;
   $('ayuda-salen').textContent = hayVarios()
     ? 'Cada destino que agregues se asigna solo al fletero de esa zona. Tocá el nombre en una parada para cambiarlo.'
     : 'Sumá fleteros y la app reparte cada destino por zona entre los que salen.';

@@ -1,4 +1,4 @@
-# Vueltrack v7.9
+# Vueltrack v8.0
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,12 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v8.0
+- **Hoja de ruta en PDF que funciona en el celular**: el PDF se arma en el teléfono (jsPDF, se descarga la primera vez) con el diseño de la app y se comparte (WhatsApp, Archivos, Imprimir) o se descarga. Antes usaba "imprimir", que no existe en la app instalada en iPhone.
+- **Armar → "Dividir por zona"** ahora es un botón grande y visible debajo de "¿Quiénes salen?".
+- **Orden propio con tiempos reales por calle**: si el optimizador (VROOM) falla, se usa la matriz de tiempos de OpenRouteService (otro servicio) para ordenar; si tampoco responde, se estima. Si el optimizador falla, durante 10 minutos no se lo espera de nuevo.
+- **/api/diagnostico**: prueba cada servicio de OpenRouteService (optimizador mínimo, con trazado y completo, trazado y matriz) y muestra qué responde cada uno.
 
 ### v7.9
 - **Ordenar ya no depende de que OpenRouteService responda**: si su optimizador falla ("There was a problem proxying the request") o tarda (antes terminaba en HTTP 504), el servidor ordena con un método propio (la más cercana + mejora 2-opt; reparto parejo por sectores respetando lo que no lleva cada uno; urgentes primero y retiro antes que su entrega). Los horarios salen del trazado de OpenRouteService y, si tampoco responde, se estiman. La app avisa que el orden es aproximado.

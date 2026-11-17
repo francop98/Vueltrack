@@ -2390,3 +2390,15 @@ body:has(.velo) .ingreso {
   margin-top: 10px;
   width: 100%;
 }
+
+/* Dividir por zona (Armar): botón grande y bien visible */
+.btn-zona {
+  width: 100%;
+  background: var(--acento-suave);
+  border: 2px solid var(--acento);
+  color: var(--acento-suave-texto);
+}
+
+.btn-zona svg {
+  color: var(--acento);
+}

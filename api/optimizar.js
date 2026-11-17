@@ -40,6 +40,7 @@ function validar(cuerpo) {
 }
 
 const SIN_LIMITE = 100000;
+let vroomCaidoHasta = 0;
 
 function ventana(p) {
   const desde = Number.isFinite(p.desde) ? Math.max(0, p.desde) : 0;
@@ -132,7 +133,20 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
 
   const cuerpo = { jobs, vehicles, options: { g: true } };
   if (shipments.length) cuerpo.shipments = shipments;
-  const datos = await pedirORS('/vroom/v0', { method: 'POST', body: cuerpo, tiempo: 8000 });
+  // Si el optimizador falló hace poco, no se lo espera de nuevo (10 minutos)
+  if (Date.now() < vroomCaidoHasta) {
+    const error = new Error('ors');
+    error.estado = 503;
+    error.detalle = { error: 'el optimizador falló hace un momento' };
+    throw error;
+  }
+  let datos;
+  try {
+    datos = await pedirORS('/vroom/v0', { method: 'POST', body: cuerpo, tiempo: 8000 });
+  } catch (e) {
+    if (e.message === 'ors' && (e.estado >= 500 || !e.estado)) vroomCaidoHasta = Date.now() + 10 * 60 * 1000;
+    throw e;
+  }
 
   const idDePaso = (s) => s.id ?? s.job;
 
@@ -231,21 +245,36 @@ function retiroAntesQueEntrega(lista) {
 /* ---------- Orden propio (si el optimizador de OpenRouteService no responde) ----------
    La más cercana a la anterior y después se mejora cruzando tramos (2-opt).
    Las urgentes van primero y cada retiro antes que su entrega. */
-function largoRecorrido(lista, inicio, fin) {
-  let km = 0;
+function largoRecorrido(lista, inicio, fin, costo) {
+  let total = 0;
   let anterior = inicio;
   lista.forEach((p) => {
-    km += distanciaKm(anterior, p);
+    total += costo(anterior, p);
     anterior = p;
   });
-  if (fin) km += distanciaKm(anterior, fin);
-  return km;
+  if (fin) total += costo(anterior, fin);
+  return total;
 }
 
-function ordenLocal(paradas, inicio, fin) {
-  const urgentes = porCercania(paradas.filter((p) => p.urgente), inicio);
+function cercaniaCon(paradas, desde, costo) {
+  const quedan = [...paradas];
+  const orden = [];
+  let actual = desde;
+  while (quedan.length) {
+    let mejor = 0;
+    quedan.forEach((p, i) => {
+      if (costo(actual, p) < costo(actual, quedan[mejor])) mejor = i;
+    });
+    actual = quedan.splice(mejor, 1)[0];
+    orden.push(actual);
+  }
+  return orden;
+}
+
+function ordenLocal(paradas, inicio, fin, costo) {
+  const urgentes = cercaniaCon(paradas.filter((p) => p.urgente), inicio, costo);
   const desde = urgentes.length ? urgentes[urgentes.length - 1] : inicio;
-  let resto = porCercania(paradas.filter((p) => !p.urgente), desde);
+  let resto = cercaniaCon(paradas.filter((p) => !p.urgente), desde, costo);
   // 2-opt: da vuelta un tramo si así el recorrido queda más corto
   let mejoro = true;
   let vueltas = 0;
@@ -255,7 +284,7 @@ function ordenLocal(paradas, inicio, fin) {
     for (let a = 0; a < resto.length - 1; a++) {
       for (let b = a + 1; b < resto.length; b++) {
         const prueba = [...resto.slice(0, a), ...resto.slice(a, b + 1).reverse(), ...resto.slice(b + 1)];
-        if (largoRecorrido(prueba, desde, fin) + 0.001 < largoRecorrido(resto, desde, fin)) {
+        if (largoRecorrido(prueba, desde, fin, costo) + 0.5 < largoRecorrido(resto, desde, fin, costo)) {
           resto = prueba;
           mejoro = true;
         }
@@ -263,6 +292,50 @@ function ordenLocal(paradas, inicio, fin) {
     }
   }
   return retiroAntesQueEntrega([...urgentes, ...resto]);
+}
+
+/* Tiempos reales por calle entre todos los puntos (matriz de OpenRouteService).
+   Si no responde, se estima: línea recta × 1,35 a 28 km/h. */
+const segundosEstimados = (a, b) => ((distanciaKm(a, b) * 1.35) / 28) * 3600;
+const clavePunto = (p) => `${Number(p.lat).toFixed(6)},${Number(p.lng).toFixed(6)}`;
+
+async function medirTiempos(puntos) {
+  const unicos = [];
+  const indice = new Map();
+  puntos.forEach((p) => {
+    const k = clavePunto(p);
+    if (!indice.has(k)) {
+      indice.set(k, unicos.length);
+      unicos.push(p);
+    }
+  });
+  let tiempos = null;
+  let metros = null;
+  if (unicos.length >= 2 && unicos.length <= 59) {
+    try {
+      const datos = await pedirORS('/openrouteservice/v2/matrix/driving-car', {
+        method: 'POST',
+        body: { locations: unicos.map((p) => [p.lng, p.lat]), metrics: ['duration', 'distance'] },
+        tiempo: 6000
+      });
+      if (Array.isArray(datos.durations)) {
+        tiempos = datos.durations;
+        metros = datos.distances || null;
+      }
+    } catch (e) {
+      tiempos = null;
+    }
+  }
+  const pos = (p) => indice.get(clavePunto(p));
+  const costo = (a, b) => {
+    const t = tiempos && tiempos[pos(a)] ? tiempos[pos(a)][pos(b)] : null;
+    return Number.isFinite(t) ? t : segundosEstimados(a, b);
+  };
+  const distancia = (a, b) => {
+    const m = metros && metros[pos(a)] ? metros[pos(a)][pos(b)] : null;
+    return Number.isFinite(m) ? m : distanciaKm(a, b) * 1350;
+  };
+  return { costo, distancia, porCalle: !!tiempos };
 }
 
 /* Reparto propio entre varios fleteros: por sectores alrededor del punto de salida,
@@ -295,7 +368,7 @@ function repartoLocal(paradas, vehiculos, base, noLleva) {
 
 /* Recorrido en un orden ya decidido: trazado y tiempos de OpenRouteService;
    si no responde, se estiman (distancia en línea recta × 1,35 a 28 km/h) */
-async function rutaConOrden({ inicio, fin, volver, demora, salida, ordenadas, vehiculo, pausa = null, estimar = false }) {
+async function rutaConOrden({ inicio, fin, volver, demora, salida, ordenadas, vehiculo, pausa = null, estimar = false, medidas = null }) {
   const puntos = [inicio, ...ordenadas];
   if (volver) puntos.push(fin);
   if (puntos.length < 2) puntos.push(inicio);
@@ -322,12 +395,12 @@ async function rutaConOrden({ inicio, fin, volver, demora, salida, ordenadas, ve
   }
   const aproximado = !tramos;
   if (!tramos) {
+    // Sin trazado: tiempos de la matriz (por calle) o estimados
     tramos = [];
     let metros = 0;
     for (let i = 0; i < puntos.length - 1; i++) {
-      const km = distanciaKm(puntos[i], puntos[i + 1]) * 1.35;
-      metros += km * 1000;
-      tramos.push((km / 28) * 3600);
+      metros += medidas ? medidas.distancia(puntos[i], puntos[i + 1]) : distanciaKm(puntos[i], puntos[i + 1]) * 1350;
+      tramos.push(medidas ? medidas.costo(puntos[i], puntos[i + 1]) : segundosEstimados(puntos[i], puntos[i + 1]));
     }
     distancia = Math.round(metros);
   }
@@ -356,7 +429,7 @@ async function rutaConOrden({ inicio, fin, volver, demora, salida, ordenadas, ve
   return {
     ruta: { vehiculo, paradas: lista, distancia, duracion: Math.round(t - salida), fin: Math.round(t), geometria },
     llegaTarde: tarde,
-    aproximado
+    aproximado: aproximado && !(medidas && medidas.porCalle)
   };
 }
 
@@ -380,15 +453,18 @@ async function resolverLocal({ base, baseDe, desde, volver, demora, salida, para
       grupos.get(v).push(p);
     });
   }
-  // Si ya se usó mucho tiempo esperando, los tiempos se estiman sin volver a preguntar
-  const estimar = Date.now() - inicioEnSegundos > 9000;
+  // Si ya se usó mucho tiempo esperando, no se vuelve a preguntar: todo estimado
+  const apurado = Date.now() - inicioEnSegundos > 9000;
+  const puntos = [...paradas, ...vehiculos.map((v) => baseDe(v)), ...(desde ? [desde] : [])];
+  const medidas = apurado ? { costo: segundosEstimados, distancia: (a, b) => distanciaKm(a, b) * 1350, porCalle: false } : await medirTiempos(puntos);
+  const estimar = apurado || Date.now() - inicioEnSegundos > 13000;
   const pedidos = [...grupos.entries()]
     .filter(([, suyas]) => suyas.length)
     .map(([vehiculo, suyas]) => {
       const b = baseDe(vehiculo);
       const inicio = desde || b;
-      const ordenadas = orden === 'optimo' ? ordenLocal(suyas, inicio, volver ? b : null) : ordenarFijo(suyas, orden, b, inicio);
-      return rutaConOrden({ inicio, fin: b, volver, demora, salida, ordenadas, vehiculo, pausa, estimar });
+      const ordenadas = orden === 'optimo' ? ordenLocal(suyas, inicio, volver ? b : null, medidas.costo) : ordenarFijo(suyas, orden, b, inicio);
+      return rutaConOrden({ inicio, fin: b, volver, demora, salida, ordenadas, vehiculo, pausa, estimar, medidas });
     });
   const hechos = await Promise.all(pedidos);
   return {
@@ -396,6 +472,7 @@ async function resolverLocal({ base, baseDe, desde, volver, demora, salida, para
     sinAsignar: [],
     llegaTarde: hechos.flatMap((h) => h.llegaTarde),
     aproximado: true,
+    porCalle: medidas.porCalle,
     trazadoAproximado: hechos.some((h) => h.aproximado)
   };
 }
