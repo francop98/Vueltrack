@@ -3,7 +3,8 @@
    usuarios/{uid}
    equipos/{equipoId}                 (nombre, código, modo, ajustes, miembros)
    equipos/{equipoId}/clientes/{id}   (clientes habituales)
-   equipos/{equipoId}/vueltas/{fecha} (paradas del día y rutas por fletero)
+   equipos/{equipoId}/vueltas/{fecha} (paradas del día, rutas por fletero y
+                                       marcas: cómo le fue a cada parada)
    equipos/{equipoId}/ubicaciones/{uid}        (seguimiento en vivo)
    equipos/{equipoId}/comprobantes/{fecha_id}  (foto y firma de la entrega)
    codigos/{codigo}                   (para sumarse a un equipo)
@@ -27,7 +28,8 @@ import {
   serverTimestamp,
   arrayUnion,
   arrayRemove,
-  deleteField
+  deleteField,
+  FieldPath
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { COLORES_FLETERO, idNuevo } from './ui.js';
 
@@ -223,12 +225,41 @@ export async function corregirUbicacionCliente(equipoId, clienteId, lat, lng) {
   );
 }
 
-/* ---------- Vueltas ---------- */
+/* ---------- Vueltas ----------
+   Cómo le fue a cada parada (entregado, retirado, no estaba…) se guarda aparte,
+   en vuelta.marcas[paradaId]. Así marcar es un cambio chico, que se ve al
+   instante, queda guardado en el celular aunque no haya señal y nunca pisa lo
+   que otro marcó al mismo tiempo. Al leer, cada marca se aplica sobre su parada. */
+
+export function conMarcas(v) {
+  if (!v || !v.marcas) return v;
+  const marcas = v.marcas;
+  return { ...v, paradas: (v.paradas || []).map((p) => (marcas[p.id] ? { ...p, ...marcas[p.id] } : p)) };
+}
+
+const vueltaDe = (snap) => (snap.exists() ? conMarcas({ id: snap.id, ...snap.data() }) : null);
 
 export function escucharVuelta(equipoId, fecha, alCambiar) {
   return onSnapshot(doc(db, 'equipos', equipoId, 'vueltas', fecha), (snap) => {
-    alCambiar(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+    alCambiar(vueltaDe(snap));
   });
+}
+
+/* Marca una o varias paradas: { paradaId: { estado, horaEstado, realizado, motivo, … } } */
+export async function marcarParadas(equipoId, fecha, cambios) {
+  const pares = [];
+  Object.entries(cambios).forEach(([id, datos]) => pares.push(new FieldPath('marcas', id), datos));
+  if (!pares.length) return;
+  await alInstante(updateDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha), ...pares, 'actualizado', serverTimestamp()));
+}
+
+/* La vuelta como está en el celular (incluye lo marcado sin señal) */
+export async function vueltaGuardada(equipoId, fecha) {
+  try {
+    return vueltaDe(await getDocFromCache(doc(db, 'equipos', equipoId, 'vueltas', fecha)));
+  } catch (e) {
+    return obtenerVuelta(equipoId, fecha).catch(() => null);
+  }
 }
 
 export async function guardarVuelta(equipoId, fecha, datos) {
@@ -268,10 +299,13 @@ async function cambiarSinSenal(ref, paradaId, cambiar) {
     throw new Error('sin-vuelta');
   }
   if (!snap.exists()) throw new Error('sin-vuelta');
-  const paradas = (snap.data().paradas || []).map((p) => ({ ...p }));
+  const paradas = (conMarcas(snap.data()).paradas || []).map((p) => ({ ...p }));
   const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId)) || paradas;
-  // Queda en la cola de Firebase: se ve al instante y se envía al volver la señal
-  updateDoc(ref, { paradas: resultado, actualizado: serverTimestamp() }).catch(() => {});
+  // Queda en la cola de Firebase: se ve al instante y se envía al volver la señal.
+  // Si el servidor lo rechaza, se avisa (no se pierde en silencio).
+  updateDoc(ref, { paradas: resultado, actualizado: serverTimestamp() }).catch((error) =>
+    window.dispatchEvent(new CustomEvent('vueltrack:error-guardado', { detail: error }))
+  );
   return resultado;
 }
 
@@ -284,7 +318,7 @@ export async function cambiarParada(equipoId, fecha, paradaId, cambiar) {
       runTransaction(db, async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists()) throw new Error('sin-vuelta');
-        const paradas = (snap.data().paradas || []).map((p) => ({ ...p }));
+        const paradas = (conMarcas(snap.data()).paradas || []).map((p) => ({ ...p }));
         const resultado = cambiar(paradas, paradas.findIndex((p) => p.id === paradaId)) || paradas;
         tx.update(ref, { paradas: resultado, actualizado: serverTimestamp() });
         return resultado;
@@ -299,8 +333,7 @@ export async function cambiarParada(equipoId, fecha, paradaId, cambiar) {
 }
 
 export async function obtenerVuelta(equipoId, fecha) {
-  const snap = await getDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  return vueltaDe(await getDoc(doc(db, 'equipos', equipoId, 'vueltas', fecha)));
 }
 
 /* Suma paradas a la vuelta de otro día (la crea si no existe). Se usa al reprogramar. */
@@ -335,7 +368,7 @@ export async function agregarParadasADia(equipoId, fecha, nuevas) {
 export async function vueltasEntre(equipoId, desde, hasta) {
   const q = query(collection(db, 'equipos', equipoId, 'vueltas'), where('fecha', '>=', desde), where('fecha', '<=', hasta));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  return snap.docs.map((d) => conMarcas({ id: d.id, ...d.data() })).sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 /* ---------- Seguimiento para el cliente (link público) ---------- */

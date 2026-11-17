@@ -1,4 +1,4 @@
-# Vueltrack v7.5
+# Vueltrack v7.6
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,16 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v7.6
+- **Lo marcado ya no vuelve a pendiente**: cómo le fue a cada parada se guarda aparte (`vuelta.marcas`), con un cambio chico que queda en el celular aunque se salga de la pantalla o no haya señal, y que no pisa lo que marcó otro. Si el servidor rechaza un guardado, aparece un aviso. **Hay que volver a publicar `firestore.rules`.**
+- **Interruptores clásicos** (redondos, con la perilla visible también en iPhone).
+- **Punto de salida por fletero**: en Equipo → tocar al fletero → "Sale desde". Si no tiene, sale del punto del equipo. Se usa al ordenar y al sumar destinos.
+- **Mi perfil** sin "Contraseña y forma de ingreso" ni "Cerrar sesión" (quedan en el menú).
+- **Hoja de ruta en PDF con el diseño de la app**: fondo oscuro, tarjetas por fletero y estados en color.
+- **Hechas hoy** es un desplegable verde, cerrado de entrada.
+- **Agregar destino**: "Recibe desde" y "Cierra (tope)".
+- **Inicio abre al instante**: muestra la última pantalla guardada mientras carga la real (al publicar otra versión, subir `data-version` del `<main>` en index.html).
 
 ### v7.5
 - **Arreglo del tilde verde**: al tocarlo, la fila se pinta de verde y sale de la ruta en el momento (pasa a "Hechas hoy"), sin esperar al servidor. Si el guardado falla, vuelve a su lugar y avisa el motivo. Además, un dato vacío ya no puede hacer fallar un guardado.

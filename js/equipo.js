@@ -41,6 +41,7 @@ function pintar() {
   $('bloque-ajustes').classList.toggle('oculto', !ctx.organizador);
   $('txt-zona').textContent = textoZona(eq.zona);
   $('txt-base').textContent = eq.base ? eq.base.direccion : 'Sin cargar';
+  $('ayuda-base').classList.toggle('oculto', !enEquipo);
   document.querySelectorAll('#modos [data-modo]').forEach((b) => b.classList.toggle('activo', b.dataset.modo === (enEquipo ? 'equipo' : 'solo')));
 
   $('equipo-sobre').textContent = enEquipo ? 'Tu equipo' : 'Trabajás solo';
@@ -69,6 +70,7 @@ function pintar() {
             ${m.externo ? '<span class="etiqueta">Sin app</span>' : ''}
             ${m.vehiculo ? `<span class="fila-detalle">· ${esc(m.vehiculo)}</span>` : ''}
           </span>
+          ${m.base && roles.includes('fletero') ? `<span class="fila-detalle">Sale desde ${esc(m.base.direccion)}</span>` : ''}
         </span>
         ${
           ctx.organizador
@@ -157,6 +159,11 @@ function editarMiembro(uid) {
       </fieldset>
       <div class="campo ${roles.includes('fletero') ? '' : 'oculto'}" id="r-vehiculo-caja"><label for="r-vehiculo">Vehículo</label><input id="r-vehiculo" value="${esc(m.vehiculo || '')}" placeholder="Marca y modelo"></div>
       <div class="${roles.includes('fletero') && ctx.equipo.modo === 'equipo' ? '' : 'oculto'}" id="r-nolleva-caja">${noLlevaSel.html}</div>
+      ${
+        roles.includes('fletero') && ctx.equipo.modo === 'equipo'
+          ? `<div class="lista ajustes"><button type="button" class="fila" id="r-base"><span>Sale desde</span><strong>${esc(m.base ? m.base.direccion : 'El punto del equipo')}</strong></button></div>`
+          : ''
+      }
       <fieldset class="campo sin-borde">
         <legend class="etiqueta-campo">Color en el mapa</legend>
         <div class="casillas">
@@ -172,6 +179,13 @@ function editarMiembro(uid) {
   });
   const el = hoja.el;
   const noLlevaElegidas = noLlevaSel.conectar(el);
+  const botonBase = el.querySelector('#r-base');
+  if (botonBase) {
+    botonBase.addEventListener('click', () => {
+      hoja.cerrar();
+      elegirPuntoDeSalida(ctx.equipo, { uid, nombre: m.nombre });
+    });
+  }
   el.querySelector('#r-flet').addEventListener('change', (e) => {
     el.querySelector('#r-vehiculo-caja').classList.toggle('oculto', !e.target.checked);
     el.querySelector('#r-nolleva-caja').classList.toggle('oculto', !e.target.checked || ctx.equipo.modo !== 'equipo');

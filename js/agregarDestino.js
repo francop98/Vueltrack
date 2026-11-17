@@ -10,7 +10,7 @@ import { escucharClientes, guardarVuelta, fleterosDelEquipo } from './datos.js';
 import { paradaNueva, paradaDesdeCliente, paradaHecha } from './vuelta.js';
 import { activosDelDia, sugerirFletero } from './asignar.js';
 import { selectorCargas, puedeLlevar } from './cargas.js';
-import { reordenarFletero, mensajeError } from './ordenar.js';
+import { reordenarFletero, mensajeError, baseDeFletero } from './ordenar.js';
 import { esc, abrirHoja, aviso, confirmar } from './ui.js';
 
 function km(a, b) {
@@ -43,8 +43,9 @@ export function ordenConInsercion(equipo, vuelta, parada, uid) {
     .sort((a, b) => (a.orden || 0) - (b.orden || 0));
   const hechas = suyas.filter(paradaHecha);
   const pendientes = suyas.filter((p) => !paradaHecha(p));
-  const inicio = hechas.length ? hechas[hechas.length - 1] : equipo.base;
-  const fin = (equipo.ajustes || {}).volver === false ? null : equipo.base;
+  const base = baseDeFletero(equipo, uid);
+  const inicio = hechas.length ? hechas[hechas.length - 1] : base;
+  const fin = (equipo.ajustes || {}).volver === false ? null : base;
   const lugar = mejorLugar(parada, pendientes, inicio, fin);
   return [...hechas, ...pendientes.slice(0, lugar), parada, ...pendientes.slice(lugar)].map((p) => p.id);
 }
@@ -71,6 +72,10 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
             <button type="button" class="chip activo" data-tipo="retiro" aria-pressed="true">Retiro</button>
             <button type="button" class="chip" data-tipo="entrega" aria-pressed="false">Entrega</button>
           </div>
+        </div>
+        <div class="grilla-2 siempre">
+          <div class="campo"><label for="ad-desde">Recibe desde</label><input id="ad-desde" type="time" class="input"></div>
+          <div class="campo"><label for="ad-hasta">Cierra (tope)</label><input id="ad-hasta" type="time" class="input"></div>
         </div>
         <div id="ad-cargas" class="seccion"></div>
         <div class="campo ${varios ? '' : 'oculto'}"><span class="etiqueta-campo">Fletero</span>
@@ -110,6 +115,8 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   const mostrarPaso2 = () => {
     el.querySelector('#ad-paso2').classList.remove('oculto');
     el.querySelector('#ad-nombre').value = elegido.nombre;
+    el.querySelector('#ad-desde').value = elegido.desde || '';
+    el.querySelector('#ad-hasta').value = elegido.hasta || '';
     if (equipo.modo === 'equipo') {
       const sel = selectorCargas(equipo, elegido.cargas || [], { id: 'ad-c', titulo: 'Tipo de carga' });
       el.querySelector('#ad-cargas').innerHTML = sel.html;
@@ -155,12 +162,20 @@ export function abrirAgregarDestino({ ctx, fecha, vuelta }) {
   let agregando = false;
   el.querySelector('#ad-agregar').addEventListener('click', async () => {
     if (agregando || !elegido) return;
+    const desde = el.querySelector('#ad-desde').value;
+    const hasta = el.querySelector('#ad-hasta').value;
+    if (desde && hasta && desde >= hasta) {
+      aviso('El horario “desde” tiene que ser antes que el de cierre');
+      return;
+    }
     const uid = uidElegido || (activos[0] && activos[0].uid) || ctx.user.uid;
     const f = activos.find((x) => x.uid === uid);
     const nueva = {
       ...elegido,
       nombre: el.querySelector('#ad-nombre').value.trim() || elegido.direccion,
       tipo,
+      desde,
+      hasta,
       cargas: cargasElegidas(),
       fleteroUid: uid
     };

@@ -317,6 +317,11 @@ export function abrirMenu(ctx) {
     if (accion === 'salir') {
       const ok = await confirmar({ titulo: '¿Cerrar sesión?', texto: 'Vas a tener que volver a ingresar.', aceptar: 'Cerrar sesión' });
       if (!ok) return;
+      try {
+        ['vueltrack_inicio', 'vueltrack_equipo', 'vueltrack_roles'].forEach((k) => localStorage.removeItem(k));
+      } catch (e) {
+        /* sin almacenamiento */
+      }
       await signOut(auth);
       location.replace('/pages/login.html');
     }

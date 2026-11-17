@@ -130,11 +130,11 @@ service cloud.firestore {
         allow read: if esMiembro(equipoId);
         // Solo quien organiza crea, borra, reordena o cambia paradas
         allow create, delete: if esOrganizador(equipoId);
-        // El fletero de equipo solo marca cómo le fue: no puede sumar ni sacar paradas
-        // ni tocar el recorrido calculado
+        // El fletero de equipo solo marca cómo le fue (marcas): no puede sumar ni sacar
+        // paradas ni tocar el recorrido calculado
         allow update: if esOrganizador(equipoId)
           || (esMiembro(equipoId)
-              && soloCambian(['paradas', 'actualizado'])
+              && soloCambian(['paradas', 'marcas', 'actualizado'])
               && request.resource.data.paradas.size() == resource.data.paradas.size());
       }
 

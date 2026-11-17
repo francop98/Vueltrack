@@ -83,88 +83,237 @@
 
 @media print {
   @page {
-    margin: 16mm;
+    size: A4;
+    margin: 0;
   }
 
   html,
   body {
-    background: #FFFFFF !important;
-    color: #111827 !important;
+    background: #0E1420 !important;
+    color: #EEF1F6 !important;
+    height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   body::before,
   .app,
   .nav-inferior,
   .velo,
-  .aviso {
+  .aviso,
+  .splash {
     display: none !important;
   }
 
   .presupuesto {
     display: block !important;
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-    color: #111827;
-    font-size: 10pt;
-    line-height: 1.4;
+    background: #0E1420;
+    color: #EEF1F6;
+    font-size: 9.5pt;
+    line-height: 1.35;
+    padding: 12mm 12mm 10mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  .presupuesto h1 {
-    font-size: 20pt;
-    margin: 0 0 4pt;
+  .pdf-cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8mm;
   }
 
-  .presupuesto h2 {
-    font-size: 13pt;
-    margin: 16pt 0 4pt;
+  .pdf-marca {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
-  .presupuesto h3 {
-    font-size: 11pt;
-    margin: 10pt 0 2pt;
+  .pdf-marca svg {
+    width: 28px;
+    height: 28px;
   }
 
-  .presupuesto .marca-pdf {
-    color: #E8681F;
+  .pdf-marca-texto {
+    font-weight: 800;
+    font-size: 15pt;
+    letter-spacing: -0.02em;
+  }
+
+  .pdf-marca-texto span,
+  .pdf-equipo {
+    color: #F07A2B;
+  }
+
+  .pdf-equipo {
     font-weight: 800;
     font-size: 11pt;
   }
 
-  .presupuesto .tenue-pdf {
-    color: #4B5563;
+  .pdf-sobre {
+    color: #A3ACBC;
+    font-weight: 600;
   }
 
-  .presupuesto table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 6pt;
+  .pdf-titulo h1 {
+    font-size: 22pt;
+    font-weight: 800;
+    margin: 2pt 0 6mm;
   }
 
-  .presupuesto th,
-  .presupuesto td {
-    text-align: left;
-    padding: 5pt 6pt;
-    border-bottom: 1px solid #E5E7EB;
-    vertical-align: top;
+  .pdf-stats {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin-bottom: 6mm;
   }
 
-  .presupuesto td.num,
-  .presupuesto th.num {
-    text-align: right;
-    white-space: nowrap;
+  .pdf-stat {
+    background: #172033;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
   }
 
-  .presupuesto .chico-pdf {
+  .pdf-stat strong {
+    font-size: 13pt;
+    font-weight: 800;
+  }
+
+  .pdf-stat span {
+    color: #A3ACBC;
+    font-size: 8pt;
+  }
+
+  .pdf-dia h2 {
+    font-size: 12pt;
+    font-weight: 800;
+    margin: 5mm 0 3mm;
+    break-after: avoid;
+  }
+
+  .pdf-dia h2 span {
+    color: #A3ACBC;
+    font-weight: 600;
     font-size: 9pt;
-    color: #4B5563;
+    margin-left: 6px;
   }
 
-  .presupuesto tr {
+  .pdf-fletero {
+    background: #172033;
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 4mm;
+  }
+
+  .pdf-fletero-cab {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 800;
+    padding: 2px 0 6px;
+    border-bottom: 1px solid #2A3550;
+    break-after: avoid;
+  }
+
+  .pdf-punto {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  .pdf-tenue {
+    color: #A3ACBC;
+    font-weight: 500;
+    font-size: 8.5pt;
+  }
+
+  .pdf-fila {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #222C44;
     break-inside: avoid;
   }
 
-  .presupuesto .total-pdf {
-    font-size: 18pt;
+  .pdf-fila:last-child {
+    border-bottom: 0;
+  }
+
+  .pdf-num {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #1F2940;
+    color: #EEF1F6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-weight: 800;
-    margin-top: 12pt;
+    font-size: 8.5pt;
+  }
+
+  .pdf-num.ok {
+    background: #3DBE74;
+    color: #06200F;
+  }
+
+  .pdf-num.no {
+    background: #F97066;
+    color: #2A0B08;
+  }
+
+  .pdf-cuerpo {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pdf-cuerpo span {
+    color: #A3ACBC;
+    font-size: 8.5pt;
+  }
+
+  .pdf-res {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .pdf-pill {
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-weight: 800;
+    font-size: 8pt;
+    background: #1F2940;
+    color: #A3ACBC;
+  }
+
+  .pdf-pill.ok {
+    background: #143424;
+    color: #7EDBA5;
+  }
+
+  .pdf-pill.no {
+    background: #3A1D1F;
+    color: #F8B4AE;
+  }
+
+  .pdf-pie {
+    margin-top: 6mm;
+    color: #A3ACBC;
+    font-size: 8pt;
+    text-align: center;
   }
 }

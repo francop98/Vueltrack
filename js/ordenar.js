@@ -50,6 +50,22 @@ function pendientesParaEnviar(pendientes, modo) {
   }));
 }
 
+/* Punto de salida propio de cada fletero (si cargó uno distinto al del equipo) */
+export function basesDe(equipo, vehiculos) {
+  const bases = {};
+  vehiculos.forEach((uid) => {
+    const b = equipo.miembros && equipo.miembros[uid] && equipo.miembros[uid].base;
+    if (b && Number.isFinite(b.lat) && Number.isFinite(b.lng)) bases[uid] = { lat: b.lat, lng: b.lng };
+  });
+  return bases;
+}
+
+/* Punto de salida de un fletero: el suyo o el del equipo */
+export function baseDeFletero(equipo, uid) {
+  const b = equipo.miembros && equipo.miembros[uid] && equipo.miembros[uid].base;
+  return b && Number.isFinite(b.lat) ? b : equipo.base;
+}
+
 /* Capacidad (bultos) de cada fletero, si la cargó en Mi vehículo */
 function capacidadesDe(equipo, vehiculos) {
   const caps = {};
@@ -91,7 +107,8 @@ export function unirRetiros(paradas) {
  */
 export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: modoPedido, salida, orden = 'optimo', desde = null, noLleva = {} }) {
   let modo = modoPedido;
-  if (!equipo.base || equipo.base.lat == null) throw new Error('sin-base');
+  // Hace falta el punto de salida del equipo o el de cada fletero que sale
+  if ((!equipo.base || equipo.base.lat == null) && vehiculos.some((uid) => !baseDeFletero(equipo, uid))) throw new Error('sin-base');
 
   const hechas = paradas.filter(paradaHecha).map((p) => ({ ...p }));
   const pendientes = paradas.filter((p) => !paradaHecha(p)).map((p) => ({ ...p }));
@@ -115,7 +132,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
 
   if (pendientes.length) {
     const resultado = await optimizar({
-      base: { lat: equipo.base.lat, lng: equipo.base.lng },
+      base: equipo.base && equipo.base.lat != null ? { lat: equipo.base.lat, lng: equipo.base.lng } : baseDeFletero(equipo, vehiculos[0]),
       desde,
       volver: ajustes.volver !== false,
       demora: Number(ajustes.demora ?? 5),
@@ -125,6 +142,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
       orden,
       paradas: pendientesParaEnviar(pendientes, modo),
       capacidades: capacidadesDe(equipo, vehiculos),
+      bases: basesDe(equipo, vehiculos),
       noLleva,
       pausa: pausaDe(ajustes)
     });

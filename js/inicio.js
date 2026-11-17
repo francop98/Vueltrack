@@ -112,6 +112,7 @@ function pintar() {
   pintarProxima(grupos);
   pintarListas(grupos);
   pintarHechas(grupos);
+  guardarFoto();
 }
 
 function pintarFiltro(grupos) {
@@ -155,6 +156,7 @@ function pintarVacio() {
     $('vacio-texto').textContent = 'Cuando el organizador reparta la vuelta, te aparece acá.';
     mostrar('vacio-boton', false);
   }
+  guardarFoto();
 }
 
 function uidParaProxima(grupos) {
@@ -740,8 +742,24 @@ $('btn-instalar-cerrar').addEventListener('click', () => {
 
 $('aviso-zona').addEventListener('click', () => elegirZona(ctx.equipo));
 
+/* Foto de la pantalla para abrir al instante la próxima vez (se reemplaza al cargar) */
+let relojFoto = null;
+function guardarFoto() {
+  clearTimeout(relojFoto);
+  relojFoto = setTimeout(() => {
+    try {
+      const main = $('principal');
+      main.classList.remove('desde-foto');
+      localStorage.setItem('vueltrack_inicio', JSON.stringify({ v: main.dataset.version, fecha, uid: ctx.user.uid, html: main.innerHTML }));
+    } catch (e) {
+      /* sin almacenamiento */
+    }
+  }, 600);
+}
+
 function pintarCabecera() {
   window.dispatchEvent(new Event('vueltrack:listo'));
+  $('principal').classList.remove('desde-foto');
   $('aviso-zona').classList.toggle('oculto', !ctx.organizador || !!ctx.equipo.zona);
   const nombre = (ctx.yo.nombre || '').split(' ')[0];
   $('saludo').textContent = nombre ? `Hola, ${nombre}` : 'Hola';

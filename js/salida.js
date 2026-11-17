@@ -2,26 +2,40 @@
    Vueltrack — elegir el punto de salida
    (buscando una dirección o con la ubicación actual del celular)
    ========================================================= */
-import { actualizarEquipo } from './datos.js';
+import { actualizarEquipo, actualizarMiembro } from './datos.js';
 import { crearBuscador, htmlBuscador } from './buscador.js';
 import { miUbicacion, direccionDe } from './rutas.js';
 import { ICONOS, abrirHoja, aviso } from './ui.js';
 
-export function elegirPuntoDeSalida(equipo) {
+/**
+ * Punto de salida del equipo o, con fletero, el propio de ese fletero
+ * (si no tiene uno propio, sale del punto del equipo).
+ */
+export function elegirPuntoDeSalida(equipo, fletero = null) {
+  const propio = fletero && equipo.miembros && equipo.miembros[fletero.uid] && equipo.miembros[fletero.uid].base;
   const hoja = abrirHoja({
-    titulo: 'Punto de salida',
+    titulo: fletero ? `Punto de salida de ${fletero.nombre}` : 'Punto de salida',
     html: `
       <button type="button" class="btn btn-primario btn-grande" id="base-aca">${ICONOS.ubicacion}Usar mi ubicación actual</button>
       <div class="separador">o buscá una dirección</div>
       ${htmlBuscador('nueva-base', 'Dirección del punto de salida')}
-      <p class="texto-tenue">La vuelta arranca acá y, si elegiste volver, termina acá.</p>`
+      <p class="texto-tenue">${
+        fletero
+          ? `Su vuelta arranca acá y, si elegiste volver, termina acá. Ahora: ${propio ? propio.direccion : `el del equipo${equipo.base ? ` (${equipo.base.direccion})` : ''}`}.`
+          : 'La vuelta arranca acá y, si elegiste volver, termina acá. Cada fletero puede tener el suyo desde Equipo.'
+      }</p>
+      ${fletero && propio ? '<button type="button" class="btn" id="base-equipo">Usar el punto de salida del equipo</button>' : ''}`
   });
 
   async function guardar(base) {
-    await actualizarEquipo(equipo.id, { base });
+    if (fletero) await actualizarMiembro(equipo.id, fletero.uid, { base });
+    else await actualizarEquipo(equipo.id, { base });
     hoja.cerrar();
-    aviso('Punto de salida guardado');
+    aviso(base ? 'Punto de salida guardado' : 'Sale del punto del equipo');
   }
+
+  const delEquipo = hoja.el.querySelector('#base-equipo');
+  if (delEquipo) delEquipo.addEventListener('click', () => guardar(null));
 
   hoja.el.querySelector('#base-aca').addEventListener('click', async (e) => {
     const boton = e.currentTarget;

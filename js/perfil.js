@@ -3,10 +3,8 @@
    Datos, tipo de perfil (independiente, organizador, fletero de
    equipo), rol, vehículo y cuenta, todo en un solo lugar.
    ========================================================= */
-import { iniciarPantalla, PERFILES, abrirSeguridad } from './sesion.js';
+import { iniciarPantalla, PERFILES } from './sesion.js';
 import { guardarUsuario, actualizarMiembro, salirDelEquipo, alInstante } from './datos.js';
-import { auth } from './firebase.js';
-import { signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { aviso, confirmar, esc } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -154,11 +152,4 @@ async function dejarEquipo() {
   location.replace('/pages/bienvenida.html');
 }
 
-/* ---------- Cuenta ---------- */
-$('btn-seguridad').addEventListener('click', () => abrirSeguridad(ctx));
-$('btn-cerrar').addEventListener('click', async () => {
-  const ok = await confirmar({ titulo: '¿Cerrar sesión?', texto: 'Vas a tener que volver a ingresar.', aceptar: 'Cerrar sesión' });
-  if (!ok) return;
-  await signOut(auth);
-  location.replace('/pages/login.html');
-});
+

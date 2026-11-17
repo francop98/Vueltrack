@@ -39,7 +39,7 @@
   <script src="/js/splash.js"></script>
 
   <div class="app">
-    <main class="contenido">
+    <main class="contenido" id="principal" data-version="7.6">
       <header class="barra-sup">
         <div class="barra-izq">
           <button type="button" class="btn-icono" id="btn-menu" aria-label="Abrir menú" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
@@ -88,9 +88,11 @@
       </section>
 
       <section class="seccion oculto" id="bloque-hechas">
-        <h2 class="subtitulo" id="hechas-titulo">Hechas hoy</h2>
-        <div class="lista lista-hechas" id="lista-hechas"></div>
-        <a class="btn btn-contorno" href="/pages/historial.html">Ver la hoja de ruta</a>
+        <details class="plegable-hechas" id="plegable-hechas">
+          <summary><span id="hechas-titulo">Hechas hoy</span><span class="plegable-flecha" aria-hidden="true"></span></summary>
+          <div class="lista lista-hechas" id="lista-hechas"></div>
+          <a class="btn btn-contorno" href="/pages/historial.html">Ver la hoja de ruta</a>
+        </details>
       </section>
 
       <div class="grilla-stats oculto" id="stats">
@@ -129,6 +131,24 @@
       <a class="alertas oculto" id="alertas" href="/pages/vehiculo.html"></a>
 
     </main>
+    <script>
+      /* Abre al instante: muestra la última vuelta guardada mientras carga la de verdad */
+      (function () {
+        try {
+          var foto = JSON.parse(localStorage.getItem('vueltrack_inicio') || 'null');
+          var main = document.getElementById('principal');
+          var d = new Date();
+          var hoy = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+          if (!foto || foto.v !== main.dataset.version || foto.fecha !== hoy || !foto.html) return;
+          main.innerHTML = foto.html;
+          main.classList.add('desde-foto');
+          var splash = document.getElementById('splash');
+          if (splash) splash.remove();
+        } catch (e) {
+          /* sin foto */
+        }
+      })();
+    </script>
   </div>
 
   <nav class="nav-inferior" id="nav" aria-label="Secciones"></nav>

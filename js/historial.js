@@ -399,47 +399,73 @@ $('btn-whatsapp').addEventListener('click', () => {
 $('btn-pdf').addEventListener('click', () => {
   const [desde, hasta] = fechasDelRango();
   const t = datos.total;
+  const equipo = ctx.equipo.modo !== 'solo' && ctx.equipo.nombre ? ctx.equipo.nombre : '';
+  const stat = (valor, nombre) => `<div class="pdf-stat"><strong>${esc(String(valor))}</strong><span>${esc(nombre)}</span></div>`;
+  // Con el mismo diseño de la app: fondo oscuro, tarjetas y estados en color
   $('presupuesto').innerHTML = `
-    <span class="marca-pdf">${esc(ctx.equipo.modo !== 'solo' && ctx.equipo.nombre ? ctx.equipo.nombre : 'Vueltrack')}</span>
-    <h1>Hoja de ruta</h1>
-    <div class="tenue-pdf">${esc(textoRango(desde, hasta))} · ${esc(nombreDelFiltro())}</div>
-    <div class="tenue-pdf">${t.paradas} destinos · ${t.hechas} hechos · ${t.noHechas} no se pudo · ${t.pendientes} pendientes · ${esc(formatoKm(t.km))}${
-      t.tiempo ? ` · ${esc(formatoDuracion(t.tiempo))}` : ''
-    }</div>
+    <header class="pdf-cabecera">
+      <div class="pdf-marca">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#172033"/><path d="M9 22c0-6 3-11 7-11s7 5 7 9-3 5-5 5-3.5-2-3.5-4" fill="none" stroke="#F07A2B" stroke-width="2.6" stroke-linecap="round"/><circle cx="9" cy="22" r="2.4" fill="#FFFFFF"/></svg>
+        <span class="pdf-marca-texto">vuel<span>track</span></span>
+      </div>
+      ${equipo ? `<span class="pdf-equipo">${esc(equipo)}</span>` : ''}
+    </header>
+    <div class="pdf-titulo">
+      <span class="pdf-sobre">${esc(textoRango(desde, hasta))} · ${esc(nombreDelFiltro())}</span>
+      <h1>Hoja de ruta</h1>
+    </div>
+    <div class="pdf-stats">
+      ${stat(t.paradas, 'destinos')}
+      ${stat(t.hechas, 'hechos')}
+      ${stat(t.noHechas, 'no se pudo')}
+      ${stat(t.pendientes, 'pendientes')}
+      ${stat(formatoKm(t.km), 'recorrido')}
+      ${stat(t.tiempo ? formatoDuracion(t.tiempo) : '—', 'en la calle')}
+    </div>
     ${datos.dias
       .map(
         (d) => `
-      <h2>${esc(fechaLarga(d.fecha))}</h2>
-      ${d.grupos
-        .map(
-          (g) => `
-        <h3>${esc(g.nombre)}${g.vehiculo ? ` · ${esc(g.vehiculo)}` : ''}</h3>
-        <table>
-          <tr><th class="num">#</th><th>Destino</th><th>Tipo</th><th>Resultado</th><th class="num">Hora</th></tr>
-          ${g.paradas
-            .map((p, i) => {
-              const extra = [
-                p.direccion,
-                (p.cargas || []).join(', '),
-                p.motivo && p.estado !== 'entregado' ? p.motivo : '',
-                p.marcadoPor && p.marcadoPor !== g.uid && nombreDe(p.marcadoPor) ? `marcó ${nombreDe(p.marcadoPor)}` : ''
-              ]
-                .filter(Boolean)
-                .join(' · ');
-              return `<tr>
-              <td class="num">${i + 1}</td>
-              <td><strong>${esc(p.nombre)}</strong><div class="chico-pdf">${esc(extra)}</div></td>
-              <td>${p.tipo === 'retiro' ? 'Retiro' : 'Entrega'}</td>
-              <td>${esc(resultado(p).texto)}</td>
-              <td class="num">${esc(horaDe(p))}</td>
-            </tr>`;
-            })
-            .join('')}
-        </table>`
-        )
-        .join('')}`
+      <section class="pdf-dia">
+        <h2>${esc(fechaLarga(d.fecha))} <span>${d.hechas} de ${d.paradas} hechos</span></h2>
+        ${d.grupos
+          .map((g) => {
+            const hechas = g.paradas.filter((p) => p.estado === 'entregado').length;
+            const r = g.ruta;
+            return `
+          <div class="pdf-fletero">
+            <div class="pdf-fletero-cab">
+              <span><i class="pdf-punto" style="background:${esc(g.color)}"></i>${esc(g.nombre)}${g.vehiculo ? ` · ${esc(g.vehiculo)}` : ''}</span>
+              <span class="pdf-tenue">${hechas} de ${g.paradas.length} hechos${r && r.distancia ? ` · ${esc(formatoKm(r.distancia))}` : ''}${
+                r && r.duracion ? ` · ${esc(formatoDuracion(r.duracion))}` : ''
+              }</span>
+            </div>
+            ${g.paradas
+              .map((p, i) => {
+                const res = resultado(p);
+                const extra = [
+                  p.tipo === 'retiro' ? 'Retiro' : 'Entrega',
+                  p.direccion,
+                  (p.cargas || []).join(', '),
+                  p.motivo && p.estado !== 'entregado' ? p.motivo : '',
+                  p.marcadoPor && p.marcadoPor !== g.uid && nombreDe(p.marcadoPor) ? `marcó ${nombreDe(p.marcadoPor)}` : ''
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+                return `
+            <div class="pdf-fila">
+              <span class="pdf-num ${res.clase}">${i + 1}</span>
+              <span class="pdf-cuerpo"><strong>${esc(p.nombre)}</strong><span>${esc(extra)}</span></span>
+              <span class="pdf-res"><span class="pdf-pill ${res.clase}">${esc(res.texto)}</span><span class="pdf-tenue">${esc(horaDe(p))}</span></span>
+            </div>`;
+              })
+              .join('')}
+          </div>`;
+          })
+          .join('')}
+      </section>`
       )
-      .join('')}`;
+      .join('')}
+    <footer class="pdf-pie">Generado con Vueltrack · ${esc(fechaLarga(fechaISO()))}</footer>`;
   const titulo = document.title;
   document.title = `Vueltrack hoja de ruta ${desde === hasta ? desde : `${desde} a ${hasta}`}`;
   window.print();

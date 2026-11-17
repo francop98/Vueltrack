@@ -4,7 +4,7 @@
    cliente por WhatsApp con link de seguimiento.
    Lo usan la pantalla de la parada y el modo manejo.
    ========================================================= */
-import { cambiarParada, agregarParadasADia, guardarSeguimiento, fleterosDelEquipo } from './datos.js';
+import { cambiarParada, agregarParadasADia, guardarSeguimiento, fleterosDelEquipo, marcarParadas, vueltaGuardada } from './datos.js';
 import { paradaHecha, copiaParaOtroDia, queSeHizo } from './vuelta.js';
 import {
   fechaISO,
@@ -93,22 +93,21 @@ export function conectarAviso(enlace, ctx, fecha, obtenerVuelta, obtenerParada) 
 /* ---------- Marcar estado ---------- */
 
 export async function marcarEstado(ctx, fecha, paradaId, estado, extra = {}) {
-  const hora = horaAhoraTexto();
-  const paradas = await cambiarParada(ctx.equipo.id, fecha, paradaId, (lista, i) => {
-    if (i >= 0) {
-      lista[i] = {
-        ...lista[i],
-        estado,
-        horaEstado: estado === 'pendiente' ? '' : hora,
-        marcadoPor: ctx.user.uid,
-        ...extra
-      };
-    }
-    return lista;
-  });
-  const p = paradas.find((x) => x.id === paradaId);
-  if (p) actualizarSeguimientos(ctx, fecha, paradas, p.fleteroUid);
-  return paradas;
+  const datos = {
+    estado,
+    horaEstado: estado === 'pendiente' ? '' : horaAhoraTexto(),
+    marcadoPor: ctx.user.uid,
+    ...extra
+  };
+  await marcarParadas(ctx.equipo.id, fecha, { [paradaId]: datos });
+  // Link de seguimiento de los clientes de ese fletero (sin hacer esperar)
+  vueltaGuardada(ctx.equipo.id, fecha)
+    .then((v) => {
+      const paradas = (v && v.paradas) || [];
+      const p = paradas.find((x) => x.id === paradaId);
+      if (p) actualizarSeguimientos(ctx, fecha, paradas, p.fleteroUid);
+    })
+    .catch(() => {});
 }
 
 /* Pasa la parada (y su par retiro/entrega, si está pendiente) a otro día */
@@ -135,15 +134,14 @@ export async function reprogramar(ctx, fecha, vuelta, p, nuevaFecha, motivo = ''
   await agregarParadasADia(ctx.equipo.id, nuevaFecha, copias);
 
   const hora = horaAhoraTexto();
-  const ids = new Set(grupo.map((x) => x.id));
-  const paradas = await cambiarParada(ctx.equipo.id, fecha, p.id, (lista) =>
-    lista.map((x) =>
-      ids.has(x.id)
-        ? { ...x, estado: 'reprogramado', horaEstado: hora, marcadoPor: ctx.user.uid, reprogramadaA: nuevaFecha, motivo: motivo || x.motivo || '' }
-        : x
-    )
-  );
-  actualizarSeguimientos(ctx, fecha, paradas, p.fleteroUid);
+  const cambios = {};
+  grupo.forEach((x) => {
+    cambios[x.id] = { estado: 'reprogramado', horaEstado: hora, marcadoPor: ctx.user.uid, reprogramadaA: nuevaFecha, motivo: motivo || x.motivo || '' };
+  });
+  await marcarParadas(ctx.equipo.id, fecha, cambios);
+  vueltaGuardada(ctx.equipo.id, fecha)
+    .then((v) => v && actualizarSeguimientos(ctx, fecha, v.paradas || [], p.fleteroUid))
+    .catch(() => {});
   return copias.length;
 }
 
