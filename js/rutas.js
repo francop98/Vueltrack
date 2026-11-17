@@ -7,10 +7,15 @@ import { tokenActual } from './sesion.js';
 
 async function pedir(url, opciones = {}) {
   const token = await tokenActual();
-  const resp = await fetch(url, {
-    ...opciones,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opciones.headers || {}) }
-  });
+  let resp;
+  try {
+    resp = await fetch(url, {
+      ...opciones,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opciones.headers || {}) }
+    });
+  } catch (e) {
+    throw new Error('sin-conexion');
+  }
   let datos = null;
   try {
     datos = await resp.json();
@@ -20,6 +25,7 @@ async function pedir(url, opciones = {}) {
   if (!resp.ok) {
     const error = new Error((datos && datos.error) || 'error-servidor');
     error.estado = resp.status;
+    error.detalle = (datos && datos.detalle) || '';
     throw error;
   }
   return datos;

@@ -278,6 +278,19 @@ async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo
   };
 }
 
+/* Detalle corto del error de OpenRouteService, para mostrarlo en la app */
+function textoDetalle(e) {
+  const d = e.detalle;
+  let texto = '';
+  if (d && typeof d === 'object') {
+    const err = d.error;
+    texto = typeof err === 'string' ? err : (err && (err.message || err.code)) || d.message || '';
+  }
+  return [e.estado ? `ORS ${e.estado}` : e.message, String(texto).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140)]
+    .filter(Boolean)
+    .join(': ');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return responder(res, 405, { error: 'metodo' });
   const uid = await verificarUsuario(req);
@@ -372,6 +385,9 @@ export default async function handler(req, res) {
   } catch (e) {
     console.log('[optimizar] error', e.message, e.estado || '', JSON.stringify(e.detalle || '').slice(0, 300));
     const limite = e.estado === 429;
-    return responder(res, limite ? 429 : 502, { error: limite ? 'limite-diario' : 'optimizacion' });
+    if (limite) return responder(res, 429, { error: 'limite-diario' });
+    if (e.message === 'falta-ORS_API_KEY') return responder(res, 500, { error: 'falta-clave' });
+    if (e.estado === 401 || e.estado === 403) return responder(res, 502, { error: 'clave-invalida', detalle: textoDetalle(e) });
+    return responder(res, 502, { error: 'optimizacion', detalle: textoDetalle(e) });
   }
 }

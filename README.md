@@ -1,4 +1,4 @@
-# Vueltrack v7.7
+# Vueltrack v7.8
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,11 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v7.8
+- Al ordenar, los destinos **sin ubicación en el mapa** ya no hacen fallar el cálculo: se ordena el resto y esos quedan al final, con aviso.
+- Cuando no se puede ordenar, la app dice **el motivo real** (sin conexión, falta o error de la clave ORS_API_KEY, punto de salida, destinos sin ubicación, o el detalle que devuelve OpenRouteService).
+- Ordenar desde Armar también conserva quiénes salen, qué lleva cada uno y lo ya marcado.
 
 ### v7.7
 - **Repartir → "Confirmar y mandar las vueltas"** ya no queda bloqueado: si no se calculó el reparto, lo calcula y manda en un solo toque. Si el recorrido no se puede calcular, explica por qué y ofrece "Mandar sin ordenar" (cada fletero ve sus paradas igual).

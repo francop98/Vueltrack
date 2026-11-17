@@ -305,10 +305,13 @@ async function calcular() {
       if (!paradaHecha(p) && p.fleteroUid) asignacion.set(p.id, p.fleteroUid);
     });
     const aviso1 = $('aviso-sin-asignar');
-    aviso1.textContent = calculo.sinAsignar
-      ? `${calculo.sinAsignar} paradas no entran en el horario de nadie. Revisá los horarios de cierre o sumá otro fletero.`
-      : '';
-    aviso1.classList.toggle('oculto', !calculo.sinAsignar);
+    aviso1.textContent = [
+      calculo.sinAsignar ? `${calculo.sinAsignar} paradas no entran en el horario de nadie. Revisá los horarios de cierre o sumá otro fletero.` : '',
+      calculo.sinUbicacion ? `${calculo.sinUbicacion} destinos no tienen ubicación en el mapa: quedan al final, sin ordenar. Abrilos y marcá dónde quedan.` : ''
+    ]
+      .filter(Boolean)
+      .join(' ');
+    aviso1.classList.toggle('oculto', !calculo.sinAsignar && !calculo.sinUbicacion);
     return true;
   } catch (e) {
     console.error('No se pudo calcular el reparto', e);

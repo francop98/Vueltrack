@@ -900,7 +900,8 @@ $('btn-ordenar').addEventListener('click', async () => {
       vehiculos: [uid],
       modo: 'grupos',
       salida: $('salida').value || horaDeSalida(vuelta, ctx.equipo, fecha),
-      orden: (ctx.equipo.ajustes || {}).orden || 'optimo'
+      orden: (ctx.equipo.ajustes || {}).orden || 'optimo',
+      vuelta
     });
     if (sinAsignar) aviso(`${sinAsignar} paradas no entran en el horario o en la capacidad del vehículo. Revisá horarios y bultos.`);
     else if (llegaTarde) aviso(`Con este orden, ${llegaTarde} paradas llegan después de su horario de cierre.`);

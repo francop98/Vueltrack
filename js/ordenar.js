@@ -130,7 +130,17 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
   }
   if (modo === 'grupos') unirRetiros(pendientes);
 
-  if (pendientes.length) {
+  // Los destinos sin ubicación en el mapa no se pueden ordenar: quedan al final de su fletero
+  const conUbicacion = pendientes.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  const sinUbicacion = pendientes.length - conUbicacion.length;
+  pendientes.forEach((p) => {
+    if (Number.isFinite(p.lat) && Number.isFinite(p.lng)) return;
+    p.orden = null;
+    p.llegada = null;
+    if (!p.fleteroUid || !vehiculos.includes(p.fleteroUid)) p.fleteroUid = vehiculos[0];
+  });
+
+  if (conUbicacion.length) {
     const resultado = await optimizar({
       base: equipo.base && equipo.base.lat != null ? { lat: equipo.base.lat, lng: equipo.base.lng } : baseDeFletero(equipo, vehiculos[0]),
       desde,
@@ -140,7 +150,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
       vehiculos,
       modo,
       orden,
-      paradas: pendientesParaEnviar(pendientes, modo),
+      paradas: pendientesParaEnviar(conUbicacion, modo),
       capacidades: capacidadesDe(equipo, vehiculos),
       bases: basesDe(equipo, vehiculos),
       noLleva,
@@ -151,6 +161,8 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
     ordenadas = aplicado.paradas;
     sinAsignar = (resultado.sinAsignar || []).length;
     llegaTarde = (resultado.llegaTarde || []).length;
+  } else {
+    ordenadas = pendientes;
   }
 
   // Numeración: primero lo ya hecho de cada fletero, después lo nuevo
@@ -165,7 +177,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
     if (p.orden) p.orden += hechasPorFletero[p.fleteroUid] || 0;
   });
 
-  return { paradas: [...hechas, ...ordenadas], rutas, sinAsignar, llegaTarde, salida: horaSalida, orden };
+  return { paradas: [...hechas, ...ordenadas], rutas, sinAsignar, llegaTarde, sinUbicacion, salida: horaSalida, orden };
 }
 
 export async function guardarCalculo(equipo, fecha, calculo, vueltaActual = null) {
@@ -186,7 +198,7 @@ export async function guardarCalculo(equipo, fecha, calculo, vueltaActual = null
 
 export async function ordenarYGuardar(op) {
   const calculo = await calcularVuelta(op);
-  await guardarCalculo(op.equipo, op.fecha, calculo);
+  await guardarCalculo(op.equipo, op.fecha, calculo, op.vuelta || null);
   return calculo;
 }
 
@@ -231,7 +243,19 @@ export function mensajeError(e) {
     'sin-lugar': 'Algunas paradas no entran en el horario o en la capacidad del vehículo.',
     'demasiadas-paradas': 'Un fletero no puede tener más de 48 paradas en una vuelta. Repartilas entre más fleteros o en dos días.',
     'limite-diario': 'Se alcanzó el límite gratuito de cálculos de hoy. Mañana vuelve a funcionar.',
-    'sin-sesion': 'Se cerró tu sesión. Volvé a ingresar.'
+    'sin-sesion': 'Se cerró tu sesión. Volvé a ingresar.',
+    'sin-conexion': 'No hay conexión a internet. Probá de nuevo cuando tengas señal.',
+    'datos-base': 'Falta el punto de salida. Cargalo en Equipo → Punto de salida.',
+    'datos-paradas': 'Hay destinos sin ubicación en el mapa. Abrilos y marcá dónde quedan.',
+    'datos-vehiculos': 'Elegí al menos un fletero que salga.',
+    'falta-clave': 'Falta configurar la clave de OpenRouteService en Vercel (ORS_API_KEY).',
+    'clave-invalida': 'OpenRouteService rechazó la clave (ORS_API_KEY). Revisala en Vercel y en account.heigit.org.'
   };
-  return textos[e && e.message] || 'No se pudo ordenar. Revisá la conexión y probá de nuevo.';
+  const codigo = e && e.message;
+  if (textos[codigo]) return textos[codigo];
+  // Algo inesperado: se muestra el detalle para poder revisarlo
+  const detalle = [codigo && codigo !== 'optimizacion' ? codigo : '', e && e.detalle ? e.detalle : '', e && e.estado ? `HTTP ${e.estado}` : '']
+    .filter(Boolean)
+    .join(' · ');
+  return `No se pudo ordenar el recorrido.${detalle ? ` Detalle: ${detalle}` : ' Probá de nuevo en un momento.'}`;
 }
