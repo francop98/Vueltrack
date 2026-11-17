@@ -30,20 +30,34 @@ export async function verificarUsuario(req) {
   }
 }
 
-export async function pedirORS(ruta, { method = 'GET', body } = {}) {
+/* tiempo: milisegundos máximos de espera (si OpenRouteService se cuelga, no se espera de más) */
+export async function pedirORS(ruta, { method = 'GET', body, tiempo = 8000 } = {}) {
   if (!process.env.ORS_API_KEY) throw new Error('falta-ORS_API_KEY');
   // En los GET (búsqueda de direcciones) la clave también va en la dirección
   let url = `${ORS}${ruta}`;
   if (method === 'GET') url += `${url.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(process.env.ORS_API_KEY)}`;
-  const resp = await fetch(url, {
-    method,
-    headers: {
-      Authorization: process.env.ORS_API_KEY,
-      'Content-Type': 'application/json',
-      Accept: 'application/json, application/geo+json'
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
+  const corte = new AbortController();
+  const reloj = setTimeout(() => corte.abort(), tiempo);
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method,
+      signal: corte.signal,
+      headers: {
+        Authorization: process.env.ORS_API_KEY,
+        'Content-Type': 'application/json',
+        Accept: 'application/json, application/geo+json'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+  } catch (e) {
+    clearTimeout(reloj);
+    const error = new Error('ors');
+    error.estado = 504;
+    error.detalle = { error: corte.signal.aborted ? 'no respondió a tiempo' : 'sin conexión con el servicio' };
+    throw error;
+  }
+  clearTimeout(reloj);
   const texto = await resp.text();
   let datos = null;
   try {

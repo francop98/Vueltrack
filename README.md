@@ -1,4 +1,4 @@
-# Vueltrack v7.8
+# Vueltrack v7.9
 
 Armá la vuelta. Seguila parada por parada.
 
@@ -90,6 +90,10 @@ Todas las rutas son absolutas desde la raíz (`/styles.css`, `/js/...`, `/pages/
 - “Parejo” calcula todo junto hasta 3 fleteros y 48 paradas; con más, reparte por zonas parejas.
 
 ## Versiones
+
+### v7.9
+- **Ordenar ya no depende de que OpenRouteService responda**: si su optimizador falla ("There was a problem proxying the request") o tarda (antes terminaba en HTTP 504), el servidor ordena con un método propio (la más cercana + mejora 2-opt; reparto parejo por sectores respetando lo que no lleva cada uno; urgentes primero y retiro antes que su entrega). Los horarios salen del trazado de OpenRouteService y, si tampoco responde, se estiman. La app avisa que el orden es aproximado.
+- Cada pedido a OpenRouteService tiene tiempo máximo (8 s el optimizador, 5 s el trazado), para no llegar al límite de Vercel.
 
 ### v7.8
 - Al ordenar, los destinos **sin ubicación en el mapa** ya no hacen fallar el cálculo: se ordena el resto y esos quedan al final, con aviso.

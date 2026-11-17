@@ -893,7 +893,7 @@ $('btn-ordenar').addEventListener('click', async () => {
   botonCargando(boton, true);
   try {
     const lista = paradas().map((p) => (paradaHecha(p) ? p : { ...p, fleteroUid: uid }));
-    const { sinAsignar, llegaTarde } = await ordenarYGuardar({
+    const { sinAsignar, llegaTarde, aproximado } = await ordenarYGuardar({
       equipo: ctx.equipo,
       fecha,
       paradas: lista,
@@ -905,6 +905,7 @@ $('btn-ordenar').addEventListener('click', async () => {
     });
     if (sinAsignar) aviso(`${sinAsignar} paradas no entran en el horario o en la capacidad del vehículo. Revisá horarios y bultos.`);
     else if (llegaTarde) aviso(`Con este orden, ${llegaTarde} paradas llegan después de su horario de cierre.`);
+    else if (aproximado) aviso('El servicio de rutas no respondió: se ordenó con un método propio, aproximado.');
     location.href = fecha === fechaISO() ? '/' : `/pages/armar.html?fecha=${fecha}`;
   } catch (e) {
     aviso(mensajeError(e));

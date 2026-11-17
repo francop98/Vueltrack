@@ -132,7 +132,7 @@ async function resolver({ base, desde, volver, demora, salida, paradas, vehiculo
 
   const cuerpo = { jobs, vehicles, options: { g: true } };
   if (shipments.length) cuerpo.shipments = shipments;
-  const datos = await pedirORS('/vroom/v0', { method: 'POST', body: cuerpo });
+  const datos = await pedirORS('/vroom/v0', { method: 'POST', body: cuerpo, tiempo: 8000 });
 
   const idDePaso = (s) => s.id ?? s.job;
 
@@ -228,21 +228,109 @@ function retiroAntesQueEntrega(lista) {
   return resultado;
 }
 
-/* Ruta en un orden fijo: pide a OpenRouteService el trazado y los tiempos de cada tramo */
-async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo, orden, pausa = null }) {
-  const inicio = desde || base;
-  const ordenadas = ordenarFijo(paradas, orden, base, inicio);
+/* ---------- Orden propio (si el optimizador de OpenRouteService no responde) ----------
+   La más cercana a la anterior y después se mejora cruzando tramos (2-opt).
+   Las urgentes van primero y cada retiro antes que su entrega. */
+function largoRecorrido(lista, inicio, fin) {
+  let km = 0;
+  let anterior = inicio;
+  lista.forEach((p) => {
+    km += distanciaKm(anterior, p);
+    anterior = p;
+  });
+  if (fin) km += distanciaKm(anterior, fin);
+  return km;
+}
+
+function ordenLocal(paradas, inicio, fin) {
+  const urgentes = porCercania(paradas.filter((p) => p.urgente), inicio);
+  const desde = urgentes.length ? urgentes[urgentes.length - 1] : inicio;
+  let resto = porCercania(paradas.filter((p) => !p.urgente), desde);
+  // 2-opt: da vuelta un tramo si así el recorrido queda más corto
+  let mejoro = true;
+  let vueltas = 0;
+  while (mejoro && vueltas < 50) {
+    mejoro = false;
+    vueltas++;
+    for (let a = 0; a < resto.length - 1; a++) {
+      for (let b = a + 1; b < resto.length; b++) {
+        const prueba = [...resto.slice(0, a), ...resto.slice(a, b + 1).reverse(), ...resto.slice(b + 1)];
+        if (largoRecorrido(prueba, desde, fin) + 0.001 < largoRecorrido(resto, desde, fin)) {
+          resto = prueba;
+          mejoro = true;
+        }
+      }
+    }
+  }
+  return retiroAntesQueEntrega([...urgentes, ...resto]);
+}
+
+/* Reparto propio entre varios fleteros: por sectores alrededor del punto de salida,
+   parejo en cantidad, respetando lo que no lleva cada uno */
+function repartoLocal(paradas, vehiculos, base, noLleva) {
+  const angulo = (p) => Math.atan2(p.lat - base.lat, p.lng - base.lng);
+  const orden = [...paradas].sort((a, b) => angulo(a) - angulo(b));
+  const cupo = Math.ceil(orden.length / vehiculos.length);
+  const grupos = new Map(vehiculos.map((v) => [v, []]));
+  orden.forEach((p, i) => {
+    let v = vehiculos[Math.min(vehiculos.length - 1, Math.floor(i / cupo))];
+    const noPuede = (uid) => (p.cargas || []).some((c) => (noLleva[uid] || []).includes(c));
+    if (noPuede(v)) v = vehiculos.find((x) => !noPuede(x)) || v;
+    grupos.get(v).push(p);
+  });
+  // Cada entrega va con el fletero de su retiro
+  const deQuien = new Map();
+  grupos.forEach((lista, v) => lista.forEach((p) => deQuien.set(p.id, v)));
+  paradas.forEach((p) => {
+    if (p.tipo !== 'retiro' || !p.entregaId || !deQuien.has(p.entregaId)) return;
+    const vR = deQuien.get(p.id);
+    const vE = deQuien.get(p.entregaId);
+    if (vR === vE) return;
+    const entrega = grupos.get(vE).find((x) => x.id === p.entregaId);
+    grupos.set(vE, grupos.get(vE).filter((x) => x.id !== p.entregaId));
+    grupos.get(vR).push(entrega);
+  });
+  return grupos;
+}
+
+/* Recorrido en un orden ya decidido: trazado y tiempos de OpenRouteService;
+   si no responde, se estiman (distancia en línea recta × 1,35 a 28 km/h) */
+async function rutaConOrden({ inicio, fin, volver, demora, salida, ordenadas, vehiculo, pausa = null, estimar = false }) {
   const puntos = [inicio, ...ordenadas];
-  if (volver) puntos.push(base);
+  if (volver) puntos.push(fin);
   if (puntos.length < 2) puntos.push(inicio);
 
-  const datos = await pedirORS('/openrouteservice/v2/directions/driving-car/json', {
-    method: 'POST',
-    body: { coordinates: puntos.map((p) => [p.lng, p.lat]), instructions: false }
-  });
-  const ruta = (datos.routes || [])[0];
-  if (!ruta) throw new Error('sin-ruta');
-  const tramos = ruta.segments || [];
+  let tramos = null;
+  let distancia = null;
+  let geometria = '';
+  if (!estimar) {
+    try {
+      const datos = await pedirORS('/openrouteservice/v2/directions/driving-car/json', {
+        method: 'POST',
+        body: { coordinates: puntos.map((p) => [p.lng, p.lat]), instructions: false },
+        tiempo: 5000
+      });
+      const ruta = (datos.routes || [])[0];
+      if (ruta) {
+        tramos = (ruta.segments || []).map((t) => t.duration);
+        distancia = ruta.summary ? ruta.summary.distance : null;
+        geometria = ruta.geometry || '';
+      }
+    } catch (e) {
+      tramos = null;
+    }
+  }
+  const aproximado = !tramos;
+  if (!tramos) {
+    tramos = [];
+    let metros = 0;
+    for (let i = 0; i < puntos.length - 1; i++) {
+      const km = distanciaKm(puntos[i], puntos[i + 1]) * 1.35;
+      metros += km * 1000;
+      tramos.push((km / 28) * 3600);
+    }
+    distancia = Math.round(metros);
+  }
 
   let t = salida;
   let pausaHecha = !pausa || !(pausa.minutos > 0) || pausa.hasta <= salida;
@@ -254,7 +342,7 @@ async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo
   };
   const lista = ordenadas.map((p, i) => {
     tomarPausa();
-    t += tramos[i] ? tramos[i].duration : 0;
+    t += tramos[i] || 0;
     // Si llega antes de que abra, espera
     if (Number.isFinite(p.desde) && t < p.desde) t = p.desde;
     const llegada = Math.round(t);
@@ -262,19 +350,53 @@ async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo
     return { id: p.id, llegada };
   });
   tomarPausa();
-  if (volver && tramos[ordenadas.length]) t += tramos[ordenadas.length].duration;
+  if (volver && tramos[ordenadas.length]) t += tramos[ordenadas.length];
 
-  const sinAsignar = ordenadas.filter((p, i) => Number.isFinite(p.hasta) && lista[i].llegada > p.hasta).map((p) => p.id);
+  const tarde = ordenadas.filter((p, i) => Number.isFinite(p.hasta) && lista[i].llegada > p.hasta).map((p) => p.id);
   return {
-    ruta: {
-      vehiculo,
-      paradas: lista,
-      distancia: ruta.summary ? ruta.summary.distance : null,
-      duracion: Math.round(t - salida),
-      fin: Math.round(t),
-      geometria: ruta.geometry || ''
-    },
-    llegaTarde: sinAsignar
+    ruta: { vehiculo, paradas: lista, distancia, duracion: Math.round(t - salida), fin: Math.round(t), geometria },
+    llegaTarde: tarde,
+    aproximado
+  };
+}
+
+/* Ruta en un orden elegido por el usuario (cercanía, horario de cierre, a mano) */
+async function rutaFija({ base, desde, volver, demora, salida, paradas, vehiculo, orden, pausa = null }) {
+  const inicio = desde || base;
+  const ordenadas = ordenarFijo(paradas, orden, base, inicio);
+  return rutaConOrden({ inicio, fin: base, volver, demora, salida, ordenadas, vehiculo, pausa });
+}
+
+/* Todo el cálculo sin el optimizador de OpenRouteService */
+async function resolverLocal({ base, baseDe, desde, volver, demora, salida, paradas, vehiculos, parejo, orden, pausa, noLleva, inicioEnSegundos }) {
+  let grupos;
+  if (parejo) {
+    grupos = repartoLocal(paradas, vehiculos, base, noLleva);
+  } else {
+    grupos = new Map();
+    paradas.forEach((p) => {
+      const v = vehiculos.includes(String(p.vehiculo)) ? String(p.vehiculo) : vehiculos[0];
+      if (!grupos.has(v)) grupos.set(v, []);
+      grupos.get(v).push(p);
+    });
+  }
+  // Si ya se usó mucho tiempo esperando, los tiempos se estiman sin volver a preguntar
+  const estimar = Date.now() - inicioEnSegundos > 9000;
+  const pedidos = [...grupos.entries()]
+    .filter(([, suyas]) => suyas.length)
+    .map(([vehiculo, suyas]) => {
+      const b = baseDe(vehiculo);
+      const inicio = desde || b;
+      const ordenadas = orden === 'optimo' ? ordenLocal(suyas, inicio, volver ? b : null) : ordenarFijo(suyas, orden, b, inicio);
+      return rutaConOrden({ inicio, fin: b, volver, demora, salida, ordenadas, vehiculo, pausa, estimar });
+    });
+  const hechos = await Promise.all(pedidos);
+  return {
+    rutas: hechos.map((h) => h.ruta),
+    sinAsignar: [],
+    llegaTarde: hechos.flatMap((h) => h.llegaTarde),
+    aproximado: true,
+    trazadoAproximado: hechos.some((h) => h.aproximado)
   };
 }
 
@@ -292,6 +414,7 @@ function textoDetalle(e) {
 }
 
 export default async function handler(req, res) {
+  const arranque = Date.now();
   if (req.method !== 'POST') return responder(res, 405, { error: 'metodo' });
   const uid = await verificarUsuario(req);
   if (!uid) return responder(res, 401, { error: 'sin-sesion' });
@@ -384,9 +507,19 @@ export default async function handler(req, res) {
     return responder(res, 200, { rutas, sinAsignar, llegaTarde });
   } catch (e) {
     console.log('[optimizar] error', e.message, e.estado || '', JSON.stringify(e.detalle || '').slice(0, 300));
+    if (e.message === 'falta-ORS_API_KEY') return responder(res, 500, { error: 'falta-clave' });
+    // El optimizador de OpenRouteService falló o no respondió: se ordena acá mismo
+    if (e.message === 'ors' || e.message === 'sin-ruta') {
+      try {
+        const parejo = cuerpo.modo === 'parejo' && vehiculos.length > 1;
+        const r = await resolverLocal({ base, baseDe, desde, volver, demora, salida, paradas, vehiculos, parejo, orden, pausa, noLleva, inicioEnSegundos: arranque });
+        return responder(res, 200, { ...r, motivo: textoDetalle(e) });
+      } catch (e2) {
+        console.log('[optimizar] error en el orden propio', e2.message);
+      }
+    }
     const limite = e.estado === 429;
     if (limite) return responder(res, 429, { error: 'limite-diario' });
-    if (e.message === 'falta-ORS_API_KEY') return responder(res, 500, { error: 'falta-clave' });
     if (e.estado === 401 || e.estado === 403) return responder(res, 502, { error: 'clave-invalida', detalle: textoDetalle(e) });
     return responder(res, 502, { error: 'optimizacion', detalle: textoDetalle(e) });
   }

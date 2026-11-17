@@ -119,6 +119,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
   let ordenadas = [];
   let sinAsignar = 0;
   let llegaTarde = 0;
+  let aproximado = false;
 
   // El plan gratis resuelve "parejo" hasta 3 fleteros y 48 paradas; si se pasa, se reparte por zonas parejas
   if (modo === 'parejo' && (vehiculos.length > 3 || pendientes.length > 48)) {
@@ -161,6 +162,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
     ordenadas = aplicado.paradas;
     sinAsignar = (resultado.sinAsignar || []).length;
     llegaTarde = (resultado.llegaTarde || []).length;
+    aproximado = !!resultado.aproximado;
   } else {
     ordenadas = pendientes;
   }
@@ -177,7 +179,7 @@ export async function calcularVuelta({ equipo, fecha, paradas, vehiculos, modo: 
     if (p.orden) p.orden += hechasPorFletero[p.fleteroUid] || 0;
   });
 
-  return { paradas: [...hechas, ...ordenadas], rutas, sinAsignar, llegaTarde, sinUbicacion, salida: horaSalida, orden };
+  return { paradas: [...hechas, ...ordenadas], rutas, sinAsignar, llegaTarde, sinUbicacion, aproximado, salida: horaSalida, orden };
 }
 
 export async function guardarCalculo(equipo, fecha, calculo, vueltaActual = null) {
